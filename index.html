@@ -533,10 +533,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
 <script>
 // ════════════════════════════════════════
-// CONFIG — ganti URL setelah deploy Apps Script
+// CONFIG — PENTING: Update URL setelah deploy Apps Script baru
 // ════════════════════════════════════════
+// Ganti dengan URL deployment Apps Script Anda:
+// Dari: https://script.google.com/macros/s/{ID}/exec
+// Lihat README.md langkah deployment
 var API_URL = 'https://script.google.com/macros/s/AKfycbyRpfaUvwJRPV5IQhQohC7s9VbhR3qSNvWm7cdDbaUhxie8R1jrOwOid0i-cucR9NUPlg/exec';
-// Contoh: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ════════════════════════════════════════
 // STATE
@@ -608,20 +610,36 @@ window.onload = function() {
     return;
   }
 
-  document.getElementById('load-msg').textContent = 'Memuat data stok…';
-  Promise.all([apiGet('items'), apiGet('people')])
-    .then(function(results) {
-      if (results[0].ok) STATE.items   = results[0].items   || [];
-      if (results[1].ok) STATE.people  = results[1].people  || [];
-      renderHome();
-      renderPeopleGrids();
-      renderKiosk();
-      goScreen('home-screen');
-    })
-    .catch(function() {
+  document.getElementById('load-msg').textContent = 'Menghubungkan ke Apps Script…';
+
+  // Set timeout untuk koneksi API
+  var apiTimeout = setTimeout(function() {
+    if (document.getElementById('loading-screen').style.display !== 'none') {
       loadDemoData();
       goScreen('home-screen');
-      showToast('⚠ Gagal koneksi — mode offline');
+      showToast('⚠ Koneksi timeout — gunakan mode offline');
+    }
+  }, 8000);
+
+  Promise.all([apiGet('items'), apiGet('people')])
+    .then(function(results) {
+      clearTimeout(apiTimeout);
+      if (results[0].ok && results[1].ok) {
+        STATE.items   = results[0].items   || [];
+        STATE.people  = results[1].people  || [];
+        renderHome();
+        renderPeopleGrids();
+        renderKiosk();
+        goScreen('home-screen');
+      } else {
+        throw new Error('API response not ok');
+      }
+    })
+    .catch(function(err) {
+      clearTimeout(apiTimeout);
+      loadDemoData();
+      goScreen('home-screen');
+      showToast('⚠ Gagal koneksi Apps Script — mode offline. Pastikan API_URL benar.');
     });
 };
 
