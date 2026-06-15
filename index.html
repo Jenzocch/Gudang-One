@@ -538,7 +538,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 // Ganti dengan URL deployment Apps Script Anda:
 // Dari: https://script.google.com/macros/s/{ID}/exec
 // Lihat README.md langkah deployment
-var API_URL = 'https://script.google.com/macros/s/AKfycbyNf1zmOFF2gt7XhVe78ruPF2HELgqOfSxy1TBzDkjpi3HGaM_NKwao4z-ZZUtfv9W1Ag/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbwn2ZKSl2y1hQdMdT2PXPb0sMvVUNweX1x1PyBGVq3CLNmzHfpARpdiPKFMicxj7vfXPw/exec';
 
 // ════════════════════════════════════════
 // STATE
@@ -600,30 +600,24 @@ window.onload = function() {
   updateClock();
   setInterval(updateClock, 30000);
 
-  // check if API_URL is configured
-  if (API_URL === 'https://script.google.com/macros/s/AKfycbyRpfaUvwJRPV5IQhQohC7s9VbhR3qSNvWm7cdDbaUhxie8R1jrOwOid0i-cucR9NUPlg/exec') {
-    document.getElementById('load-msg').textContent = '⚠ API URL belum dikonfigurasi — mode demo';
-    setTimeout(function(){
-      loadDemoData();
-      goScreen('home-screen');
-    }, 1500);
-    return;
-  }
-
   document.getElementById('load-msg').textContent = 'Menghubungkan ke Apps Script…';
 
-  // Set timeout untuk koneksi API
-  var apiTimeout = setTimeout(function() {
-    if (document.getElementById('loading-screen').style.display !== 'none') {
+  var apiDone = false;
+
+  // Auto fallback ke demo mode setelah 6 detik
+  setTimeout(function() {
+    if (!apiDone) {
+      apiDone = true;
       loadDemoData();
       goScreen('home-screen');
-      showToast('⚠ Koneksi timeout — gunakan mode offline');
+      showToast('⚠ Timeout — mode offline');
     }
-  }, 8000);
+  }, 6000);
 
   Promise.all([apiGet('items'), apiGet('people')])
     .then(function(results) {
-      clearTimeout(apiTimeout);
+      if (apiDone) return;
+      apiDone = true;
       if (results[0].ok && results[1].ok) {
         STATE.items   = results[0].items   || [];
         STATE.people  = results[1].people  || [];
@@ -632,14 +626,17 @@ window.onload = function() {
         renderKiosk();
         goScreen('home-screen');
       } else {
-        throw new Error('API response not ok');
+        loadDemoData();
+        goScreen('home-screen');
+        showToast('⚠ API error — mode offline');
       }
     })
-    .catch(function(err) {
-      clearTimeout(apiTimeout);
+    .catch(function() {
+      if (apiDone) return;
+      apiDone = true;
       loadDemoData();
       goScreen('home-screen');
-      showToast('⚠ Gagal koneksi Apps Script — mode offline. Pastikan API_URL benar.');
+      showToast('⚠ Gagal koneksi — mode offline');
     });
 };
 

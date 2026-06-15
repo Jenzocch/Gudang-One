@@ -3,7 +3,7 @@
 // Sheet ID: 1cyyNcaF_eQwdgytsG-U2UGkni8ibgjj4F4Uo2Kgbm-8
 // ═══════════════════════════════════════════════════
 
-var SHEET_ID       = '1cyyNcaF_eQwdgytsG-U2UGkni8ibgjj4F4Uo2Kgbm-8';
+var SHEET_ID       = '1Ac0BjIKWUcs6DQeZzE_kqOo3jNBt_JKt_C3bz72kpqU';
 var TELEGRAM_TOKEN = 'ISI_BOT_TOKEN_KAMU';
 var TELEGRAM_CHAT  = 'ISI_CHAT_ID_ADMIN';
 var CLAUDE_KEY     = 'ISI_CLAUDE_API_KEY';
