@@ -228,7 +228,8 @@ var T = {
     takeOk:'✓ 取貨成功',rcvOk:'✓ 入貨成功',saveOk:'✓ 儲存成功',delOk:'✓ 已刪除',reqOk:'✓ 申請已送出',
     selBoth:'⚠ 請選擇商品和人員',fillAll:'⚠ 請填寫姓名和申請內容',
     stockVal:'總庫存價值',avgCost:'平均成本',
-    out:'取出',in:'入庫',purchases:'採購',catg:'分類'},
+    out:'取出',in:'入庫',purchases:'採購',catg:'分類',
+    newName:'輸入新名字',selItem2:'選擇現有商品',newItem:'新品/其他',itemDesc:'品項內容'},
   id:{title:'Sistem Gudang',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
@@ -249,7 +250,8 @@ var T = {
     takeOk:'✓ Berhasil diambil',rcvOk:'✓ Berhasil masuk',saveOk:'✓ Disimpan',delOk:'✓ Dihapus',reqOk:'✓ Permintaan terkirim',
     selBoth:'⚠ Pilih barang dan orang',fillAll:'⚠ Isi nama dan barang',
     stockVal:'Total Nilai Stok',avgCost:'Rata-rata Harga',
-    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori'}
+    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori',
+    newName:'Masukkan nama baru',selItem2:'Pilih barang yang ada',newItem:'Barang baru/lainnya',itemDesc:'Deskripsi item'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
 function toggleLang(){LANG=LANG==='zh'?'id':'zh';localStorage.setItem('lang',LANG);updateLangUI();if(DATA.items.length)renderAll();}
@@ -733,17 +735,17 @@ function renderPermintaan(){
       '<select id="rn-sel" onchange="onReqNameSel()" style="margin-bottom:.4rem">'+
         '<option value="">-- '+t('selPerson')+' --</option>'+
         DATA.people.map(function(p){return'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>';}).join('')+
-        '<option value="__new__">✏️ 輸入新名字...</option>'+
+        '<option value="__new__">✏️ '+t('newName')+'</option>'+
       '</select>'+
       '<input id="rn" type="text" placeholder="'+t('myName')+'..." style="display:none">'+
     '</div>'+
     '<div class="ig"><label>'+t('reqItems')+'</label>'+
       '<select id="ri-sel" onchange="onReqItemSel()" style="margin-bottom:.4rem">'+
-        '<option value="">-- 選擇現有商品 --</option>'+
-        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' (庫存:'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
-        '<option value="__new__">✏️ 新品/其他...</option>'+
+        '<option value="">-- '+t('selItem2')+' --</option>'+
+        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' ('+t('item')+':'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
+        '<option value="__new__">✏️ '+t('newItem')+'</option>'+
       '</select>'+
-      '<textarea id="ri" placeholder="品項內容..." style="display:none"></textarea>'+
+      '<textarea id="ri" placeholder="'+t('itemDesc')+'..." style="display:none"></textarea>'+
     '</div>'+
     '<div class="ig"><label>'+(LANG==='zh'?'📷 附上照片（可選）':'📷 Foto (opsional)')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
