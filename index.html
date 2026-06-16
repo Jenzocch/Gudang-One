@@ -1169,7 +1169,8 @@ async function saveItem(){
 async function delItem(id){
   var item=DATA.items.find(function(i){return i.id===id;});
   if(!item)return;
-  if(!confirm((LANG==='zh'?'確定刪除「':'Hapus "')+ esc(item.name)+(LANG==='zh'?'」?':'"?')))return;
+  var msg=LANG==='zh'?'確定刪除「'+esc(item.name)+'」?':'Hapus "'+esc(item.name)+'"?';
+  if(!confirm(msg))return;
   try{var {error}=await sb.from('items').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
@@ -1213,7 +1214,8 @@ async function addPerson(){
 async function delPerson(id){
   var person=DATA.people.find(function(p){return p.id===id;});
   if(!person)return;
-  if(!confirm((LANG==='zh'?'確定刪除員工「':'Hapus karyawan "')+ esc(person.name)+(LANG==='zh'?'」?':'"?')))return;
+  var msg=LANG==='zh'?'確定刪除員工「'+esc(person.name)+'」?':'Hapus karyawan "'+esc(person.name)+'"?';
+  if(!confirm(msg))return;
   try{var {error}=await sb.from('people').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
