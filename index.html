@@ -119,6 +119,7 @@ textarea{resize:vertical;min-height:75px}
 .ai-info{flex:1;min-width:0}
 .ai-name{font-weight:600;font-size:.93rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ai-detail{font-size:.8rem;color:#64748B;margin-top:.15rem}
+.ai-detail.low-txt{color:var(--danger);font-weight:600}
 .ai-link{color:var(--p);font-size:.78rem}
 .ai-actions{display:flex;gap:.4rem;flex-shrink:0;margin-left:.5rem}
 .ib{width:40px;height:40px;border:none;background:var(--light);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
@@ -208,9 +209,11 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   </div>
 </div>
 
+<input type="file" id="ps-inp" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSearch(event)">
+
 <div class="scan-ov" id="scan-ov">
   <div id="scan-box"></div>
-  <div class="scan-hint" id="scan-hint">對準條碼 / Arahkan ke barcode</div>
+  <div class="scan-hint" id="scan-hint">對準 QR Code / Arahkan ke QR Code</div>
   <button class="scan-close" onclick="stopScan()">✕ 關閉</button>
 </div>
 
@@ -231,9 +234,11 @@ var SUPA_URL = 'https://klswfuzuhlowzrbncreu.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmdXp1aGxvd3pyYm5jcmV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjM5NTEsImV4cCI6MjA5NzA5OTk1MX0.yfqyBjGFwMsryWZszo-nONINYG8QdcIAUGL97TEWgDk';
 var ADMIN_PIN = '123456'; // ← 修改管理員 PIN
 var GUEST_PIN = '0000';  // ← 新人臨時 PIN（口頭告知）
+var GEMINI_KEY = '';     // ← 填入 Gemini API Key (免費申請: aistudio.google.com)
 // ══════════════════════════════════
 
 var LANG = localStorage.getItem('lang') || 'zh';
+if(localStorage.getItem('gemini_key'))GEMINI_KEY=localStorage.getItem('gemini_key');
 var T = {
   zh:{title:'倉庫管理',home:'首頁',take:'取貨',receive:'入貨',req:'申請',hist:'記錄',adm:'管理',
     conn:'連線中...',ok:'已連線',err:'連線失敗',items:'商品種類',people:'員工',
@@ -545,7 +550,8 @@ function renderAmbil(){
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="startScan(\'amb\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button>'+
+    '<button onclick="startScan(\'amb\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷 QR</button>'+
+    '<button onclick="startPhotoSearch(\'amb\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer;margin-left:.3rem">🤖 AI</button>'+
     '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;margin-left:.3rem">☰</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
     '</div>'+
@@ -698,7 +704,8 @@ function renderMasuk(){
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📥</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('receive')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="startScan(\'msk\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button></div>'+
+    '<button onclick="startScan(\'msk\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷 QR</button>'+
+    '<button onclick="startPhotoSearch(\'msk\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer;margin-left:.3rem">🤖 AI</button></div>'+
     '<input id="msrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltMask()" style="margin:0">'+
     '</div>'+
     '<div class="cat-bar" id="msk-cats">'+catChips(cats,'msk')+'</div>'+
@@ -989,10 +996,8 @@ function renderAdminFull(){
   document.getElementById('admin').innerHTML=
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
-      '<button class="tsw" onclick="swATab(this,\'apu\')">💰 '+t('purchases')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'acat\')">🏷️ '+(LANG==='zh'?'分類':'Kategori')+'</button>'+
-      '<button class="tsw" onclick="swATab(this,\'aimp\')">📊 Excel</button>'+
       '<button class="tsw" onclick="swATab(this,\'apin\')">🔑 PIN</button>'+
     '</div>'+
     '<div class="val-bar"><div class="val-bar-lbl">'+t('stockVal')+'</div><div class="val-bar-val">'+fmtC(tv)+'</div></div>'+
@@ -1000,46 +1005,29 @@ function renderAdminFull(){
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddItem()">➕ '+t('addItem')+'</button></div>'+
       '<div class="ai-list" id="ai-list">'+aiListHTML()+'</div>'+
     '</div>'+
-    '<div id="acat" class="tc" style="display:none"></div>'+
-    '<div id="apin" class="tc" style="display:none"></div>'+
-    '<div id="apu" class="tc">'+
-      '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddBuy()">➕ '+t('addBuy')+'</button></div>'+
-      '<div id="apu-list">'+puListHTML()+'</div>'+
-    '</div>'+
     '<div id="ape" class="tc">'+
       '<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
       '<div class="ig"><label>'+t('pName')+'</label><input id="npn" type="text"></div>'+
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
-    '<div id="acat" class="tc"></div>'+
-    '<div id="apin" class="tc"></div>'+
-    '<div id="aimp" class="tc">'+
-      '<div class="card"><div class="card-title">📊 '+t('bulk')+'</div>'+
-      '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+(LANG==='zh'?'方法1：上傳 Excel / CSV 文件':'Metode 1: Upload file Excel / CSV')+'</p>'+
-      '<div class="ig"><input type="file" id="imp-file" accept=".xlsx,.xls,.csv" onchange="onImpFile()"></div>'+
-      '<p style="font-size:.78rem;color:#6B7280;margin:.7rem 0 .5rem">'+(LANG==='zh'?'方法2：貼上內容':'Metode 2: Tempel konten')+'</p>'+
-      '<p style="font-size:.75rem;color:#94A3B8;margin-bottom:.5rem">'+t('bulkHint')+'</p>'+
-      '<div class="imp-box"><textarea id="imp-txt" placeholder="'+(LANG==='zh'?'貼上 Excel 資料...':'Tempel data Excel...')+'" oninput="prevImp()"></textarea></div>'+
-      '<div id="imp-prev" style="margin:.5rem 0"></div>'+
-      '<button class="btn btn-p btn-full" onclick="doImport()">⬆️ '+t('impBtn')+'</button>'+
-      '</div>'+
-    '</div>'+
+    '<div id="acat" class="tc" style="display:none"></div>'+
+    '<div id="apin" class="tc" style="display:none"></div>'+
     '<div style="padding:1rem .7rem;text-align:center;border-top:2px solid var(--border);background:#FEF2F2;margin-top:1rem"><button class="btn btn-d" style="width:100%;font-size:.95rem;font-weight:700" onclick="if(confirm(\''+t('logout')+'?\'))logoutAdmin()">🔒 '+t('logout')+'</button></div>';
 }
 function aiListHTML(){
   return DATA.items.map(function(i){
-    var ac=avgCost(i.id);
-    var ph=i.image_url?'<img style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
+    var ph=i.image_url?'<img style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="ai-img">📦</div>';
+    var low=i.qty<=i.critical_qty;
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
-        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(i.category?' · 📁'+esc(i.category):'')+(i.barcode?' · 🔖'+esc(i.barcode):'')+(ac?' · '+fmtC(ac)+'/'+esc(i.unit):'')+'</div>'+
-        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 採購連結</a>':'')+'</div>'+
+        '<div class="ai-detail'+(low?' low-txt':'')+'">'+i.qty+' '+esc(i.unit)+(low?' ⚠':'')+' · min:'+i.critical_qty+(i.category?' · 📁'+esc(i.category):'')+'</div>'+
+        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🛒 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'')+'</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" onclick="showEdit('+i.id+')">✏️</button>'+
-        '<button class="ib" onclick="delItem('+i.id+')">🗑️</button>'+
+        '<button class="ib" style="color:var(--danger)" onclick="delItem('+i.id+')">🗑️</button>'+
       '</div></div>';
   }).join('')||'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">-</div>';
 }
@@ -1429,6 +1417,74 @@ function swATab(el,id){
     if(id==='acat')renderCategories();
   }
 }
+// AI PHOTO SEARCH
+var PHOTO_MODE='amb';
+function startPhotoSearch(mode){
+  if(!GEMINI_KEY){
+    showModal(LANG==='zh'?'🔑 設定 Gemini API Key':'🔑 Setup Gemini API Key',
+      '<p style="font-size:.85rem;color:#64748B;margin-bottom:1rem">'+
+      (LANG==='zh'?'免費申請：前往 aistudio.google.com → 點「Get API Key」→ 複製貼上':'Gratis: Buka aistudio.google.com → Klik "Get API Key" → Copy paste')+
+      '</p>'+
+      '<div class="ig"><label>Gemini API Key</label><input id="gk-inp" type="text" placeholder="AIza..."></div>'+
+      '<button class="btn btn-p btn-full" onclick="saveGeminiKey()">'+(LANG==='zh'?'儲存':'Simpan')+'</button>'
+    );
+    return;
+  }
+  PHOTO_MODE=mode;
+  document.getElementById('ps-inp').click();
+}
+function saveGeminiKey(){
+  var k=(document.getElementById('gk-inp').value||'').trim();
+  if(!k){toast('⚠ Key 不能空白');return;}
+  GEMINI_KEY=k;
+  localStorage.setItem('gemini_key',k);
+  toast('✓ API Key 已儲存');
+  closeModal();
+}
+async function onPhotoSearch(e){
+  var f=e.target.files[0];
+  if(!f)return;
+  e.target.value='';
+  var toastEl=document.createElement('div');
+  toastEl.className='toast';
+  toastEl.textContent=LANG==='zh'?'🤖 AI 辨識中...':'🤖 AI sedang analisis...';
+  document.body.appendChild(toastEl);
+  compressImg(f,async function(b64){
+    var base64=b64.split(',')[1];
+    var mime=f.type||'image/jpeg';
+    try{
+      var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+GEMINI_KEY,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[
+          {inline_data:{mime_type:mime,data:base64}},
+          {text:'Look at this product/item photo. Reply with ONLY the product name in 3-5 words. If there is a brand label or text, use that. No explanations, just the name.'}
+        ]}]})
+      });
+      toastEl.remove();
+      if(!res.ok)throw new Error('API error '+res.status);
+      var data=await res.json();
+      var name=((data.candidates||[])[0]||{}).content;
+      name=((name&&name.parts||[])[0]||{}).text||'';
+      name=name.trim().replace(/["""''*\n]/g,'').substring(0,60);
+      if(!name){toast(LANG==='zh'?'⚠ 無法辨識':'⚠ Tidak bisa dikenali');return;}
+      var srchId=PHOTO_MODE==='amb'?'asrch':'msrch';
+      var srch=document.getElementById(srchId);
+      if(srch){srch.value=name;}
+      if(PHOTO_MODE==='amb')fltAmb();else fltMask();
+      toast('🤖 '+name);
+    }catch(err){
+      toastEl.remove();
+      if(err.message.includes('403')||err.message.includes('400')){
+        GEMINI_KEY='';localStorage.removeItem('gemini_key');
+        toast(LANG==='zh'?'⚠ API Key 無效，請重新設定':'⚠ API Key tidak valid');
+      }else{
+        toast('⚠ '+err.message);
+      }
+    }
+  });
+}
+
 // BARCODE SCANNER
 var SCAN_MODE='amb';
 var SCAN_QR=null;
