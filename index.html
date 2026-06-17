@@ -379,8 +379,10 @@ function staffLogout(){
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   // 重設標籤顯示
   var tabMasuk=document.querySelectorAll('.tb')[2];
+  var tabRiwayat=document.querySelectorAll('.tb')[4];
   var tabAdmin=document.querySelectorAll('.tb')[5];
   if(tabMasuk)tabMasuk.style.display='none';
+  if(tabRiwayat)tabRiwayat.style.display='none';
   if(tabAdmin)tabAdmin.style.display='none';
   renderLoginScreen();
 }
@@ -438,8 +440,10 @@ async function loadAll(afterCb){
 function renderAll(){
   // 根據身份控制標籤顯示
   var tabMasuk=document.querySelectorAll('.tb')[2];
+  var tabRiwayat=document.querySelectorAll('.tb')[4];
   var tabAdmin=document.querySelectorAll('.tb')[5];
   if(tabMasuk)tabMasuk.style.display=IS_ADMIN?'':'none';
+  if(tabRiwayat)tabRiwayat.style.display=IS_ADMIN?'':'none';
   if(tabAdmin)tabAdmin.style.display=IS_ADMIN?'':'none';
   document.getElementById('mc').innerHTML=
     '<div id="home" class="sec active"></div>'+
