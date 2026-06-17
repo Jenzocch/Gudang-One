@@ -1,0 +1,18 @@
+{
+  "name": "Sistem Gudang Inventory",
+  "short_name": "Gudang",
+  "description": "倉庫物料進出管理系統",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#134E4A",
+  "theme_color": "#0D9488",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
