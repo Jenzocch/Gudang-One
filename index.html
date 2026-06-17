@@ -5,19 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>倉庫管理系統</title>
 <script>
-// 動態載入腳本，不阻塞頁面
-function loadScript(src,cb){var s=document.createElement('script');s.src=src;s.onload=cb||function(){};s.onerror=function(){console.warn('Script load failed:',src);if(cb)cb();};document.head.appendChild(s);}
-var QR_LIB_LOADED=false;
-var SUPA_LIB_LOADED=false;
-function ensureQRLib(cb){
-  if(QR_LIB_LOADED){cb();return;}
-  loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',function(){QR_LIB_LOADED=true;cb();});
-}
-function ensureSupabase(cb){
-  if(SUPA_LIB_LOADED&&typeof supabase!=='undefined'){cb();return;}
-  loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',function(){
-    SUPA_LIB_LOADED=true;cb();
-  });
+function loadScript(src,cb,errCb){var s=document.createElement('script');s.src=src;s.onload=cb||function(){};s.onerror=errCb||function(){if(cb)cb();};document.head.appendChild(s);}
+var _sbReady=false,_sbErr=false,_sbCbs=[];
+function initSupabase(ok,fail){
+  if(_sbReady){ok();return;}
+  if(_sbErr){if(fail)fail(new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal muat Supabase':'無法載入 Supabase'));return;}
+  _sbCbs.push({ok:ok,fail:fail||function(){}});
+  if(_sbCbs.length>1)return;
+  loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+    function(){_sbReady=true;if(typeof sb==='undefined'||!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);_sbCbs.forEach(function(x){x.ok();});_sbCbs=[];},
+    function(){_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal muat library, periksa jaringan':'無法載入函式庫，請檢查網路');_sbCbs.forEach(function(x){x.fail(e);});_sbCbs=[];}
+  );
 }
 </script>
 <style>
@@ -26,7 +24,6 @@ function ensureSupabase(cb){
 html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#E2E8F0;color:var(--dark);font-size:16px}
 body{display:flex;flex-direction:column}
 #app{flex:1;display:flex;flex-direction:column;overflow:hidden;max-width:560px;margin:0 auto;width:100%;background:var(--light);box-shadow:0 0 40px rgba(0,0,0,.15)}
-@media(min-width:600px){#app{max-width:900px}.tabs{max-width:900px}.modal{max-width:900px}}
 .hdr{background:linear-gradient(135deg,#134E4A,#0D9488);color:#fff;padding:.85rem 1.1rem;display:flex;align-items:center;justify-content:space-between}
 .hdr-title{line-height:1.25}
 .hdr-title-main{font-size:1rem;font-weight:800;letter-spacing:.01em}
@@ -36,17 +33,11 @@ body{display:flex;flex-direction:column}
 .lang-btn:hover{background:rgba(255,255,255,.28)}
 .conn-dot{width:8px;height:8px;border-radius:50%;background:#6B7280;flex-shrink:0}
 .conn-dot.ok{background:#34D399}.conn-dot.err{background:#F87171}
-.content{flex:1;overflow-y:auto;padding-bottom:115px;-webkit-overflow-scrolling:touch}
-.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
-.tabs::-webkit-scrollbar{height:3px}
-.tabs::-webkit-scrollbar-track{background:transparent}
-.tabs::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
-.tb{padding:1rem .8rem;border:none;background:none;cursor:pointer;font-size:.9rem;font-weight:700;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.3rem;min-height:115px;touch-action:manipulation;white-space:nowrap;flex-shrink:0;min-width:max-content}
-.tb-icon{font-size:1.8rem;line-height:1}
+.content{flex:1;overflow-y:auto;padding-bottom:72px;-webkit-overflow-scrolling:touch}
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
+.tb{flex:1;padding:.6rem .1rem;border:none;background:none;cursor:pointer;font-size:.72rem;font-weight:500;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.12rem}
+.tb-icon{font-size:1.2rem}
 .tb.active{color:var(--p)}
-.tb.active-take{color:var(--danger)!important}
-.tb.active-recv{color:var(--ok)!important}
-@media(min-width:600px){.tb{font-size:1rem;padding:1.1rem 1rem;min-height:120px}.tb-icon{font-size:2rem}}
 .sec{display:none}.sec.active{display:block;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .card{background:#fff;border-radius:12px;padding:1.1rem;margin:.7rem;box-shadow:0 1px 6px rgba(0,0,0,.07)}
@@ -75,7 +66,7 @@ textarea{resize:vertical;min-height:75px}
 .sr:last-child{border:none}
 .sl{color:#64748B;font-size:.9rem}
 .sv{font-weight:600;font-size:.95rem}
-.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#0F172A;color:#fff;padding:.75rem 1.4rem;border-radius:24px;z-index:500;white-space:nowrap;font-size:.9rem;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.3);animation:toastIn .3s ease}
+.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:#0F172A;color:#fff;padding:.75rem 1.4rem;border-radius:24px;z-index:500;white-space:nowrap;font-size:.9rem;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.3);animation:toastIn .3s ease}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-end;justify-content:center}
 .modal-ov.open{display:flex}
@@ -83,10 +74,9 @@ textarea{resize:vertical;min-height:75px}
 @keyframes mIn{from{transform:translateY(100%)}to{transform:none}}
 .modal-title{font-size:1.05rem;font-weight:700;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
 .mcl{background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94A3B8}
-.tab-nav{display:flex;border-bottom:2px solid var(--border);background:#fff;position:sticky;top:0;z-index:10;overflow-x:auto;padding:.2rem 0}
-.tsw{min-width:max-content;padding:.75rem 1rem;border:none;background:none;cursor:pointer;font-weight:700;color:#94A3B8;font-size:.9rem;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.2s;white-space:nowrap}
-.tsw:hover{color:#64748B}
-.tsw.act{color:var(--p);border-bottom-color:var(--p);background:#F0FDFA}
+.tab-nav{display:flex;border-bottom:2px solid var(--border);background:#fff;position:sticky;top:0;z-index:10;overflow-x:auto}
+.tsw{flex:1;min-width:max-content;padding:.7rem .6rem;border:none;background:none;cursor:pointer;font-weight:500;color:#94A3B8;font-size:.86rem;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tsw.act{color:var(--p);border-bottom-color:var(--p)}
 .tc{display:none}.tc.active{display:block}
 .ig-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:.6rem;padding:.7rem}
 .ic{background:#fff;border:2px solid var(--border);border-radius:10px;padding:.6rem;text-align:center;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
@@ -133,10 +123,8 @@ textarea{resize:vertical;min-height:75px}
 .ai-name{font-weight:600;font-size:.93rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ai-detail{font-size:.8rem;color:#64748B;margin-top:.15rem}
 .ai-link{color:var(--p);font-size:.78rem}
-.ai-actions{display:flex;gap:.4rem;flex-shrink:0;margin-left:.5rem}
-.ib{width:40px;height:40px;border:none;background:var(--light);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-.ib:hover{background:#E2E8F0;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.1)}
-.ib:active{transform:translateY(0)}
+.ai-actions{display:flex;gap:.3rem;flex-shrink:0}
+.ib{width:32px;height:32px;border:1.5px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem}
 .ib:hover{background:var(--light)}
 .pu-item{background:#fff;padding:.9rem;margin:.4rem .7rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .pu-hdr{display:flex;justify-content:space-between;margin-bottom:.35rem}
@@ -169,36 +157,24 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .low-ov.open{display:flex}
 .low-box{background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:380px;border-top:6px solid var(--danger)}
 .low-title{color:var(--danger);font-weight:700;font-size:1.1rem;margin-bottom:.5rem}
-.amb-row{display:flex;align-items:center;justify-content:space-between;padding:.65rem .9rem;border-bottom:1px solid #F3F4F6;gap:.7rem}
+.amb-row{display:flex;align-items:center;justify-content:space-between;padding:.55rem .9rem;border-bottom:1px solid #F3F4F6;gap:.6rem}
 .amb-row.amb-empty{opacity:.35}
-.amb-info{display:flex;align-items:center;gap:.65rem;flex:1;min-width:0}
-.amb-th{width:70px;height:70px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:zoom-in;transition:.15s}
-.amb-th:hover{box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.amb-th-ph{width:70px;height:70px;border-radius:10px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0}
+.amb-info{display:flex;align-items:center;gap:.55rem;flex:1;min-width:0}
+.amb-th{width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in}
+.amb-th-ph{width:52px;height:52px;border-radius:8px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
 .img-ov{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out}
 .amb-name{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .amb-stk{font-size:.71rem;color:#6B7280;margin-top:.1rem}
 .amb-stk.low{color:var(--danger);font-weight:600}
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
 .hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.2rem .6rem;border-radius:12px;cursor:pointer;font-size:.75rem;font-weight:600;display:none}
-.cat-bar{display:flex;gap:.4rem;padding:.5rem .7rem;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border)}
-.cat-chip{padding:.3rem .75rem;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap;color:#64748B;flex-shrink:0}
-.cat-chip.active{background:var(--p);color:#fff;border-color:var(--p)}
-.scan-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:998;flex-direction:column;align-items:center;justify-content:center}
-.scan-ov.open{display:flex}
-#scan-box{width:280px;height:280px;border-radius:16px;overflow:hidden}
-.scan-hint{color:#fff;font-size:.85rem;margin-top:1rem;opacity:.8}
-.scan-close{margin-top:1.2rem;background:rgba(255,255,255,.2);color:#fff;border:none;padding:.6rem 1.5rem;border-radius:20px;cursor:pointer;font-size:.9rem}
-.qr-box{background:#fff;padding:1rem;border-radius:10px;text-align:center;margin:.5rem 0;border:1.5px solid var(--border)}
-.qr-code{display:inline-block;padding:.5rem;background:#fff}
-.qr-hint{font-size:.75rem;color:#64748B;margin-top:.3rem}
 </style>
 </head>
 <body>
 <div id="app">
   <div class="hdr">
     <div class="hdr-title">
-      <div class="hdr-title-main">Sistem Gudang Inventory</div>
+      <div class="hdr-title-main">🏭 Sistem Gudang Inventory</div>
       <div class="hdr-title-sub">倉庫物料進出管理系統</div>
     </div>
     <div class="hdr-right">
@@ -213,18 +189,11 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   <div class="tabs" id="tabs" style="display:none">
     <button class="tb active" onclick="goTab('home',this)"><span class="tb-icon">🏠</span><span id="tl-h"></span></button>
     <button class="tb" onclick="goTab('ambil',this)"><span class="tb-icon">📤</span><span id="tl-a"></span></button>
-    <button class="tb" id="tb-masuk" onclick="goTab('masuk',this)"><span class="tb-icon">📥</span><span id="tl-m"></span></button>
-    <button class="tb" onclick="goTab('catalog',this)"><span class="tb-icon">📚</span><span id="tl-cat"></span></button>
+    <button class="tb" onclick="goTab('masuk',this)"><span class="tb-icon">📥</span><span id="tl-m"></span></button>
     <button class="tb" onclick="goTab('permintaan',this)"><span class="tb-icon">📋</span><span id="tl-r"></span></button>
-    <button class="tb" id="tb-riwayat" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi"></span></button>
-    <button class="tb" id="tb-admin" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm"></span></button>
+    <button class="tb" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi"></span></button>
+    <button class="tb" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm"></span></button>
   </div>
-</div>
-
-<div class="scan-ov" id="scan-ov">
-  <div id="scan-box"></div>
-  <div class="scan-hint" id="scan-hint">對準條碼 / Arahkan ke barcode</div>
-  <button class="scan-close" onclick="stopScan()">✕ 關閉</button>
 </div>
 
 <div class="low-ov" id="low-ov">
@@ -268,10 +237,7 @@ var T = {
     takeOk:'✓ 取貨成功',rcvOk:'✓ 入貨成功',saveOk:'✓ 儲存成功',delOk:'✓ 已刪除',reqOk:'✓ 申請已送出',
     selBoth:'⚠ 請選擇商品和人員',fillAll:'⚠ 請填寫姓名和申請內容',
     stockVal:'總庫存價值',avgCost:'平均成本',
-    out:'取出',in:'入庫',purchases:'採購',catg:'分類',
-    newName:'輸入新名字',selItem2:'選擇現有商品',newItem:'新品/其他',itemDesc:'品項內容',
-    scanBarcode:'掃條碼',allCat:'全部',barcode:'條碼',category:'分類',noAccess:'無權限查看',
-    catalog:'目錄',catTitle:'產品目錄'},
+    out:'取出',in:'入庫',purchases:'採購',catg:'分類'},
   id:{title:'Sistem Gudang',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
@@ -292,17 +258,14 @@ var T = {
     takeOk:'✓ Berhasil diambil',rcvOk:'✓ Berhasil masuk',saveOk:'✓ Disimpan',delOk:'✓ Dihapus',reqOk:'✓ Permintaan terkirim',
     selBoth:'⚠ Pilih barang dan orang',fillAll:'⚠ Isi nama dan barang',
     stockVal:'Total Nilai Stok',avgCost:'Rata-rata Harga',
-    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori',
-    newName:'Masukkan nama baru',selItem2:'Pilih barang yang ada',newItem:'Barang baru/lainnya',itemDesc:'Deskripsi item',
-    scanBarcode:'Scan Barcode',allCat:'Semua',barcode:'Barcode',category:'Kategori',noAccess:'Tidak ada akses',
-    catalog:'Katalog',catTitle:'Katalog Produk'}
+    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
 function toggleLang(){LANG=LANG==='zh'?'id':'zh';localStorage.setItem('lang',LANG);updateLangUI();if(DATA.items.length)renderAll();}
 function updateLangUI(){
   var lb=document.getElementById('lang-btn');if(lb)lb.textContent=LANG==='zh'?'ID':'中文';
   var lt=document.getElementById('lt');if(lt)lt.textContent=t('conn');
-  ['h','a','m','cat','r','hi','adm'].forEach(function(k,i){var el=document.getElementById('tl-'+k);if(el)el.textContent=[t('home'),t('take'),t('receive'),t('catalog'),t('req'),t('hist'),t('adm')][i];});
+  ['h','a','m','r','hi','adm'].forEach(function(k,i){var el=document.getElementById('tl-'+k);if(el)el.textContent=[t('home'),t('take'),t('receive'),t('req'),t('hist'),t('adm')][i];});
 }
 
 function renderLoginScreen(){
@@ -311,6 +274,7 @@ function renderLoginScreen(){
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   document.getElementById('mc').innerHTML=
     '<div class="login-wrap">'+
+    '<div style="font-size:3rem;margin-bottom:.5rem">🏭</div>'+
     '<h1 style="font-size:1.1rem;color:var(--dark);margin-bottom:1.5rem">'+t('title')+'</h1>'+
     '<div class="ig" style="width:100%;max-width:260px">'+
     '<label style="text-align:center;display:block">'+t('selPerson')+'</label>'+
@@ -332,21 +296,11 @@ function renderLoginScreen(){
     '</div></div>'+
     '<button class="btn btn-s" style="margin-top:1.8rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
     '</div>';
-  // 背景載入員工列表
-  ensureSupabase(function(){
-    if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);
-    sb.from('people').select('*').order('name').then(function(res){
-      if(res.data){
-        DATA.people=res.data;
-        var sel=document.getElementById('ls-sel');
-        if(sel){
-          sel.innerHTML='<option value="">-- '+t('selPerson')+' --</option>'+
-            DATA.people.map(function(p){return'<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+
-            '<option value="__new__">✏️ '+(LANG==='zh'?'新用戶（第一次）':'Pengguna Baru')+'</option>';
-        }
-      }
+  initSupabase(function(){
+    sb.from('people').select('id,name,initials,pin').order('name').then(function(res){
+      if(res.data&&res.data.length){DATA.people=res.data;var sel=document.getElementById('ls-sel');if(sel){sel.innerHTML='<option value="">-- '+t('selPerson')+' --</option>'+DATA.people.map(function(p){return'<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+'<option value="__new__">✏️ '+(LANG==='zh'?'新用戶（第一次）':'Pengguna Baru')+'</option>';}}
     });
-  });
+  },function(){});
 }
 function adminLogin(){
   var pin=prompt(LANG==='zh'?'請輸入管理員 PIN（6位）':'PIN Admin (6 digit)');
@@ -357,10 +311,11 @@ function adminLogin(){
     var btn=document.getElementById('hdr-user-btn');
     if(btn){btn.textContent='▶ '+CURRENT_USER.name;btn.style.display='inline';}
     document.getElementById('tabs').style.display='flex';
-    document.getElementById('mc').innerHTML='<div style="padding:2rem;text-align:center;color:#64748B">'+(LANG==='zh'?'載入中...':'Memuat...')+'</div>';
-    ensureSupabase(function(){
-      if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+    document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+(LANG==='zh'?'載入中...':'Memuat...')+'</p></div>';
+    initSupabase(function(){
       loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);});
+    },function(e){
+      document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'</div>';
     });
   }else{
     alert(t('wrongPin'));
@@ -376,8 +331,7 @@ function onLoginSel(){
   if(!sel.value){area.style.display='none';if(nn)nn.style.display='none';return;}
   if(sel.value==='__new__'){
     if(nn)nn.style.display='block';
-    var pinDisplay=GEN_PIN_ADMIN||GUEST_PIN;
-    if(hint)hint.textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+pinDisplay:'Pengguna baru masukkan PIN sementara: '+pinDisplay;
+    if(hint)hint.textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+GUEST_PIN:'Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
   }else{
     if(nn){nn.style.display='none';nn.value='';}
     if(hint)hint.textContent='';
@@ -391,7 +345,7 @@ function lpk(k){
   if(STAFF_PIN_ENT.length===4){
     var pid=document.getElementById('ls-sel').value;
     var isNew=pid==='__new__';
-    var correct=isNew?(GEN_PIN_ADMIN||GUEST_PIN):(function(){var p=DATA.people.find(function(p){return p.id==pid;});return p&&p.pin?p.pin:'1234';})();
+    var correct=isNew?GUEST_PIN:(function(){var p=DATA.people.find(function(p){return p.id==pid;});return p&&p.pin?p.pin:'1234';})();
     if(STAFF_PIN_ENT===correct){
       if(isNew){
         var nm=(document.getElementById('ls-newname').value||'').trim();
@@ -408,11 +362,8 @@ function lpk(k){
       var btn=document.getElementById('hdr-user-btn');
       if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
       document.getElementById('tabs').style.display='flex';
-      document.getElementById('mc').innerHTML='<div style="padding:2rem;text-align:center;color:#64748B">'+(LANG==='zh'?'載入中...':'Memuat...')+'</div>';
-      ensureSupabase(function(){
-        if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);
-        loadAll();
-      });
+      document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+(LANG==='zh'?'載入中...':'Memuat...')+'</p></div>';
+      initSupabase(function(){loadAll();},function(e){document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'</div>';});
     }else{
       var err=document.getElementById('ls-err');if(err)err.textContent=t('wrongPin');
       STAFF_PIN_ENT='';
@@ -430,24 +381,6 @@ function staffLogout(){
   renderLoginScreen();
 }
 
-var GEN_PIN='';
-function showGenPin(){
-  GEN_PIN=String(Math.floor(Math.random()*10000)).padStart(4,'0');
-  var box=document.getElementById('gen-pin-box');
-  if(box){
-    box.style.display='block';
-    var val=document.getElementById('gen-pin-val');
-    if(val)val.textContent=GEN_PIN;
-  }
-}
-function copyGenPin(){
-  navigator.clipboard.writeText(GEN_PIN).then(function(){
-    toast(LANG==='zh'?'✓ 已複製到剪貼簿':'✓ Disalin ke clipboard');
-  }).catch(function(){
-    toast('⚠ '+(LANG==='zh'?'複製失敗':'Gagal disalin'));
-  });
-}
-
 var sb;
 var DATA={items:[],people:[],requests:[],transactions:[],purchases:[]};
 var IS_ADMIN=false;
@@ -463,7 +396,6 @@ var CART_M={};
 
 window.addEventListener('DOMContentLoaded',function(){
   updateLangUI();
-  // 立即顯示登入畫面（不等待 Supabase，秒開）
   renderLoginScreen();
 });
 
@@ -471,7 +403,7 @@ function setDot(s){var d=document.getElementById('cdot');d.className='conn-dot'+
 
 async function loadAll(afterCb){
   setDot('');
-  var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error(LANG==='zh'?'連線逾時 (12s)，請檢查網路或重試':'Koneksi timeout (12s), periksa jaringan'));},12000);});
+  var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error(LANG==='zh'?'連線逾時 (15s)，請重試':'Koneksi timeout (15s), coba lagi'));},15000);});
   try{
     var results=await Promise.race([
       Promise.all([
@@ -488,18 +420,14 @@ async function loadAll(afterCb){
     DATA.items=i.data||[];DATA.people=p.data||[];DATA.requests=r.data||[];
     DATA.transactions=tx.data||[];DATA.purchases=po.data||[];
     setDot('ok');
-    document.getElementById('tabs').style.display='flex';
-    renderAll();
-    setTimeout(checkLowStock,600);
+    renderAll();setTimeout(checkLowStock,600);
     if(afterCb)afterCb();
   }catch(e){
     setDot('err');
     document.getElementById('mc').innerHTML=
       '<div style="padding:1.5rem;text-align:center">'+
       '<div class="ab ab-d" style="margin-bottom:1rem">⚠ '+e.message+'</div>'+
-      '<button class="btn btn-p" onclick="ensureSupabase(function(){if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);loadAll();})">'+(LANG==='zh'?'🔄 重試':'🔄 Coba Lagi')+'</button>'+
-      '<p style="font-size:.75rem;color:#94A3B8;margin-top:1rem">'+
-      (LANG==='zh'?'URL: ':'URL: ')+SUPA_URL.substring(0,40)+'...</p>'+
+      '<button class="btn btn-p" onclick="initSupabase(function(){loadAll();},function(e2){toast(\'⚠ \'+e2.message);})">'+(LANG==='zh'?'🔄 重試':'🔄 Coba Lagi')+'</button>'+
       '</div>';
   }
 }
@@ -509,14 +437,10 @@ function renderAll(){
     '<div id="home" class="sec active"></div>'+
     '<div id="ambil" class="sec"></div>'+
     '<div id="masuk" class="sec"></div>'+
-    '<div id="catalog" class="sec"></div>'+
     '<div id="permintaan" class="sec"></div>'+
     '<div id="riwayat" class="sec"></div>'+
     '<div id="admin" class="sec"></div>';
-  var tbR=document.getElementById('tb-riwayat');if(tbR)tbR.style.display=IS_ADMIN?'flex':'none';
-  var tbM=document.getElementById('tb-masuk');if(tbM)tbM.style.display=IS_ADMIN?'flex':'none';
-  var tbA=document.getElementById('tb-admin');if(tbA)tbA.style.display=IS_ADMIN?'flex':'none';
-  renderHome();renderAmbil();renderMasuk();renderCatalog();renderPermintaan();renderRiwayat();renderAdmin();
+  renderHome();renderAmbil();renderMasuk();renderPermintaan();renderRiwayat();renderAdmin();
 }
 
 // HOME
@@ -535,8 +459,8 @@ function renderHome(){
     '<div class="sc"><div class="sc-val" style="color:'+(critCount>0?'var(--danger)':'var(--ok)')+'">'+critCount+'</div><div class="sc-lbl">'+t('lowStock')+'</div></div>'+
   '</div>';
 
-  // 🛒 需要採購清單（只有 Admin 看到）
-  if(IS_ADMIN&&lowItems.length){
+  // 🛒 需要採購清單
+  if(lowItems.length){
     h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.6rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
     '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 '+(LANG==='zh'?'需要採購 ('+lowItems.length+' 項)':'Perlu Beli ('+lowItems.length+' item)')+'</span>'+
@@ -582,22 +506,18 @@ function copyBuyList(){
 }
 
 // AMBIL (cart mode)
-var AMB_CAT='';
 function renderAmbil(){
-  CART={};AMB_CAT='';
+  CART={};
   var preselName=CURRENT_USER?CURRENT_USER.name:'';
-  var cats=getCategories();
   document.getElementById('ambil').innerHTML=
     '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--danger),#DC2626);color:#fff;padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="startScan(\'amb\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button>'+
-    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;margin-left:.3rem">☰</button></div>'+
+    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
     '</div>'+
-    '<div class="cat-bar" id="amb-cats">'+catChips(cats,'amb')+'</div>'+
-    '<div id="amb-list" style="background:#fff">'+ambRows('',AMB_CAT)+'</div>'+
+    '<div id="amb-list" style="background:#fff">'+ambRows('')+'</div>'+
     '<div id="amb-cart-wrap" style="margin:.7rem;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.55rem .9rem;font-weight:700;font-size:.88rem;background:#FEF2F2;color:var(--danger);border-bottom:1px solid var(--border)">🛒 <span id="amb-cart-cnt"></span></div>'+
     '<div id="amb-cart">'+cartRowsAmb()+'</div>'+
@@ -614,13 +534,9 @@ function renderAmbil(){
     '<button class="btn btn-d btn-full" id="amb-btn" onclick="doAmbilCart()">'+t('doTake')+'</button>'+
     '</div>';
 }
-function ambRows(q,cat){
-  var items=DATA.items.filter(function(i){
-    var mq=!q||i.name.toLowerCase().includes(q);
-    var mc=!cat||(i.category||'未分類')===cat;
-    return mq&&mc;
-  });
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Barang tidak ditemukan')+'</div>';
+function ambRows(q){
+  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
   return items.map(function(i){
     var empty=i.qty<=0;
     var low=i.qty>0&&i.qty<=i.critical_qty;
@@ -630,7 +546,7 @@ function ambRows(q,cat){
     return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
       '<div class="amb-name">'+esc(i.name)+'</div>'+
-      '<div class="amb-stk'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+(empty?' ⛔':low?' ⚠':'')+(i.category?'<span style="margin-left:.3rem;font-size:.68rem;color:#94A3B8">'+esc(i.category)+'</span>':'')+'</div>'+
+      '<div class="amb-stk'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+(empty?' 缺貨':low?' ⚠':'')+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj('+i.id+',-1)" '+(empty?'disabled':'')+'>−</button>'+
@@ -640,43 +556,26 @@ function ambRows(q,cat){
   }).join('');
 }
 var AMB_GRID=false;
-function fltAmb(){var q=(document.getElementById('asrch').value||'').toLowerCase();var el=document.getElementById('amb-list');if(el)el.innerHTML=AMB_GRID?ambGrid(q,AMB_CAT):ambRows(q,AMB_CAT);}
-function selCat(cat,mode){
-  if(mode==='amb'){AMB_CAT=cat;var el=document.getElementById('amb-cats');if(el)el.innerHTML=catChips(getCategories(),'amb');}
-  else{MSK_CAT=cat;var el=document.getElementById('msk-cats');if(el)el.innerHTML=catChips(getCategories(),'msk');}
-  if(mode==='amb')fltAmb();else fltMask();
-}
-function getCategories(){
-  var cats={};DATA.items.forEach(function(i){var c=i.category||'未分類';cats[c]=1;});return Object.keys(cats).sort();
-}
-function catChips(cats,mode){
-  var cur=mode==='amb'?AMB_CAT:MSK_CAT;
-  return '<div class="cat-chip'+(cur===''?' active':'')+'" onclick="selCat(\'\',\''+mode+'\')">'+t('allCat')+'</div>'+
-    cats.map(function(c){return'<div class="cat-chip'+(cur===c?' active':'')+'" onclick="selCat(\''+esc(c)+'\',\''+mode+'\')">'+esc(c)+'</div>';}).join('');
-}
+function fltAmb(){var q=(document.getElementById('asrch').value||'').toLowerCase();var el=document.getElementById('amb-list');if(el)el.innerHTML=AMB_GRID?ambGrid(q):ambRows(q);}
 function toggleAmbView(){
   AMB_GRID=!AMB_GRID;
   var btn=document.getElementById('amb-view-btn');if(btn)btn.textContent=AMB_GRID?'☰':'⊞';
   fltAmb();
 }
-function ambGrid(q,cat){
-  var items=DATA.items.filter(function(i){
-    var mq=!q||i.name.toLowerCase().includes(q);
-    var mc=!cat||(i.category||'未分類')===cat;
-    return mq&&mc;
-  });
+function ambGrid(q){
+  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
-  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.6rem;padding:.7rem">'+
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;padding:.6rem">'+
     items.map(function(i){
       var empty=i.qty<=0;
       var cqty=CART[i.id]||0;
-      var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:100px;object-fit:cover;border-radius:8px;display:block;cursor:pointer" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
-        :'<div style="width:100%;height:100px;background:var(--light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2.2rem">📦</div>';
-      return '<div style="background:#fff;border-radius:10px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.5rem;'+(empty?'opacity:.5':'')+';cursor:pointer;transition:.15s" onclick="cAdj('+i.id+',1)" onmouseover="this.style.boxShadow=\'0 3px 10px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'\'">'+
+      var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block">'
+        :'<div style="width:100%;height:80px;background:var(--light);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>';
+      return '<div style="background:#fff;border-radius:8px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.4rem;'+(empty?'opacity:.4':'')+'" onclick="cAdj('+i.id+',1)">'+
         ph+
-        '<div style="font-size:.75rem;font-weight:600;margin-top:.4rem;line-height:1.3;word-break:break-word;color:var(--dark)">'+esc(i.name)+'</div>'+
-        '<div style="font-size:.7rem;color:#6B7280;margin-top:.2rem;font-weight:500">'+i.qty+' '+esc(i.unit)+'</div>'+
-        (cqty?'<div style="background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;text-align:center;border-radius:4px;margin-top:.3rem;padding:.2rem">+'+cqty+'</div>':'')+'</div>';
+        '<div style="font-size:.72rem;font-weight:600;margin-top:.3rem;line-height:1.3;word-break:break-word">'+esc(i.name)+'</div>'+
+        '<div style="font-size:.68rem;color:#6B7280">'+i.qty+' '+esc(i.unit)+'</div>'+
+        (cqty?'<div style="background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;text-align:center;border-radius:4px;margin-top:.2rem">+'+cqty+'</div>':'')+'</div>';
     }).join('')+'</div>';
 }
 function cartRowsAmb(){
@@ -735,21 +634,17 @@ async function doAmbilCart(){
 }
 
 // MASUK (cart mode)
-var MSK_CAT='';
 function renderMasuk(){
-  CART_M={};MSK_CAT='';
+  CART_M={};
   var preselName=CURRENT_USER?CURRENT_USER.name:'';
-  var cats=getCategories();
   document.getElementById('masuk').innerHTML=
     '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--ok),#059669);color:#fff;padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📥</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('receive')+'</span>'+
-    '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="startScan(\'msk\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button></div>'+
+    '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div></div>'+
     '<input id="msrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltMask()" style="margin:0">'+
     '</div>'+
-    '<div class="cat-bar" id="msk-cats">'+catChips(cats,'msk')+'</div>'+
-    '<div id="msk-list" style="background:#fff">'+maskRows('',MSK_CAT)+'</div>'+
+    '<div id="msk-list" style="background:#fff">'+maskRows('')+'</div>'+
     '<div id="msk-cart-wrap" style="margin:.7rem;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.55rem .9rem;font-weight:700;font-size:.88rem;background:#ECFDF5;color:var(--ok);border-bottom:1px solid var(--border)">🛒 <span id="msk-cart-cnt"></span></div>'+
     '<div id="msk-cart">'+cartRowsMsk()+'</div>'+
@@ -766,12 +661,8 @@ function renderMasuk(){
     '<button class="btn btn-ok btn-full" id="msk-btn" onclick="doMasukCart()">'+t('doRcv')+'</button>'+
     '</div>';
 }
-function maskRows(q,cat){
-  var items=DATA.items.filter(function(i){
-    var mq=!q||i.name.toLowerCase().includes(q);
-    var mc=!cat||(i.category||'未分類')===cat;
-    return mq&&mc;
-  });
+function maskRows(q){
+  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
   return items.map(function(i){
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
@@ -789,7 +680,7 @@ function maskRows(q,cat){
       '</div></div>';
   }).join('');
 }
-function fltMask(){var q=(document.getElementById('msrch').value||'').toLowerCase();var el=document.getElementById('msk-list');if(el)el.innerHTML=maskRows(q,MSK_CAT);}
+function fltMask(){var q=(document.getElementById('msrch').value||'').toLowerCase();var el=document.getElementById('msk-list');if(el)el.innerHTML=maskRows(q);}
 function cartRowsMsk(){
   var keys=Object.keys(CART_M);
   if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+(LANG==='zh'?'搜尋上方商品，按 + 加入':'Cari barang di atas, tekan +')+'</div>';
@@ -841,32 +732,10 @@ async function doMasukCart(){
   btn.disabled=false;btn.textContent=t('doRcv');
 }
 
-// CATALOG
-function renderCatalog(){
-  var cats=getCategories();
-  var html='<div style="padding:.7rem"><h2 style="font-size:1rem;font-weight:700;margin-bottom:1rem">📚 '+t('catTitle')+'</h2></div>';
-  cats.forEach(function(c){
-    var items=DATA.items.filter(function(i){return(i.category||'未分類')===c;});
-    html+='<div style="margin:.7rem"><div style="font-size:.9rem;font-weight:700;color:var(--p);padding:.5rem .7rem;background:var(--light);border-radius:8px">🏷️ '+esc(c)+'</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.7rem;padding:.7rem">'+
-        items.map(function(i){
-          var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:140px;object-fit:cover;border-radius:8px;display:block;cursor:pointer" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
-            :'<div style="width:100%;height:140px;background:var(--light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2.5rem">📦</div>';
-          return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:.6rem;text-align:center;overflow:hidden;transition:.15s;cursor:pointer" onclick="showImg(\''+esc(i.image_url||'\')+'\',\''+esc(i.name)+'\')" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'\'">'+
-            ph+
-            '<div style="font-weight:600;font-size:.86rem;margin-top:.5rem;line-height:1.4;color:var(--dark)">'+esc(i.name)+'</div>'+
-            '<div style="font-size:.78rem;color:#64748B;margin-top:.3rem;font-weight:500">'+i.qty+' '+esc(i.unit)+'</div>'+
-            '</div>';
-        }).join('')+
-      '</div></div>';
-  });
-  document.getElementById('catalog').innerHTML=html;
-}
-
 function iGrid(mode){
   return DATA.items.map(function(i){
     var low=i.qty<=i.critical_qty;
-    var ph=i.image_url?'<img class="ic-ph" src="'+esc(i.image_url)+'" style="cursor:pointer" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')" onerror="this.style.display=\'none\'">'
+    var ph=i.image_url?'<img class="ic-ph" src="'+esc(i.image_url)+'" onerror="this.style.display=\'none\'">'
       :'<div class="ic-ph-pl">📦</div>';
     return '<div class="ic'+(low?' low':'')+'" onclick="selI(this,'+i.id+',\''+mode+'\')">'+
       (low?'<div class="low-badge">低</div>':'')+ph+
@@ -890,17 +759,17 @@ function renderPermintaan(){
       '<select id="rn-sel" onchange="onReqNameSel()" style="margin-bottom:.4rem">'+
         '<option value="">-- '+t('selPerson')+' --</option>'+
         DATA.people.map(function(p){return'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>';}).join('')+
-        '<option value="__new__">✏️ '+t('newName')+'</option>'+
+        '<option value="__new__">✏️ 輸入新名字...</option>'+
       '</select>'+
       '<input id="rn" type="text" placeholder="'+t('myName')+'..." style="display:none">'+
     '</div>'+
     '<div class="ig"><label>'+t('reqItems')+'</label>'+
       '<select id="ri-sel" onchange="onReqItemSel()" style="margin-bottom:.4rem">'+
-        '<option value="">-- '+t('selItem2')+' --</option>'+
-        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' ('+t('item')+':'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
-        '<option value="__new__">✏️ '+t('newItem')+'</option>'+
+        '<option value="">-- 選擇現有商品 --</option>'+
+        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' (庫存:'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
+        '<option value="__new__">✏️ 新品/其他...</option>'+
       '</select>'+
-      '<textarea id="ri" placeholder="'+t('itemDesc')+'..." style="display:none"></textarea>'+
+      '<textarea id="ri" placeholder="品項內容..." style="display:none"></textarea>'+
     '</div>'+
     '<div class="ig"><label>'+(LANG==='zh'?'📷 附上照片（可選）':'📷 Foto (opsional)')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
@@ -928,10 +797,6 @@ function reqHTML(r){
 
 // RIWAYAT
 function renderRiwayat(){
-  if(!IS_ADMIN){
-    document.getElementById('riwayat').innerHTML='<div style="text-align:center;padding:3rem;color:#9CA3AF"><div style="font-size:2.5rem">🔒</div><div style="margin-top:.5rem">'+t('noAccess')+'</div></div>';
-    return;
-  }
   var h=DATA.transactions.map(function(tx){
     var out=tx.type==='ambil';
     return '<div class="tx'+(out?' out':'')+'">'+
@@ -978,58 +843,6 @@ function pk(k){
     }
   }
 }
-function renderCategories(){
-  var cats=getCategories();
-  var html='';
-  cats.forEach(function(c){
-    var cnt=DATA.items.filter(function(i){return(i.category||'未分類')===c;}).length;
-    html+='<div class="ai">'+
-      '<div class="ai-info">'+
-        '<div class="ai-name">'+esc(c)+'</div>'+
-        '<div class="ai-detail">'+(LANG==='zh'?'商品數':'Jumlah barang')+': '+cnt+'</div>'+
-      '</div>'+
-      '<div class="ai-actions">'+
-        '<button class="ib" onclick="delCategory(\''+esc(c)+'\')">🗑️</button>'+
-      '</div></div>';
-  });
-  var catList=document.getElementById('cat-list');
-  if(catList)catList.innerHTML=html||'<div style="text-align:center;color:#9CA3AF;padding:1.5rem">-</div>';
-}
-function addCategory(){
-  var inp=document.getElementById('cat-input');
-  var cat=(inp.value||'').trim();
-  if(!cat){toast('⚠ '+(LANG==='zh'?'請輸入分類名稱':'Masukkan nama kategori'));return;}
-  if(getCategories().indexOf(cat)>=0){toast('⚠ '+(LANG==='zh'?'分類已存在':'Kategori sudah ada'));return;}
-  toast('✓ '+(LANG==='zh'?'分類已新增':'Kategori ditambahkan'));
-  inp.value='';
-  renderCategories();
-}
-function delCategory(cat){
-  var cnt=DATA.items.filter(function(i){return(i.category||'未分類')===cat;}).length;
-  if(cnt>0){toast('⚠ '+(LANG==='zh'?'該分類有 '+cnt+' 個商品，無法刪除':'Kategori memiliki '+cnt+' barang'));return;}
-  if(!confirm(LANG==='zh'?'確認刪除此分類？':'Hapus kategori?'))return;
-  toast('✓ '+(LANG==='zh'?'分類已刪除':'Kategori dihapus'));
-  renderCategories();
-}
-
-var GEN_PIN_ADMIN='';
-function genAndShowPin(){
-  GEN_PIN_ADMIN=String(Math.floor(Math.random()*10000)).padStart(4,'0');
-  var box=document.getElementById('pin-display');
-  if(box){
-    box.style.display='block';
-    var val=document.getElementById('pin-val');
-    if(val)val.textContent=GEN_PIN_ADMIN;
-  }
-}
-function copyPin(){
-  navigator.clipboard.writeText(GEN_PIN_ADMIN).then(function(){
-    toast('✓ '+(LANG==='zh'?'已複製到剪貼簿':'Disalin ke clipboard'));
-  }).catch(function(){
-    toast('⚠ '+(LANG==='zh'?'複製失敗':'Gagal disalin'));
-  });
-}
-
 function renderAdminFull(){
   var tv=0;
   DATA.items.forEach(function(i){tv+=avgCost(i.id)*i.qty;});
@@ -1038,17 +851,13 @@ function renderAdminFull(){
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'apu\')">💰 '+t('purchases')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>'+
-      '<button class="tsw" onclick="swATab(this,\'acat\')">🏷️ '+(LANG==='zh'?'分類':'Kategori')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'aimp\')">📊 Excel</button>'+
-      '<button class="tsw" onclick="swATab(this,\'apin\')">🔑 PIN</button>'+
     '</div>'+
     '<div class="val-bar"><div class="val-bar-lbl">'+t('stockVal')+'</div><div class="val-bar-val">'+fmtC(tv)+'</div></div>'+
     '<div id="ait" class="tc active">'+
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddItem()">➕ '+t('addItem')+'</button></div>'+
       '<div class="ai-list" id="ai-list">'+aiListHTML()+'</div>'+
     '</div>'+
-    '<div id="acat" class="tc" style="display:none"></div>'+
-    '<div id="apin" class="tc" style="display:none"></div>'+
     '<div id="apu" class="tc">'+
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddBuy()">➕ '+t('addBuy')+'</button></div>'+
       '<div id="apu-list">'+puListHTML()+'</div>'+
@@ -1059,20 +868,15 @@ function renderAdminFull(){
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
-    '<div id="acat" class="tc"></div>'+
-    '<div id="apin" class="tc"></div>'+
     '<div id="aimp" class="tc">'+
       '<div class="card"><div class="card-title">📊 '+t('bulk')+'</div>'+
-      '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+(LANG==='zh'?'方法1：上傳 Excel / CSV 文件':'Metode 1: Upload file Excel / CSV')+'</p>'+
-      '<div class="ig"><input type="file" id="imp-file" accept=".xlsx,.xls,.csv" onchange="onImpFile()"></div>'+
-      '<p style="font-size:.78rem;color:#6B7280;margin:.7rem 0 .5rem">'+(LANG==='zh'?'方法2：貼上內容':'Metode 2: Tempel konten')+'</p>'+
-      '<p style="font-size:.75rem;color:#94A3B8;margin-bottom:.5rem">'+t('bulkHint')+'</p>'+
-      '<div class="imp-box"><textarea id="imp-txt" placeholder="'+(LANG==='zh'?'貼上 Excel 資料...':'Tempel data Excel...')+'" oninput="prevImp()"></textarea></div>'+
+      '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+t('bulkHint')+'</p>'+
+      '<div class="imp-box"><textarea id="imp-txt" placeholder="貼上 Excel 資料..." oninput="prevImp()"></textarea></div>'+
       '<div id="imp-prev" style="margin:.5rem 0"></div>'+
       '<button class="btn btn-p btn-full" onclick="doImport()">⬆️ '+t('impBtn')+'</button>'+
       '</div>'+
     '</div>'+
-    '<div style="padding:1rem .7rem;text-align:center;border-top:2px solid var(--border);background:#FEF2F2;margin-top:1rem"><button class="btn btn-d" style="width:100%;font-size:.95rem;font-weight:700" onclick="if(confirm(\''+t('logout')+'?\'))logoutAdmin()">🔒 '+t('logout')+'</button></div>';
+    '<div style="padding:.7rem;text-align:center"><button class="btn btn-s" onclick="logoutAdmin()">🔒 '+t('logout')+'</button></div>';
 }
 function aiListHTML(){
   return DATA.items.map(function(i){
@@ -1082,7 +886,7 @@ function aiListHTML(){
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
-        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(i.category?' · 📁'+esc(i.category):'')+(i.barcode?' · 🔖'+esc(i.barcode):'')+(ac?' · '+fmtC(ac)+'/'+esc(i.unit):'')+'</div>'+
+        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(ac?' · '+fmtC(ac)+'/'+esc(i.unit):'')+'</div>'+
         (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 採購連結</a>':'')+'</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" onclick="showEdit('+i.id+')">✏️</button>'+
@@ -1143,17 +947,12 @@ function showModal(title,body){
 function closeModal(){var o=document.getElementById('m-ov');if(o)o.remove();}
 
 function itemFormHTML(item){
-  var cats=getCategories();
   return '<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
     '<div class="fr">'+
       '<div class="ig"><label>'+t('initQ')+'</label><input id="fq" type="number" value="'+(item?item.qty:0)+'" min="0"></div>'+
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
     '</div>'+
     '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0"></div>'+
-    '<div class="fr">'+
-      '<div class="ig"><label>'+t('category')+'</label><input id="fcat" type="text" list="cat-list" placeholder="'+(LANG==='zh'?'例：電子、五金':'Contoh: Elektronik')+'..." value="'+(item&&item.category?esc(item.category):'')+'"><datalist id="cat-list">'+cats.map(function(c){return'<option value="'+esc(c)+'">';}).join('')+'</datalist></div>'+
-      '<div class="ig"><label>'+t('barcode')+'</label><input id="fbc" type="text" placeholder="'+(LANG==='zh'?'條碼（可選）':'Barcode (opsional)')+'..." value="'+(item&&item.barcode?esc(item.barcode):'')+'"></div>'+
-    '</div>'+
     '<div class="ig"><label>'+(LANG==='zh'?'商品照片':'Foto Barang')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
         '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-cam\').click()">📷 '+(LANG==='zh'?'拍照':'Kamera')+'</button>'+
@@ -1164,30 +963,10 @@ function itemFormHTML(item){
       '<div id="fph">'+(item&&item.image_url?'<img class="prev" src="'+esc(item.image_url)+'">':'')+'</div>'+
     '</div>'+
     '<div class="ig"><label>'+t('supUrl')+'</label><input id="fsu" type="url" placeholder="https://..." value="'+(item&&item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
-    '<div id="fqr" class="qr-box" style="display:none"><div id="qr-code" class="qr-code"></div><div class="qr-hint">'+(LANG==='zh'?'掃描商品 QR Code':'Scan QR Code Produk')+'</div><button class="btn btn-s" style="margin-top:.5rem;font-size:.8rem" onclick="printQR()">🖨️ '+(LANG==='zh'?'打印':'Cetak')+'</button></div>'+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
 function showAddItem(){EDIT_ITEM=null;F_PHOTO='';showModal('➕ '+t('addItem'),itemFormHTML(null));}
-function showEdit(id){
-  EDIT_ITEM=DATA.items.find(function(i){return i.id===id});
-  F_PHOTO='';
-  showModal('✏️ '+t('editItem'),itemFormHTML(EDIT_ITEM));
-  setTimeout(function(){
-    if(EDIT_ITEM&&EDIT_ITEM.id&&typeof QRCode!=='undefined'){
-      try{
-        var qrBox=document.getElementById('fqr');
-        if(qrBox){
-          qrBox.style.display='block';
-          var qrEl=document.getElementById('qr-code');
-          if(qrEl){
-            qrEl.innerHTML='';
-            new QRCode(qrEl,{text:'ITEM:'+EDIT_ITEM.id,width:150,height:150});
-          }
-        }
-      }catch(e){console.log('QR生成失敗',e);}
-    }
-  },200);
-}
+function showEdit(id){EDIT_ITEM=DATA.items.find(function(i){return i.id===id});F_PHOTO='';showModal('✏️ '+t('editItem'),itemFormHTML(EDIT_ITEM));}
 function onPhoto(e){
   var f=e.target.files[0];if(!f)return;
   compressImg(f,function(d){
@@ -1203,10 +982,8 @@ async function saveItem(){
   var min=parseInt(document.getElementById('fm').value)||10;
   var surl=(document.getElementById('fsu').value||'').trim();
   var img=F_PHOTO||(EDIT_ITEM&&EDIT_ITEM.image_url)||null;
-  var cat=(document.getElementById('fcat').value||'').trim()||null;
-  var bc=(document.getElementById('fbc').value||'').trim()||null;
   F_PHOTO='';
-  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img,category:cat,barcode:bc};
+  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img};
   try{
     if(EDIT_ITEM){var {error}=await sb.from('items').update(d).eq('id',EDIT_ITEM.id);if(error)throw error;}
     else{var {error}=await sb.from('items').insert(d);if(error)throw error;}
@@ -1214,10 +991,7 @@ async function saveItem(){
   }catch(e){toast('⚠ '+e.message);}
 }
 async function delItem(id){
-  var item=DATA.items.find(function(i){return i.id===id;});
-  if(!item)return;
-  var msg=LANG==='zh'?'確定刪除「'+esc(item.name)+'」?':'Hapus "'+esc(item.name)+'"?';
-  if(!confirm(msg))return;
+  if(!confirm(t('del')+'?'))return;
   try{var {error}=await sb.from('items').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
@@ -1259,23 +1033,9 @@ async function addPerson(){
   catch(e){toast('⚠ '+e.message);}
 }
 async function delPerson(id){
-  var person=DATA.people.find(function(p){return p.id===id;});
-  if(!person)return;
-  var msg=LANG==='zh'?'確定刪除員工「'+esc(person.name)+'」?':'Hapus karyawan "'+esc(person.name)+'"?';
-  if(!confirm(msg))return;
+  if(!confirm(t('del')+'?'))return;
   try{var {error}=await sb.from('people').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
-}
-function printQR(){
-  var printWin=window.open('','PrintQR','width=400,height=500');
-  var qrContent=document.getElementById('qr-code').innerHTML;
-  printWin.document.write('<html><head><title>QR Code</title></head><body style="text-align:center;padding:1rem">');
-  printWin.document.write('<h3>'+esc(EDIT_ITEM.name)+'</h3>');
-  printWin.document.write('<div style="margin:1rem">'+qrContent+'</div>');
-  printWin.document.write('<p style="font-size:0.85rem;color:#666">'+(EDIT_ITEM.barcode?'Barcode: '+esc(EDIT_ITEM.barcode):'')+'</p>');
-  printWin.document.write('</body></html>');
-  printWin.document.close();
-  setTimeout(function(){printWin.print();},100);
 }
 function prevImp(){
   var rows=parseImp(document.getElementById('imp-txt').value);
@@ -1291,39 +1051,13 @@ async function doImport(){
   try{var {error}=await sb.from('items').insert(rows);if(error)throw error;toast('✓ 匯入 '+rows.length+' 筆');document.getElementById('imp-txt').value='';document.getElementById('imp-prev').innerHTML='';await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
-function onImpFile(){
-  var file=document.getElementById('imp-file').files[0];
-  if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      var data=e.target.result;
-      var workbook=XLSX.read(data,{type:'binary'});
-      var sheet=workbook.Sheets[workbook.SheetNames[0]];
-      var json=XLSX.utils.sheet_to_json(sheet,{header:1});
-      var rows=[];
-      for(var i=1;i<json.length;i++){
-        var row=json[i];
-        if(!row[0])continue;
-        rows.push({name:row[0]||'',qty:row[1]||0,unit:row[2]||'pcs',critical_qty:row[3]||10,supplier_url:row[4]||'',category:row[5]||'',barcode:row[6]||''});
-      }
-      var txt=rows.map(function(r){return(r.name)+'\t'+(r.qty)+'\t'+(r.unit)+'\t'+(r.critical_qty)+'\t'+(r.supplier_url)+'\t'+(r.category)+'\t'+(r.barcode);}).join('\n');
-      document.getElementById('imp-txt').value=txt;
-      prevImp();
-      toast('✓ '+(LANG==='zh'?'文件已讀取':'File berhasil dibaca'));
-    }catch(err){
-      toast('⚠ '+(LANG==='zh'?'讀取失敗：'+err.message:'Gagal membaca: '+err.message));
-    }
-  };
-  reader.readAsBinaryString(file);
-}
 function parseImp(text){
   if(!text.trim())return[];
   return text.trim().split('\n').map(function(l){
     var c=l.indexOf('\t')>=0?l.split('\t'):l.split(',');
     var nm=(c[0]||'').trim();
     if(!nm)return null;
-    return{name:nm,qty:parseInt(c[1])||0,unit:(c[2]||'pcs').trim(),critical_qty:parseInt(c[3])||10,supplier_url:(c[4]||'').trim()||null,category:(c[5]||'').trim()||null,barcode:(c[6]||'').trim()||null,image_url:null};
+    return{name:nm,qty:parseInt(c[1])||0,unit:(c[2]||'pcs').trim(),critical_qty:parseInt(c[3])||10,supplier_url:(c[4]||'').trim()||null,image_url:null};
   }).filter(Boolean);
 }
 function logoutAdmin(){IS_ADMIN=false;renderAdmin();}
@@ -1436,12 +1170,8 @@ function cQ(m,d){var e=document.getElementById(m+'-q');e.value=Math.max(1,(parse
 function goTab(id,el){
   document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('active')});
   var s=document.getElementById(id);if(s)s.classList.add('active');
-  document.querySelectorAll('.tb').forEach(function(b){b.classList.remove('active','active-take','active-recv')});
-  if(el){
-    el.classList.add('active');
-    if(id==='ambil')el.classList.add('active-take');
-    else if(id==='masuk')el.classList.add('active-recv');
-  }
+  document.querySelectorAll('.tb').forEach(function(b){b.classList.remove('active')});
+  if(el)el.classList.add('active');
 }
 function swTab(el,id){
   var nav=el.closest('.tab-nav'),par=nav.parentElement;
@@ -1454,63 +1184,8 @@ function swATab(el,id){
   document.getElementById('atnav').querySelectorAll('.tsw').forEach(function(b){b.classList.remove('act')});
   if(el)el.classList.add('act');
   document.querySelectorAll('#admin .tc').forEach(function(t){t.classList.remove('active')});
-  var e=document.getElementById(id);if(e){
-    e.classList.add('active');
-    if(id==='acat'&&!e.innerHTML)e.innerHTML=
-      '<div class="card"><div class="card-title">🏷️ '+(LANG==='zh'?'產品分類管理':'Kelola Kategori Produk')+'</div>'+
-      '<div class="ig"><label>'+(LANG==='zh'?'新增分類':'Tambah Kategori')+'</label>'+
-      '<div style="display:flex;gap:.5rem">'+
-        '<input id="cat-input" type="text" placeholder="'+(LANG==='zh'?'輸入分類名稱':'Nama kategori')+'..." style="flex:1">'+
-        '<button class="btn btn-p" onclick="addCategory()" style="flex-shrink:0">➕</button>'+
-      '</div></div></div>'+
-      '<div class="ai-list" id="cat-list"></div>';
-    if(id==='apin'&&!e.innerHTML)e.innerHTML=
-      '<div class="card"><div class="card-title">🔑 '+(LANG==='zh'?'生成臨時 PIN':'Generate Temporary PIN')+'</div>'+
-      '<button class="btn btn-p btn-full" onclick="genAndShowPin()">'+(LANG==='zh'?'🔑 生成新 PIN':'🔑 Generate PIN')+'</button>'+
-      '<div id="pin-display" style="display:none;margin-top:1.5rem;background:#FEF3C7;border-left:4px solid var(--warn);padding:1rem;border-radius:8px;text-align:center">'+
-        '<div style="font-weight:600;color:#92400E">'+(LANG==='zh'?'✓ PIN 已生成':'✓ PIN Generated')+'</div>'+
-        '<div id="pin-val" style="font-size:2.5rem;font-weight:800;letter-spacing:.3em;color:var(--warn);margin:1rem 0">0000</div>'+
-        '<div style="font-size:.85rem;color:#92400E;margin:.5rem 0">'+(LANG==='zh'?'告訴新人這個 PIN 碼':'Bagikan PIN ini ke pengguna baru')+'</div>'+
-        '<button class="btn" style="width:100%;background:var(--warn);color:#fff;margin-top:.8rem" onclick="copyPin()">📋 '+(LANG==='zh'?'複製':'Salin')+'</button>'+
-      '</div></div>';
-    if(id==='acat')renderCategories();
-  }
+  var e=document.getElementById(id);if(e)e.classList.add('active');
 }
-// BARCODE SCANNER
-var SCAN_MODE='amb';
-var SCAN_QR=null;
-function startScan(mode){
-  SCAN_MODE=mode;
-  document.getElementById('scan-ov').classList.add('open');
-  var hint=document.getElementById('scan-hint');
-  if(hint)hint.textContent=LANG==='zh'?'載入中...':'Memuat...';
-  ensureQRLib(function(){
-    if(hint)hint.textContent=LANG==='zh'?'對準 QR Code 掃描...':'Arahkan ke QR Code...';
-  SCAN_QR=new Html5Qrcode('scan-box');
-  SCAN_QR.start({facingMode:'environment'},{fps:10,qrbox:220},function(code){
-    stopScan();
-    var itemId=null;
-    if(code.startsWith('ITEM:')){
-      itemId=parseInt(code.substring(5));
-    }else{
-      itemId=parseInt(code);
-    }
-    var item=DATA.items.find(function(i){return i.id===itemId;});
-    if(item){
-      if(SCAN_MODE==='amb')cAdj(item.id,1);
-      else cAdjM(item.id,1);
-      toast('✓ '+esc(item.name));
-    }else{
-      toast(LANG==='zh'?'QR Code 無效':'QR Code tidak valid');
-    }
-  },function(){});
-  });// ensureQRLib
-}
-function stopScan(){
-  document.getElementById('scan-ov').classList.remove('open');
-  if(SCAN_QR){SCAN_QR.stop().catch(function(){});SCAN_QR=null;}
-}
-
 function compressImg(file,cb){
   var rd=new FileReader();
   rd.onload=function(e){
