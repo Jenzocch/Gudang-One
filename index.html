@@ -1222,12 +1222,15 @@ function addFormTag(){
   if(!FORM_TAGS.includes(v))FORM_TAGS.push(v);
   inp.value='';
   var list=document.getElementById('ftag-list');
-  if(list)list.innerHTML=FORM_TAGS.map(function(tg){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem" onclick="removeFormTag(\''+esc(tg)+'\')">🏷️ '+esc(tg)+' ✕</span>';}).join('');
+  if(list)list.innerHTML=renderFormTags();
 }
-function removeFormTag(tag){
-  FORM_TAGS=FORM_TAGS.filter(function(tg){return tg!==tag;});
+function removeFormTag(idx){
+  FORM_TAGS.splice(idx,1);
   var list=document.getElementById('ftag-list');
-  if(list)list.innerHTML=FORM_TAGS.map(function(tg){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem" onclick="removeFormTag(\''+esc(tg)+'\')">🏷️ '+esc(tg)+' ✕</span>';}).join('');
+  if(list)list.innerHTML=renderFormTags();
+}
+function renderFormTags(){
+  return FORM_TAGS.map(function(tg,i){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem;display:inline-flex;align-items:center;gap:.25rem" onclick="removeFormTag('+i+')">🏷️ '+esc(tg)+' <span style="font-weight:700;font-size:.85rem">✕</span></span>';}).join('');
 }
 function onFormTagKey(e){if(e.key==='Enter'||e.key===','){e.preventDefault();addFormTag();}}
 
