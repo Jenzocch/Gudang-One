@@ -457,7 +457,7 @@ function renderHome(){
     '<div class="sc"><div class="sc-val" style="color:'+(critCount>0?'var(--danger)':'var(--ok)')+'">'+critCount+'</div><div class="sc-lbl">'+t('lowStock')+'</div></div>'+
   '</div>';
 
-  // 🛒 需要採購清單
+  // 需要採購清單
   if(lowItems.length){
     h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.6rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
@@ -489,7 +489,7 @@ function renderHome(){
   });
   h+='</div>';
 
-  h+='<div class="st">📋 '+t('recentReq')+'（待審）</div>';
+  h+='<div class="st">📋 '+t('recentReq')+'（'+(LANG==='zh'?'待審':'Tertunda')+'）</div>';
   if(reqs.length)reqs.forEach(function(r){h+=reqHTML(r)});
   else h+='<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+t('noReq')+'</div>';
   document.getElementById('home').innerHTML=h;
@@ -534,7 +534,7 @@ function renderAmbil(){
 }
 function ambRows(q){
   var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
   return items.map(function(i){
     var empty=i.qty<=0;
     var low=i.qty>0&&i.qty<=i.critical_qty;
@@ -544,7 +544,7 @@ function ambRows(q){
     return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
       '<div class="amb-name">'+esc(i.name)+'</div>'+
-      '<div class="amb-stk'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+(empty?' 缺貨':low?' ⚠':'')+'</div>'+
+      '<div class="amb-stk'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+(empty?LANG==='zh'?' 缺貨':' Kosong':low?LANG==='zh'?' ⚠':' ⚠':'')+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj('+i.id+',-1)" '+(empty?'disabled':'')+'>−</button>'+
@@ -562,7 +562,7 @@ function toggleAmbView(){
 }
 function ambGrid(q){
   var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
   return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;padding:.6rem">'+
     items.map(function(i){
       var empty=i.qty<=0;
@@ -661,7 +661,7 @@ function renderMasuk(){
 }
 function maskRows(q){
   var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
   return items.map(function(i){
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="amb-th-ph">📦</div>';
@@ -757,17 +757,17 @@ function renderPermintaan(){
       '<select id="rn-sel" onchange="onReqNameSel()" style="margin-bottom:.4rem">'+
         '<option value="">-- '+t('selPerson')+' --</option>'+
         DATA.people.map(function(p){return'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>';}).join('')+
-        '<option value="__new__">✏️ 輸入新名字...</option>'+
+        '<option value="__new__">✏️ '+(LANG==='zh'?'輸入新名字':'Nama baru')+'...</option>'+
       '</select>'+
       '<input id="rn" type="text" placeholder="'+t('myName')+'..." style="display:none">'+
     '</div>'+
     '<div class="ig"><label>'+t('reqItems')+'</label>'+
       '<select id="ri-sel" onchange="onReqItemSel()" style="margin-bottom:.4rem">'+
-        '<option value="">-- 選擇現有商品 --</option>'+
-        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' (庫存:'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
-        '<option value="__new__">✏️ 新品/其他...</option>'+
+        '<option value="">-- '+(LANG==='zh'?'選擇現有商品':'Pilih barang ada')+'--</option>'+
+        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' ('+(LANG==='zh'?'庫存':'stok')+':'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
+        '<option value="__new__">✏️ '+(LANG==='zh'?'新品/其他':'Barang baru')+'...</option>'+
       '</select>'+
-      '<textarea id="ri" placeholder="品項內容..." style="display:none"></textarea>'+
+      '<textarea id="ri" placeholder="'+(LANG==='zh'?'品項內容':'Deskripsi barang')+'..." style="display:none"></textarea>'+
     '</div>'+
     '<div class="ig"><label>'+(LANG==='zh'?'📷 附上照片（可選）':'📷 Foto (opsional)')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
