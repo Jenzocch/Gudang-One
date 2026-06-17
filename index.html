@@ -377,6 +377,11 @@ function staffLogout(){
   if(!confirm(LANG==='zh'?'確認登出？':'Keluar?'))return;
   CURRENT_USER=null;IS_ADMIN=false;
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
+  // 重設標籤顯示
+  var tabMasuk=document.querySelectorAll('.tb')[2];
+  var tabAdmin=document.querySelectorAll('.tb')[5];
+  if(tabMasuk)tabMasuk.style.display='none';
+  if(tabAdmin)tabAdmin.style.display='none';
   renderLoginScreen();
 }
 
@@ -431,6 +436,11 @@ async function loadAll(afterCb){
 }
 
 function renderAll(){
+  // 根據身份控制標籤顯示
+  var tabMasuk=document.querySelectorAll('.tb')[2];
+  var tabAdmin=document.querySelectorAll('.tb')[5];
+  if(tabMasuk)tabMasuk.style.display=IS_ADMIN?'':'none';
+  if(tabAdmin)tabAdmin.style.display=IS_ADMIN?'':'none';
   document.getElementById('mc').innerHTML=
     '<div id="home" class="sec active"></div>'+
     '<div id="ambil" class="sec"></div>'+
