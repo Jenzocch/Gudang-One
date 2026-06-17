@@ -171,6 +171,11 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .catg-chip{padding:.3rem .75rem;border:1.5px solid var(--border);background:#fff;border-radius:20px;cursor:pointer;font-size:.78rem;font-weight:600;color:#64748B;white-space:nowrap;transition:.2s}
 .catg-chip.act{background:var(--p);color:#fff;border-color:var(--p)}
 .catg-badge{display:inline-block;padding:.1rem .45rem;border-radius:10px;font-size:.68rem;font-weight:700;background:#E0F2FE;color:#0369A1;margin-left:.3rem}
+.stk-row{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border-bottom:1px solid #F3F4F6;background:#fff;transition:.15s}
+.stk-row.changed{background:#FFFBEB;border-left:3px solid var(--warn)}
+.stk-qty{width:68px;padding:.38rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.95rem;font-weight:700;text-align:center;background:#fff}
+.stk-qty:focus{outline:none;border-color:var(--p)}
+.stk-qty.changed{border-color:var(--warn);background:#FFFBEB}
 </style>
 </head>
 <body>
@@ -403,6 +408,8 @@ var STAFF_PIN_ENT='';
 var CART={};
 var CART_M={};
 var CATG_FILTER='';
+var STOCKTAKE={};
+var STK_CATG='';
 
 window.addEventListener('DOMContentLoaded',function(){
   updateLangUI();
@@ -882,8 +889,11 @@ function renderAdminFull(){
       '<button class="tsw" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
     '</div>'+
     '<div id="ait" class="tc active">'+
-      '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddItem()">➕ '+t('addItem')+'</button></div>'+
-      '<div class="ai-list" id="ai-list">'+aiListHTML()+'</div>'+
+      '<div style="padding:.7rem;display:flex;gap:.5rem">'+
+        '<button class="btn btn-p" style="flex:1" onclick="showAddItem()">➕ '+t('addItem')+'</button>'+
+        '<button class="btn btn-warn" style="flex:1" onclick="renderStocktake(\'\')">🔢 '+(LANG==='zh'?'快速盤點':'Stok Cepat')+'</button>'+
+      '</div>'+
+      '<div id="ait-content"><div class="ai-list">'+aiListHTML()+'</div></div>'+
     '</div>'+
     '<div id="ape" class="tc">'+
       '<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
@@ -1010,6 +1020,80 @@ function onCatgFormSel(){
   if(!sel||!inp)return;
   if(sel.value==='__new__'){inp.style.display='block';inp.focus();}
   else{inp.style.display='none';inp.value='';}
+}
+function renderStocktake(catFilter){
+  STOCKTAKE={};STK_CATG=catFilter||'';
+  var cats=getCategories();
+  var items=DATA.items.filter(function(i){return!STK_CATG||i.category===STK_CATG;});
+  var html='<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--border);padding:.5rem .7rem">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
+    '<span style="font-weight:700;font-size:.9rem">🔢 '+(LANG==='zh'?'快速盤點':'Stok Cepat')+'</span>'+
+    '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+(LANG==='zh'?'返回列表':'Kembali')+'</button>'+
+    '</div>';
+  if(cats.length){
+    html+='<div style="display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.15rem">'+
+      '<button class="catg-chip'+(STK_CATG===''?' act':'')+'" onclick="renderStocktake(\'\')">'+t('allCatg')+'</button>'+
+      cats.map(function(c){return'<button class="catg-chip'+(STK_CATG===c?' act':'')+'" onclick="renderStocktake(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join('')+
+      '</div>';
+  }
+  html+='</div>';
+  if(!items.length){
+    html+='<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+(LANG==='zh'?'此分類無商品':'Tidak ada barang')+'</div>';
+  }else{
+    html+='<div style="background:#F8FAFC;padding:.3rem .7rem;font-size:.75rem;color:#64748B;border-bottom:1px solid var(--border)">'+
+      (LANG==='zh'?'直接修改數量，有改動的行會變黃，最後點儲存':'Edit jumlah langsung, baris berubah warna kuning, lalu simpan')+
+    '</div>';
+    items.forEach(function(i){
+      var ph=i.image_url?'<img style="width:38px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0" src="'+esc(i.image_url)+'">'
+        :'<div style="width:38px;height:38px;border-radius:6px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📦</div>';
+      html+='<div class="stk-row" id="stk-'+i.id+'">'+ph+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
+          (i.category?'<div style="font-size:.7rem;color:#64748B">🏷️ '+esc(i.category)+'</div>':'')+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
+          '<span style="font-size:.75rem;color:#94A3B8;text-decoration:line-through" id="stk-orig-'+i.id+'">'+i.qty+'</span>'+
+          '<input type="number" class="stk-qty" id="sq-'+i.id+'" value="'+i.qty+'" min="0" oninput="onStkChange('+i.id+',this)">'+
+          '<span style="font-size:.8rem;color:#64748B;min-width:24px">'+esc(i.unit)+'</span>'+
+        '</div>'+
+      '</div>';
+    });
+  }
+  html+='<div style="padding:.7rem;background:#fff;border-top:1px solid var(--border)">'+
+    '<button class="btn btn-ok btn-full" id="stk-save-btn" onclick="saveStocktake()" disabled>'+
+    (LANG==='zh'?'✓ 儲存盤點（尚無更動）':'✓ Simpan (belum ada perubahan)')+'</button></div>';
+  document.getElementById('ait-content').innerHTML=html;
+}
+function onStkChange(id,inp){
+  var item=DATA.items.find(function(i){return i.id===id;});if(!item)return;
+  var nv=parseInt(inp.value);
+  if(isNaN(nv)||nv<0){inp.value=item.qty;delete STOCKTAKE[id];}
+  else if(nv!==item.qty){STOCKTAKE[id]=nv;document.getElementById('stk-'+id).classList.add('changed');inp.classList.add('changed');}
+  else{delete STOCKTAKE[id];document.getElementById('stk-'+id).classList.remove('changed');inp.classList.remove('changed');}
+  var n=Object.keys(STOCKTAKE).length;
+  var btn=document.getElementById('stk-save-btn');
+  if(btn){btn.disabled=n===0;btn.textContent=n?'✓ '+(LANG==='zh'?'儲存盤點（'+n+' 項更動）':'Simpan ('+n+' perubahan)'):(LANG==='zh'?'✓ 儲存盤點（尚無更動）':'✓ Simpan (belum ada perubahan)');}
+}
+async function saveStocktake(){
+  var keys=Object.keys(STOCKTAKE);if(!keys.length)return;
+  var btn=document.getElementById('stk-save-btn');btn.disabled=true;btn.textContent=LANG==='zh'?'儲存中...':'Menyimpan...';
+  try{
+    for(var ki=0;ki<keys.length;ki++){
+      var id=Number(keys[ki]);
+      var item=DATA.items.find(function(i){return i.id===id;});
+      var nv=STOCKTAKE[keys[ki]];var diff=nv-item.qty;
+      await sb.from('items').update({qty:nv}).eq('id',id);
+      if(diff!==0)await sb.from('transactions').insert({type:diff>0?'masuk':'ambil',item_id:id,item_name:item.name,person_name:(CURRENT_USER?CURRENT_USER.name:'Admin')+(LANG==='zh'?'（盤點）':'(Opname)'),qty:Math.abs(diff)});
+      item.qty=nv;
+    }
+    var n=keys.length;STOCKTAKE={};
+    toast('✓ '+(LANG==='zh'?'盤點完成，更動 '+n+' 項':'Selesai, '+n+' item diubah'));
+    renderStocktake(STK_CATG);
+  }catch(e){toast('⚠ '+e.message);btn.disabled=false;}
+}
+function exitStocktake(){
+  STOCKTAKE={};
+  document.getElementById('ait-content').innerHTML='<div class="ai-list">'+aiListHTML()+'</div>';
 }
 function showSetPin(id){
   var p=DATA.people.find(function(x){return x.id===id;});if(!p)return;
