@@ -255,7 +255,7 @@ var T = {
     takeOk:'✓ 取貨成功',rcvOk:'✓ 入貨成功',saveOk:'✓ 儲存成功',delOk:'✓ 已刪除',reqOk:'✓ 申請已送出',
     selBoth:'⚠ 請選擇商品和人員',fillAll:'⚠ 請填寫姓名和申請內容',
     stockVal:'總庫存價值',avgCost:'平均成本',
-    out:'取出',in:'入庫',purchases:'採購',catg:'分類',catgMgmt:'分類管理',addCatg:'新增分類',noCatg:'無分類',allCatg:'全部'},
+    out:'取出',in:'入庫',purchases:'採購',catg:'標籤',catgMgmt:'標籤管理',addCatg:'新增標籤',noCatg:'無標籤',allCatg:'全部'},
   id:{title:'Sistem Gudang',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
@@ -276,7 +276,7 @@ var T = {
     takeOk:'✓ Berhasil diambil',rcvOk:'✓ Berhasil masuk',saveOk:'✓ Disimpan',delOk:'✓ Dihapus',reqOk:'✓ Permintaan terkirim',
     selBoth:'⚠ Pilih barang dan orang',fillAll:'⚠ Isi nama dan barang',
     stockVal:'Total Nilai Stok',avgCost:'Rata-rata Harga',
-    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori',catgMgmt:'Kelola Kategori',addCatg:'Tambah Kategori',noCatg:'Tanpa Kategori',allCatg:'Semua'}
+    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Tag',catgMgmt:'Kelola Tag',addCatg:'Tambah Tag',noCatg:'Tanpa Tag',allCatg:'Semua'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
 function toggleLang(){LANG=LANG==='zh'?'id':'zh';localStorage.setItem('lang',LANG);updateLangUI();if(DATA.items.length)renderAll();else if(!CURRENT_USER)renderLoginScreen();}
