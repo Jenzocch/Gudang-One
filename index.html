@@ -1233,6 +1233,7 @@ function renderFormTags(){
   return FORM_TAGS.map(function(tg,i){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem;display:inline-flex;align-items:center;gap:.25rem" onclick="removeFormTag('+i+')">🏷️ '+esc(tg)+' <span style="font-weight:700;font-size:.85rem">✕</span></span>';}).join('');
 }
 function onFormTagKey(e){if(e.key==='Enter'||e.key===','){e.preventDefault();addFormTag();}}
+function addFormTagVal(v){if(v&&!FORM_TAGS.includes(v)){FORM_TAGS.push(v);var list=document.getElementById('ftag-list');if(list)list.innerHTML=renderFormTags();}}
 
 function quickAssignTag(id){
   var item=DATA.items.find(function(i){return i.id===id;});if(!item)return;
@@ -1474,14 +1475,14 @@ function itemFormHTML(item){
     '</div>'+
     '<div class="ig"><label>'+t('supUrl')+'</label><input id="fsu" type="url" placeholder="https://..." value="'+(item&&item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
     '<div class="ig"><label>🏷️ '+(LANG==='zh'?'標籤（可多個）':'Tag (bisa banyak)')+'</label>'+
-    '<div id="ftag-list" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:20px;margin-bottom:.4rem">'+
-    FORM_TAGS.map(function(tg){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem" onclick="removeFormTag(\''+esc(tg)+'\')">🏷️ '+esc(tg)+' ✕</span>';}).join('')+
+    '<div id="ftag-list" style="display:flex;flex-wrap:wrap;gap:.35rem;min-height:24px;margin-bottom:.5rem">'+renderFormTags()+
     '</div>'+
     '<div style="display:flex;gap:.4rem">'+
-    '<input id="ftag-inp" type="text" list="ftag-dl" placeholder="'+(LANG==='zh'?'輸入標籤，Enter 新增':'Ketik tag, Enter untuk tambah')+'" onkeydown="onFormTagKey(event)" style="flex:1">'+
-    '<datalist id="ftag-dl">'+getCategories().map(function(c){return'<option value="'+esc(c)+'">';}).join('')+'</datalist>'+
-    '<button type="button" class="btn btn-s" onclick="addFormTag()" style="flex-shrink:0;padding:.5rem .9rem">+</button>'+
-    '</div></div>'+
+    '<input id="ftag-inp" type="text" placeholder="'+(LANG==='zh'?'輸入標籤名稱...':'Nama tag...')+'" onkeyup="onFormTagKey(event)" style="flex:1;font-size:.95rem">'+
+    '<button type="button" class="btn btn-p" onclick="addFormTag()" style="flex-shrink:0;padding:.5rem 1rem;font-size:1rem;font-weight:700">+</button>'+
+    '</div>'+
+    (getCategories().length?'<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem">'+getCategories().map(function(c){return'<button type="button" style="background:#F1F5F9;border:1px solid var(--border);border-radius:12px;padding:.2rem .6rem;font-size:.78rem;cursor:pointer;color:#475569" onclick="addFormTagVal(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join('')+'</div>':'')
+    +'</div>'+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
 function showAddItem(){EDIT_ITEM=null;F_PHOTO='';FORM_TAGS=[];showModal('➕ '+t('addItem'),itemFormHTML(null));}
