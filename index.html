@@ -500,14 +500,32 @@ function renderHome(){
       '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 '+(LANG==='zh'?'需要採購 ('+lowItems.length+' 項)':'Perlu Beli ('+lowItems.length+' item)')+'</span>'+
       '<button onclick="copyBuyList()" style="background:var(--danger);color:#fff;border:none;padding:.2rem .6rem;border-radius:8px;cursor:pointer;font-size:.72rem;font-weight:600">📋 '+(LANG==='zh'?'複製清單':'Salin')+'</button>'+
       '</div>';
-      lowItems.forEach(function(i){
+      var catGrp={};var noCat=[];
+      lowItems.forEach(function(i){if(i.category){if(!catGrp[i.category])catGrp[i.category]=[];catGrp[i.category].push(i);}else{noCat.push(i);}});
+      var renderLowRow=function(i){
         var empty=i.qty<=0;
-        h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.5rem">'+
-          '<span style="font-size:.9rem">'+(empty?'🔴':'🟠')+'</span>'+
-          '<span style="font-weight:600;flex:1;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span>'+
-          '<span style="color:#6B7280;font-size:.75rem;white-space:nowrap;margin-right:.4rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+'</span>'+
-          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.15rem .45rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap">🔗 '+(LANG==='zh'?'採購':'Beli')+'</a>':'')+'</div>';
-      });
+        return '<div style="display:flex;align-items:center;padding:.5rem .9rem;border-bottom:1px solid #F3F4F6;gap:.45rem">'+
+          '<span style="font-size:.95rem;flex-shrink:0">'+(empty?'🔴':'🟠')+'</span>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
+            '<div style="font-size:.73rem;color:#6B7280;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.category?'<span class="catg-badge">🏷️ '+esc(i.category)+'</span>':'')+'</div>'+
+          '</div>'+
+          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+(LANG==='zh'?'採購':'Beli')+'</a>':'')+
+        '</div>';
+      };
+      var catKeys=Object.keys(catGrp).sort();
+      if(catKeys.length){
+        catKeys.forEach(function(cat){
+          h+='<div style="padding:.28rem .9rem;background:#FFF7ED;border-bottom:1px solid #FEE2E2;font-size:.75rem;font-weight:700;color:#92400E">🏷️ '+esc(cat)+'</div>';
+          catGrp[cat].forEach(function(i){h+=renderLowRow(i);});
+        });
+        if(noCat.length){
+          h+='<div style="padding:.28rem .9rem;background:#F9FAFB;border-bottom:1px solid #F3F4F6;font-size:.75rem;font-weight:700;color:#94A3B8">'+(LANG==='zh'?'未分類':'Tanpa Kategori')+'</div>';
+          noCat.forEach(function(i){h+=renderLowRow(i);});
+        }
+      }else{
+        lowItems.forEach(function(i){h+=renderLowRow(i);});
+      }
       h+='</div>';
     }
 
@@ -516,10 +534,14 @@ function renderHome(){
     sorted.forEach(function(i){
       var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
       var dot=ratio<=0?'🔴':ratio<=1?'🟠':'🟢';
-      h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;font-size:.85rem">'+
-        '<span style="margin-right:.5rem;font-size:1rem">'+dot+'</span>'+
-        '<span style="font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span>'+
-        '<span style="color:#6B7280;font-size:.78rem;margin-left:.5rem;white-space:nowrap">'+i.qty+' / '+i.critical_qty+' '+esc(i.unit)+'</span>'+
+      h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.4rem">'+
+        '<span style="font-size:1rem;flex-shrink:0">'+dot+'</span>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
+          (i.category?'<span class="catg-badge">🏷️ '+esc(i.category)+'</span>':'')+
+        '</div>'+
+        '<span style="color:#6B7280;font-size:.76rem;white-space:nowrap;flex-shrink:0">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+'</span>'+
+        (i.supplier_url&&ratio<=1?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
       '</div>';
     });
     h+='</div>';
