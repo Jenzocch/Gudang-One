@@ -469,6 +469,7 @@ var EDIT_ITEM=null;
 var LOW_ITEM=null;
 var sIA=null,sPA=null,sIM=null,sPM=null;
 var F_PHOTO='';
+var F_STORAGE_PHOTO='';
 var CURRENT_USER=null;
 var STAFF_PIN_ENT='';
 var CART={};
@@ -1125,12 +1126,11 @@ function aiListHTML(){
         '<div class="ai-name">'+esc(i.name)+'</div>'+
         '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.15rem">'+(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag('+i.id+')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+'<button onclick="quickAssignTag('+i.id+')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:.05rem .4rem">+ tag</button></div>'+
-        (i.supplier_url
-          ?'<div style="display:flex;align-items:center;gap:.35rem;margin-top:.2rem">'+
-            '<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>'+
-            '<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:0">✏️</button>'+
-            '</div>'
-          :'<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+(LANG==='zh'?'新增採購連結':'Tambah link')+'</button>')+
+        '<div style="display:flex;align-items:center;gap:.3rem;margin-top:.2rem;flex-wrap:wrap">'+
+        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+(LANG==='zh'?'新增採購連結':'Tambah link')+'</button>')+
+        (i.supplier_url?'<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:0">✏️</button>':'')+
+        (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;padding:.1rem .3rem;color:#0D9488" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+
+        '</div>'+
         '</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" title="QR" onclick="printQR('+i.id+')">🖨️</button>'+
@@ -1516,6 +1516,15 @@ function itemFormHTML(item){
       '<input type="file" id="f-fi" accept="image/*" style="display:none" onchange="onPhoto(event)">'+
       '<div id="fph">'+(item&&item.image_url?'<img class="prev" src="'+esc(item.image_url)+'">':'')+'</div>'+
     '</div>'+
+    '<div class="ig"><label>'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'</label>'+
+      '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-stor-cam\').click()">📷 '+(LANG==='zh'?'拍照':'Kamera')+'</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-stor-fi\').click()">🖼️ '+(LANG==='zh'?'相簿':'Album')+'</button>'+
+      '</div>'+
+      '<input type="file" id="f-stor-cam" accept="image/*" capture="environment" style="display:none" onchange="onStoragePhoto(event)">'+
+      '<input type="file" id="f-stor-fi" accept="image/*" style="display:none" onchange="onStoragePhoto(event)">'+
+      '<div id="fsp">'+(item&&item.storage_photo_url?'<img class="prev" src="'+esc(item.storage_photo_url)+'">':'')+'</div>'+
+    '</div>'+
     '<div class="ig"><label>'+t('supUrl')+'</label><input id="fsu" type="url" placeholder="https://..." value="'+(item&&item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
     '<div class="ig"><label>🏷️ '+(LANG==='zh'?'標籤（可多個）':'Tag (bisa banyak)')+'</label>'+
     '<div id="ftag-list" style="display:flex;flex-wrap:wrap;gap:.35rem;min-height:20px;margin-bottom:.5rem">'+FORM_TAGS.map(function(tg,i){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem;display:inline-flex;align-items:center;gap:.25rem;background:#DBEAFE;color:#0369A1" onclick="removeFormTag('+i+')">🏷️ '+esc(tg)+' <span style="font-weight:700">✕</span></span>';}).join('')+
@@ -1528,13 +1537,20 @@ function itemFormHTML(item){
     +'</div>'+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
-function showAddItem(){EDIT_ITEM=null;F_PHOTO='';FORM_TAGS=[];showModal('➕ '+t('addItem'),itemFormHTML(null));}
-function showEdit(id){EDIT_ITEM=DATA.items.find(function(i){return i.id===id;});F_PHOTO='';FORM_TAGS=(EDIT_ITEM&&EDIT_ITEM.tags)?EDIT_ITEM.tags.slice():[];showModal('✏️ '+t('editItem'),itemFormHTML(EDIT_ITEM));}
+function showAddItem(){EDIT_ITEM=null;F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=[];showModal('➕ '+t('addItem'),itemFormHTML(null));}
+function showEdit(id){EDIT_ITEM=DATA.items.find(function(i){return i.id===id;});F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=(EDIT_ITEM&&EDIT_ITEM.tags)?EDIT_ITEM.tags.slice():[];showModal('✏️ '+t('editItem'),itemFormHTML(EDIT_ITEM));}
 function onPhoto(e){
   var f=e.target.files[0];if(!f)return;
   compressImg(f,function(d){
     F_PHOTO=d;
     var p=document.getElementById('fph');if(p)p.innerHTML='<img class="prev" src="'+d+'">';
+  });
+}
+function onStoragePhoto(e){
+  var f=e.target.files[0];if(!f)return;
+  compressImg(f,function(d){
+    F_STORAGE_PHOTO=d;
+    var p=document.getElementById('fsp');if(p)p.innerHTML='<img class="prev" src="'+d+'">';
   });
 }
 async function saveItem(){
@@ -1545,8 +1561,9 @@ async function saveItem(){
   var min=parseInt(document.getElementById('fm').value)||10;
   var surl=(document.getElementById('fsu').value||'').trim();
   var img=F_PHOTO||(EDIT_ITEM&&EDIT_ITEM.image_url)||null;
-  F_PHOTO='';
-  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img,tags:FORM_TAGS.slice()};
+  var sp=F_STORAGE_PHOTO||(EDIT_ITEM&&EDIT_ITEM.storage_photo_url)||null;
+  F_PHOTO='';F_STORAGE_PHOTO='';
+  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img,storage_photo_url:sp,tags:FORM_TAGS.slice()};
   try{
     if(EDIT_ITEM){var {error}=await sb.from('items').update(d).eq('id',EDIT_ITEM.id);if(error)throw error;}
     else{var {error}=await sb.from('items').insert(d);if(error)throw error;}
@@ -1769,13 +1786,13 @@ function compressImg(file,cb){
   };
   rd.readAsDataURL(file);
 }
-function showImg(url,name){
+function showImg(url,name,icon){
   var ov=document.createElement('div');
   ov.className='img-ov';
   ov.onclick=function(){ov.remove();};
   ov.innerHTML='<div style="text-align:center;max-width:100%">'+
     '<img src="'+esc(url)+'" style="max-width:100%;max-height:75vh;border-radius:10px;object-fit:contain;box-shadow:0 8px 30px rgba(0,0,0,.5)">'+
-    '<div style="color:#fff;font-weight:600;margin-top:.7rem;font-size:.95rem">'+esc(name)+'</div>'+
+    '<div style="color:#fff;font-weight:600;margin-top:.7rem;font-size:.95rem">'+(icon||'')+' '+esc(name)+'</div>'+
     '<div style="color:#aaa;font-size:.75rem;margin-top:.2rem">'+(LANG==='zh'?'點任意處關閉':'Tap untuk tutup')+'</div>'+
   '</div>';
   document.body.appendChild(ov);
