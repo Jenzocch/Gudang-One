@@ -411,7 +411,7 @@ function staffLogout(){
   if(!confirm('Keluar?'))return;
   clearSessions();CURRENT_USER=null;IS_ADMIN=false;
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
-  // 重設標籤顯示
+  // reset tampilan tab
   var tabMasuk=document.querySelectorAll('.tb')[2];
   var tabRiwayat=document.querySelectorAll('.tb')[4];
   var tabAdmin=document.querySelectorAll('.tb')[5];
@@ -1885,7 +1885,7 @@ function showImg(url,name,icon){
 function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString('id-ID',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function fmtC(n){if(!n)return'-';return('Rp ')+Math.round(n).toLocaleString();}
 function today(){return new Date().toISOString().slice(0,10);}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2800);}
 </script>
 </body>
