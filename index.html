@@ -9,21 +9,21 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gudang">
 <link rel="manifest" href="/manifest.json">
-<title>倉庫管理系統</title>
+<title>Sistem Gudang</title>
 <script>
 function loadScript(src,cb,errCb){var s=document.createElement('script');s.src=src;s.onload=cb||function(){};s.onerror=errCb||function(){if(cb)cb();};document.head.appendChild(s);}
 var _sbReady=false,_sbErr=false,_sbCbs=[],_sbTout=null;
 function initSupabase(ok,fail){
   if(_sbReady){ok();return;}
-  if(_sbErr){if(fail)fail(new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal sambung, coba lagi':'連線失敗，請重試'));return;}
+  if(_sbErr){if(fail)fail(new Error(typeof LANG!=='undefined'&&'Gagal sambung, coba lagi'));return;}
   _sbCbs.push({ok:ok,fail:fail||function(){}});
   if(_sbCbs.length>1)return;
   _sbTout=setTimeout(function(){
-    if(!_sbReady&&!_sbErr){_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&LANG==='id'?'Koneksi timeout (10s)':'連線逾時（10秒）');var cbs=_sbCbs;_sbCbs=[];cbs.forEach(function(x){x.fail(e);});}
+    if(!_sbReady&&!_sbErr){_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&'Koneksi timeout (10s)');var cbs=_sbCbs;_sbCbs=[];cbs.forEach(function(x){x.fail(e);});}
   },10000);
   loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
     function(){if(_sbTout)clearTimeout(_sbTout);if(_sbReady||_sbErr)return;_sbReady=true;if(typeof sb==='undefined'||!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);var cbs=_sbCbs;_sbCbs=[];cbs.forEach(function(x){x.ok();});},
-    function(){if(_sbTout)clearTimeout(_sbTout);if(_sbReady||_sbErr)return;_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal muat library, periksa jaringan':'無法載入函式庫，請檢查網路');var cbs=_sbCbs;_sbCbs=[];cbs.forEach(function(x){x.fail(e);});}
+    function(){if(_sbTout)clearTimeout(_sbTout);if(_sbReady||_sbErr)return;_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&'Gagal muat library, periksa jaringan');var cbs=_sbCbs;_sbCbs=[];cbs.forEach(function(x){x.fail(e);});}
   );
 }
 </script>
@@ -193,12 +193,11 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 <div id="app">
   <div class="hdr">
     <div class="hdr-title">
-      <div class="hdr-title-main">Sistem Gudang Inventory</div>
-      <div class="hdr-title-sub">倉庫物料進出管理系統</div>
+      <div class="hdr-title-main">Sistem Gudang</div>
+      <div class="hdr-title-sub">Manajemen Stok Barang</div>
     </div>
     <div class="hdr-right">
       <button class="hdr-user-btn" id="hdr-user-btn" onclick="staffLogout()"></button>
-      <button class="lang-btn" onclick="toggleLang()" id="lang-btn">中/ID</button>
       <div class="conn-dot" id="cdot"></div>
     </div>
   </div>
@@ -221,7 +220,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
     <div id="low-body" style="font-size:.88rem;color:#374151;margin:.5rem 0 1rem"></div>
     <div style="display:flex;gap:.6rem">
       <button class="btn btn-s" style="flex:1" onclick="closeLow()">✕</button>
-      <button class="btn btn-warn" style="flex:2;display:none" id="low-link-btn" onclick="openLowLink()">🔗 採購</button>
+      <button class="btn btn-warn" style="flex:2;display:none" id="low-link-btn" onclick="openLowLink()">🔗 Beli</button>
     </div>
   </div>
 </div>
@@ -236,29 +235,8 @@ var ADMIN_PIN = '123456'; // ← 修改管理員 PIN
 var GUEST_PIN = '0000';  // ← 新人臨時 PIN（口頭告知）
 // ══════════════════════════════════
 
-var LANG = localStorage.getItem('lang') || 'zh';
+var LANG = 'id';  // 僅保留印尼語
 var T = {
-  zh:{title:'倉庫管理',home:'首頁',take:'取貨',receive:'入貨',req:'申請',hist:'記錄',adm:'管理',
-    conn:'連線中...',ok:'已連線',err:'連線失敗',items:'商品種類',people:'員工',
-    lowStock:'庫存不足',allOk:'所有庫存充足',recentReq:'最近申請',noReq:'暫無申請',noTxn:'暫無記錄',
-    selItem:'選擇商品',selPerson:'選擇人員',summary:'確認資訊',item:'商品',person:'人員',qty:'數量',
-    doTake:'✓ 確認取貨',doRcv:'✓ 確認入貨',
-    lowTitle:'⚠️ 庫存不足！',lowMsg:'庫存只剩 {q} {u}，需要 {n} {u}',buyLink:'前往採購',
-    pin:'管理者 PIN',wrongPin:'❌ PIN 錯誤',logout:'登出管理',
-    addBuy:'新增採購',supplier:'供應商',price:'單價',bDate:'採購日期',buyUrl:'採購網址',note:'備注',
-    buyHist:'採購記錄',noBuy:'暫無採購記錄',
-    addItem:'新增商品',editItem:'編輯商品',iName:'商品名稱',unit:'單位',minQ:'最低庫存',initQ:'初始數量',
-    upPhoto:'上傳照片（點擊）',orUrl:'或輸入圖片網址',supUrl:'採購網址（商品頁面）',
-    bulk:'批量匯入（Excel）',bulkHint:'格式：名稱 [Tab] 數量 [Tab] 單位 [Tab] 最低庫存 [Tab] 採購網址',
-    impBtn:'匯入',prevLbl:'預覽（{n} 筆）',
-    addPerson:'新增人員',pName:'姓名',itemList:'商品管理',peopleList:'人員管理',
-    save:'儲存',del:'刪除',edit:'編輯',
-    approve:'批准',reject:'拒絕',pending:'待審',approved:'已批准',rejected:'已拒絕',
-    reqItems:'申請內容',reqNote:'備注',myName:'你的姓名',sendReq:'送出申請',
-    takeOk:'✓ 取貨成功',rcvOk:'✓ 入貨成功',saveOk:'✓ 儲存成功',delOk:'✓ 已刪除',reqOk:'✓ 申請已送出',
-    selBoth:'⚠ 請選擇商品和人員',fillAll:'⚠ 請填寫姓名和申請內容',
-    stockVal:'總庫存價值',avgCost:'平均成本',
-    out:'取出',in:'入庫',purchases:'採購',catg:'標籤',catgMgmt:'標籤管理',addCatg:'新增標籤',noCatg:'無標籤',allCatg:'全部'},
   id:{title:'Sistem Gudang',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
@@ -282,24 +260,6 @@ var T = {
     out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Tag',catgMgmt:'Kelola Tag',addCatg:'Tambah Tag',noCatg:'Tanpa Tag',allCatg:'Semua'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
-function toggleLang(){
-  var curTab=document.querySelector('.tb.active');
-  LANG=LANG==='zh'?'id':'zh';
-  localStorage.setItem('lang',LANG);
-  updateLangUI();
-  if(DATA.items.length){
-    renderAll();
-    if(curTab){
-      var tabIdx=Array.from(document.querySelectorAll('.tb')).indexOf(curTab);
-      if(tabIdx>=0&&document.querySelectorAll('.tb')[tabIdx])goTab(document.querySelectorAll('.sec')[tabIdx].id,document.querySelectorAll('.tb')[tabIdx]);
-    }
-  }else if(!CURRENT_USER)renderLoginScreen();
-}
-function updateLangUI(){
-  var lb=document.getElementById('lang-btn');if(lb)lb.textContent=LANG==='zh'?'ID':'中文';
-  var lt=document.getElementById('lt');if(lt)lt.textContent=t('conn');
-  ['h','a','m','r','hi','adm'].forEach(function(k,i){var el=document.getElementById('tl-'+k);if(el)el.textContent=[t('home'),t('take'),t('receive'),t('req'),t('hist'),t('adm')][i];});
-}
 
 function renderLoginScreen(){
   STAFF_PIN_ENT='';LOGIN_SEL='';
@@ -312,7 +272,7 @@ function renderLoginScreen(){
     '<label style="text-align:center;display:block;font-size:.9rem;color:#64748B;margin-bottom:.5rem;font-weight:600">'+t('selPerson')+'</label>'+
     '<div id="ls-people-list" style="display:flex;flex-direction:column;gap:.5rem;max-height:280px;overflow-y:auto"></div>'+
     '</div>'+
-    '<input id="ls-newname" type="text" placeholder="'+(LANG==='zh'?'輸入你的名字':'Nama kamu')+'..." style="display:none;width:100%;max-width:260px;margin-bottom:1rem">'+
+    '<input id="ls-newname" type="text" placeholder="'+('Nama kamu')+'..." style="display:none;width:100%;max-width:260px;margin-bottom:1rem">'+
     '<div id="ls-pin-area" style="display:none;width:100%">'+
     '<div id="ls-pin-hint" style="font-size:.75rem;color:#64748B;margin-bottom:.4rem;text-align:center"></div>'+
     '<div class="pin-dots" id="ls-dots">'+Array(4).fill('<div class="pin-dot"></div>').join('')+'</div>'+
@@ -322,8 +282,8 @@ function renderLoginScreen(){
         return k===''?'<div></div>':'<button class="pk" onclick="lpk(\''+k+'\')">'+k+'</button>';
       }).join('')+
     '</div></div>'+
-    '<div id="ls-status" style="min-height:1.4rem;margin-top:.5rem;text-align:center"><span style="font-size:.75rem;color:#94A3B8">'+(LANG==='id'?'Memuat data...':'載入資料中...')+'</span></div>'+
-    '<button class="btn btn-s" style="margin-top:1rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
+    '<div id="ls-status" style="min-height:1.4rem;margin-top:.5rem;text-align:center"><span style="font-size:.75rem;color:#94A3B8">'+'Memuat data...'+'</span></div>'+
+    '<button class="btn btn-s" style="margin-top:1rem" onclick="adminLogin()">🔐 '+('Login Admin')+'</button>'+
     '</div>';
   try{var cp=JSON.parse(localStorage.getItem('cached_people')||'[]');if(cp.length)DATA.people=cp;}catch(e){}
   renderLoginPeopleList();
@@ -337,11 +297,11 @@ function renderLoginScreen(){
       }
       if(lsStatus)lsStatus.textContent='';
     }).catch(function(err){
-      if(lsStatus)lsStatus.innerHTML='<span style="color:#F59E0B;font-size:.8rem">⚠ '+(LANG==='id'?'Gagal muat data terbaru':'無法載入最新資料')+'<br><button class="btn btn-s" style="margin-top:.3rem;padding:.2rem .6rem;font-size:.78rem" onclick="renderLoginScreen()">🔄 '+(LANG==='id'?'Coba lagi':'重試')+'</button></span>';
+      if(lsStatus)lsStatus.innerHTML='<span style="color:#F59E0B;font-size:.8rem">⚠ '+'Gagal muat data terbaru'+'<br><button class="btn btn-s" style="margin-top:.3rem;padding:.2rem .6rem;font-size:.78rem" onclick="renderLoginScreen()">🔄 '+'Coba lagi'+'</button></span>';
     });
   },function(e){
     var lsStatus=document.getElementById('ls-status');
-    if(lsStatus)lsStatus.innerHTML='<div style="color:#DC2626;font-size:.8rem"><div>⚠ '+(LANG==='id'?'Koneksi bermasalah':'連線有問題')+'</div><button class="btn btn-p" style="margin-top:.4rem;width:100%;padding:.35rem .6rem" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];renderLoginScreen()">'+(LANG==='id'?'Coba lagi':'重試')+'</button></div>';
+    if(lsStatus)lsStatus.innerHTML='<div style="color:#DC2626;font-size:.8rem"><div>⚠ '+'Koneksi bermasalah'+'</div><button class="btn btn-p" style="margin-top:.4rem;width:100%;padding:.35rem .6rem" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];renderLoginScreen()">'+'Coba lagi'+'</button></div>';
   });
 }
 function renderLoginPeopleList(){
@@ -353,7 +313,7 @@ function renderLoginPeopleList(){
     '</button>';
   }).join('')+
   '<button class="login-person-btn" style="background:#F3F4F6;border:1.5px solid rgba(0,0,0,.08)" onclick="selectLoginPerson(\'__new__\',\'\')">'+
-    '<div style="font-weight:800;font-size:1.15rem;color:var(--dark);text-align:center;flex:1">✏️ '+(LANG==='zh'?'新用戶':'Pengguna Baru')+'</div>'+
+    '<div style="font-weight:800;font-size:1.15rem;color:var(--dark);text-align:center;flex:1">✏️ '+('Pengguna Baru')+'</div>'+
   '</button>';
   var el=document.getElementById('ls-people-list');
   if(el)el.innerHTML=html;
@@ -365,7 +325,7 @@ function selectLoginPerson(pid,name){
   document.getElementById('ls-err').textContent='';
   if(pid==='__new__'){
     document.getElementById('ls-newname').style.display='block';
-    document.getElementById('ls-pin-hint').textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+GUEST_PIN:'Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
+    document.getElementById('ls-pin-hint').textContent='Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
   }else{
     document.getElementById('ls-newname').style.display='none';
     document.getElementById('ls-newname').value='';
@@ -374,16 +334,16 @@ function selectLoginPerson(pid,name){
   document.getElementById('ls-pin-area').style.display='block';
 }
 function adminLogin(){
-  var pin=prompt(LANG==='zh'?'請輸入管理員 PIN（6位）':'PIN Admin (6 digit)');
+  var pin=prompt('PIN Admin (6 digit)');
   if(pin===null)return;
   if(pin===ADMIN_PIN){
     localStorage.setItem('admin_sess',JSON.stringify({ts:Date.now()}));
-    CURRENT_USER={id:0,name:LANG==='zh'?'管理員':'Admin',initials:'AD'};
+    CURRENT_USER={id:0,name:'Admin',initials:'AD'};
     IS_ADMIN=true;
     var btn=document.getElementById('hdr-user-btn');
     if(btn){btn.textContent='▶ '+CURRENT_USER.name;btn.style.display='inline';}
     document.getElementById('tabs').style.display='flex';
-    document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+(LANG==='zh'?'載入中...':'Memuat...')+'</p></div>';
+    document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat...')+'</p></div>';
     initSupabase(function(){
       loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);});
     },function(e){
@@ -403,7 +363,7 @@ function onLoginSel(){
   if(!sel.value){area.style.display='none';if(nn)nn.style.display='none';return;}
   if(sel.value==='__new__'){
     if(nn)nn.style.display='block';
-    if(hint)hint.textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+GUEST_PIN:'Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
+    if(hint)hint.textContent='Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
   }else{
     if(nn){nn.style.display='none';nn.value='';}
     if(hint)hint.textContent='';
@@ -422,7 +382,7 @@ function lpk(k){
       if(isNew){
         var nm=(document.getElementById('ls-newname').value||'').trim();
         if(!nm){
-          var err=document.getElementById('ls-err');if(err)err.textContent=LANG==='zh'?'請先填寫名字':'Isi nama dulu';
+          var err=document.getElementById('ls-err');if(err)err.textContent='Isi nama dulu';
           STAFF_PIN_ENT='';
           document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
           return;
@@ -435,8 +395,8 @@ function lpk(k){
       var btn=document.getElementById('hdr-user-btn');
       if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
       document.getElementById('tabs').style.display='flex';
-      document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+(LANG==='zh'?'載入中...':'Memuat...')+'</p></div>';
-      initSupabase(function(){loadAll();},function(e){document.getElementById('mc').innerHTML='<div style="padding:1rem;text-align:center" class="ab ab-d"><div style="margin-bottom:.8rem">⚠ '+e.message+'</div><button class="btn btn-p" style="width:100%;margin-bottom:.3rem" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];initSupabase(function(){loadAll();},function(e){document.getElementById(\'mc\').innerHTML=\'<div style=\\\"color:#DC2626\\\">⚠ \'+e.message+\'</div>\';})">🔄 '+(LANG==='id'?'Coba lagi':'重試')+'</button><br><button class="btn btn-s" style="margin-top:.3rem" onclick="clearSessions();location.reload()">↩ '+(LANG==='id'?'Login ulang':'重新登入')+'</button></div>';});
+      document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat...')+'</p></div>';
+      initSupabase(function(){loadAll();},function(e){document.getElementById('mc').innerHTML='<div style="padding:1rem;text-align:center" class="ab ab-d"><div style="margin-bottom:.8rem">⚠ '+e.message+'</div><button class="btn btn-p" style="width:100%;margin-bottom:.3rem" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];initSupabase(function(){loadAll();},function(e){document.getElementById(\'mc\').innerHTML=\'<div style=\\\"color:#DC2626\\\">⚠ \'+e.message+\'</div>\';})">🔄 '+'Coba lagi'+'</button><br><button class="btn btn-s" style="margin-top:.3rem" onclick="clearSessions();location.reload()">↩ '+'Login ulang'+'</button></div>';});
     }else{
       var err=document.getElementById('ls-err');if(err)err.textContent=t('wrongPin');
       STAFF_PIN_ENT='';
@@ -448,7 +408,7 @@ function lpk(k){
   }
 }
 function staffLogout(){
-  if(!confirm(LANG==='zh'?'確認登出？':'Keluar?'))return;
+  if(!confirm('Keluar?'))return;
   clearSessions();CURRENT_USER=null;IS_ADMIN=false;
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   // 重設標籤顯示
@@ -486,11 +446,11 @@ function autoLogin(type,data){
   var btn=document.getElementById('hdr-user-btn');
   if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
   document.getElementById('tabs').style.display='flex';
-  document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+(LANG==='zh'?'載入中...':'Memuat...')+'</p></div>';
+  document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat...')+'</p></div>';
   initSupabase(function(){
     loadAll(type==='admin'?function(){goTab('home',document.querySelector('.tb'));}:undefined);
   },function(e){
-    document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem;text-align:center"><div style="font-weight:700;margin-bottom:.4rem">⚠ '+(LANG==='id'?'Koneksi bermasalah':'連線有問題')+'</div><div style="font-size:.82rem;color:#6B7280;margin-bottom:.8rem">'+e.message+'</div><button class="btn btn-p" style="margin-bottom:.5rem;width:100%" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];autoLogin(\''+type+'\','+JSON.stringify(data)+')">🔄 '+(LANG==='id'?'Coba lagi':'重試')+'</button><br><button class="btn btn-s" style="margin-top:.3rem" onclick="clearSessions();location.reload()">↩ '+(LANG==='id'?'Login ulang':'重新登入')+'</button></div>';
+    document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem;text-align:center"><div style="font-weight:700;margin-bottom:.4rem">⚠ '+'Koneksi bermasalah'+'</div><div style="font-size:.82rem;color:#6B7280;margin-bottom:.8rem">'+e.message+'</div><button class="btn btn-p" style="margin-bottom:.5rem;width:100%" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];autoLogin(\''+type+'\','+JSON.stringify(data)+')">🔄 '+'Coba lagi'+'</button><br><button class="btn btn-s" style="margin-top:.3rem" onclick="clearSessions();location.reload()">↩ '+'Login ulang'+'</button></div>';
   });
 }
 function clearSessions(){localStorage.removeItem('admin_sess');localStorage.removeItem('staff_sess');}
@@ -500,7 +460,7 @@ window.addEventListener('DOMContentLoaded',function(){
   try{adminS=JSON.parse(localStorage.getItem('admin_sess')||'null');}catch(e){}
   try{staffS=JSON.parse(localStorage.getItem('staff_sess')||'null');}catch(e){}
   if(adminS&&adminS.ts&&(Date.now()-adminS.ts)<7*86400000){
-    autoLogin('admin',{id:0,name:LANG==='zh'?'管理員':'Admin'});
+    autoLogin('admin',{id:0,name:'Admin'});
   }else if(staffS&&staffS.ts&&(Date.now()-staffS.ts)<86400000){
     autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false});
   }else{
@@ -525,10 +485,10 @@ function openQrCamera(mode){
   var body='<div>'+
     '<video id="qr-vid" style="width:100%;border-radius:10px;display:block;max-height:55vh" autoplay playsinline muted></video>'+
     '<canvas id="qr-cvs" style="display:none"></canvas>'+
-    '<div style="text-align:center;padding:.6rem;color:#6B7280;font-size:.88rem">📷 '+(LANG==='zh'?'對準 QR code，自動識別':'Arahkan ke QR code')+'</div>'+
-    '<button class="btn btn-s btn-full" onclick="stopQrCamera();closeModal()">'+(LANG==='zh'?'取消':'Batal')+'</button>'+
+    '<div style="text-align:center;padding:.6rem;color:#6B7280;font-size:.88rem">📷 '+('Arahkan ke QR code')+'</div>'+
+    '<button class="btn btn-s btn-full" onclick="stopQrCamera();closeModal()">'+('Batal')+'</button>'+
   '</div>';
-  showModal('📷 '+(LANG==='zh'?'掃碼':'Scan QR'),body);
+  showModal('📷 '+('Scan QR'),body);
   navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:'environment'}}})
     .catch(function(){return navigator.mediaDevices.getUserMedia({video:true});})
     .then(function(stream){
@@ -537,7 +497,7 @@ function openQrCamera(mode){
       if(!vid){stopQrCamera();return;}
       vid.srcObject=stream;vid.play();
       startQrDetect();
-    }).catch(function(e){toast('⚠ '+(LANG==='zh'?'無法開啟相機':'Kamera tidak bisa dibuka')+': '+e.message);stopQrCamera();closeModal();});
+    }).catch(function(e){toast('⚠ '+('Kamera tidak bisa dibuka')+': '+e.message);stopQrCamera();closeModal();});
 }
 function startQrDetect(){
   if('BarcodeDetector' in window){
@@ -565,7 +525,7 @@ function startQrDetect(){
       var code=jsQR&&jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
       if(code&&code.data){stopQrCamera();closeModal();onQrScan(code.data);}
     },300);
-  },function(){toast('⚠ '+(LANG==='zh'?'瀏覽器不支援掃碼':'Browser tidak support scan'));stopQrCamera();closeModal();});
+  },function(){toast('⚠ '+('Browser tidak support scan'));stopQrCamera();closeModal();});
 }
 function stopQrCamera(){
   QR_CAM_OPEN=false;
@@ -579,7 +539,7 @@ function onQrScan(val){
   if(!m){if(qr)qr.value='';return;}
   var id=Number(m[1]);
   var item=DATA.items.find(function(i){return i.id===id;});
-  if(!item){toast('⚠ '+(LANG==='zh'?'商品未找到':'Barang tidak ditemukan'));if(qr)qr.value='';return;}
+  if(!item){toast('⚠ '+('Barang tidak ditemukan'));if(qr)qr.value='';return;}
   var cur=document.querySelector('.sec.active');
   var cur_id=cur?cur.id:'';
   var inStk=!!document.getElementById('stk-'+id);
@@ -588,7 +548,7 @@ function onQrScan(val){
   }else if(QR_CAM_MODE==='ambil'||cur_id==='ambil'){
     onAmbilQrScan(id);
   }else{
-    toast('⚠ '+(LANG==='zh'?'請切換至取貨或盤點頁面':'Ke halaman ambil atau opname'));
+    toast('⚠ '+('Ke halaman ambil atau opname'));
   }
   if(qr)qr.value='';
 }
@@ -596,19 +556,19 @@ function onStkQrScan(id){
   var row=document.getElementById('stk-'+id);
   if(row){
     var inp=document.querySelector('#sq-'+id);
-    if(inp){inp.focus();inp.select();toast('🔢 '+(LANG==='zh'?'聚焦於':'Fokus pada')+': '+DATA.items.find(function(i){return i.id===id;}).name);}
+    if(inp){inp.focus();inp.select();toast('🔢 '+('Fokus pada')+': '+DATA.items.find(function(i){return i.id===id;}).name);}
   }
 }
 function onAmbilQrScan(id){
   cAdj(id,1);
-  toast('✓ +'+(LANG==='zh'?'件':'1')+': '+DATA.items.find(function(i){return i.id===id;}).name);
+  toast('✓ +'+('1')+': '+DATA.items.find(function(i){return i.id===id;}).name);
 }
 
 function setDot(s){var d=document.getElementById('cdot');d.className='conn-dot'+(s==='ok'?' ok':s==='err'?' err':'');}
 
 async function loadAll(afterCb){
   setDot('');
-  var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error(LANG==='zh'?'連線逾時 (15s)，請重試':'Koneksi timeout (15s), coba lagi'));},15000);});
+  var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Koneksi timeout (15s), coba lagi'));},15000);});
   try{
     var results=await Promise.race([
       Promise.all([
@@ -632,7 +592,7 @@ async function loadAll(afterCb){
     document.getElementById('mc').innerHTML=
       '<div style="padding:1.5rem;text-align:center">'+
       '<div class="ab ab-d" style="margin-bottom:1rem">⚠ '+e.message+'</div>'+
-      '<button class="btn btn-p" onclick="initSupabase(function(){loadAll();},function(e2){toast(\'⚠ \'+e2.message);})">'+(LANG==='zh'?'🔄 重試':'🔄 Coba Lagi')+'</button>'+
+      '<button class="btn btn-p" onclick="initSupabase(function(){loadAll();},function(e2){toast(\'⚠ \'+e2.message);})">'+('🔄 Coba Lagi')+'</button>'+
       '</div>';
   }
 }
@@ -662,11 +622,11 @@ function renderHome(){
   // 一般員工：簡單歡迎
   if(!IS_ADMIN){
     h+='<div class="card" style="margin:1rem .7rem;background:linear-gradient(135deg,var(--p),var(--s));color:#fff">'+
-      '<h2 style="margin:0 0 .5rem;font-size:1.1rem">👋 '+(LANG==='zh'?'歡迎':'Selamat datang')+', '+esc(CURRENT_USER.name)+'</h2>'+
-      '<p style="margin:.3rem 0;font-size:.9rem;opacity:.9">'+(LANG==='zh'?'點選下方「取貨」開始':'Klik "Ambil" di bawah untuk memulai')+'</p>'+
+      '<h2 style="margin:0 0 .5rem;font-size:1.1rem">👋 '+('Selamat datang')+', '+esc(CURRENT_USER.name)+'</h2>'+
+      '<p style="margin:.3rem 0;font-size:.9rem;opacity:.9">'+('Klik "Ambil" di bawah untuk memulai')+'</p>'+
     '</div>';
     if(CURRENT_USER.isGuest){
-      h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+(LANG==='zh'?'臨時帳號（今天有效）':'Akun sementara (berlaku hari ini)')+'</div>';
+      h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
     }
   }else{
     // 管理員：完整首頁
@@ -686,8 +646,8 @@ function renderHome(){
     if(lowItems.length){
       h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
       '<div style="padding:.6rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
-      '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 '+(LANG==='zh'?'需要採購 ('+lowItems.length+' 項)':'Perlu Beli ('+lowItems.length+' item)')+'</span>'+
-      '<button onclick="copyBuyList()" style="background:var(--danger);color:#fff;border:none;padding:.2rem .6rem;border-radius:8px;cursor:pointer;font-size:.72rem;font-weight:600">📋 '+(LANG==='zh'?'複製清單':'Salin')+'</button>'+
+      '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 Perlu Beli ('+lowItems.length+' item)</span>'+
+      '<button onclick="copyBuyList()" style="background:var(--danger);color:#fff;border:none;padding:.2rem .6rem;border-radius:8px;cursor:pointer;font-size:.72rem;font-weight:600">📋 '+('Salin')+'</button>'+
       '</div>';
       var catGrp={};var noCat=[];
       lowItems.forEach(function(i){var tt=i.tags||[];if(tt.length){tt.forEach(function(tg){if(!catGrp[tg])catGrp[tg]=[];catGrp[tg].push(i);});}else{noCat.push(i);}});
@@ -699,7 +659,7 @@ function renderHome(){
             '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
             '<div style="font-size:.8rem;color:#6B7280;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+'</div>'+
           '</div>'+
-          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+(LANG==='zh'?'採購':'Beli')+'</a>':'')+
+          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+('Beli')+'</a>':'')+
         '</div>';
       };
       var catKeys=Object.keys(catGrp).sort();
@@ -709,7 +669,7 @@ function renderHome(){
           catGrp[cat].forEach(function(i){h+=renderLowRow(i);});
         });
         if(noCat.length){
-          h+='<div style="padding:.28rem .9rem;background:#F9FAFB;border-bottom:1px solid #F3F4F6;font-size:.75rem;font-weight:700;color:#94A3B8">'+(LANG==='zh'?'未分類':'Tanpa Kategori')+'</div>';
+          h+='<div style="padding:.28rem .9rem;background:#F9FAFB;border-bottom:1px solid #F3F4F6;font-size:.75rem;font-weight:700;color:#94A3B8">'+('Tanpa Kategori')+'</div>';
           noCat.forEach(function(i){h+=renderLowRow(i);});
         }
       }else{
@@ -719,14 +679,14 @@ function renderHome(){
     }
 
     h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
-    '<div style="padding:.6rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border)">📦 '+(LANG==='zh'?'庫存狀態（依緊急程度）':'Status Stok (Urgensi)')+'</div>';
+    '<div style="padding:.6rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border)">📦 '+('Status Stok (Urgensi)')+'</div>';
     sorted.forEach(function(i){
       var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
       var dot=ratio<=0?'❌':ratio<=1?'🟠':'🟢';
       h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.4rem">'+
         '<span style="font-size:1rem;flex-shrink:0">'+dot+'</span>'+
         '<div style="flex:1;min-width:0">'+
-          '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.3rem">'+esc(i.name)+(i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+'</div>'+
+          '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.3rem">'+esc(i.name)+(i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0" title="'+('Tempat Simpan')+'">📍</button>':'')+'</div>'+
           (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
         '</div>'+
         '<span style="color:#6B7280;font-size:.76rem;white-space:nowrap;flex-shrink:0">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+'</span>'+
@@ -735,7 +695,7 @@ function renderHome(){
     });
     h+='</div>';
 
-    h+='<div class="st">📋 '+t('recentReq')+'（'+(LANG==='zh'?'待審':'Tertunda')+'）</div>';
+    h+='<div class="st">📋 '+t('recentReq')+'（'+('Tertunda')+'）</div>';
     var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
     if(reqs.length)reqs.forEach(function(r){h+=reqHTML(r)});
     else h+='<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+t('noReq')+'</div>';
@@ -745,11 +705,11 @@ function renderHome(){
 }
 function copyBuyList(){
   var lowItems=DATA.items.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
-  var txt=(LANG==='zh'?'📋 採購清單\n':'📋 Daftar Beli\n')+new Date().toLocaleDateString()+'\n\n'+
+  var txt=('📋 Daftar Beli\n')+new Date().toLocaleDateString()+'\n\n'+
     lowItems.map(function(i){
-      return (i.qty<=0?'❌':'🟠')+' '+i.name+': '+(LANG==='zh'?'庫存':'stok')+' '+i.qty+'/'+i.critical_qty+' '+i.unit+(i.supplier_url?'\n   🔗 '+i.supplier_url:'');
+      return (i.qty<=0?'❌':'🟠')+' '+i.name+': '+('stok')+' '+i.qty+'/'+i.critical_qty+' '+i.unit+(i.supplier_url?'\n   🔗 '+i.supplier_url:'');
     }).join('\n');
-  navigator.clipboard.writeText(txt).then(function(){toast('📋 '+(LANG==='zh'?'採購清單已複製':'Daftar disalin'));}).catch(function(){toast('⚠ '+(LANG==='zh'?'請手動複製':'Gagal salin'));});
+  navigator.clipboard.writeText(txt).then(function(){toast('📋 '+('Daftar disalin'));}).catch(function(){toast('⚠ '+('Gagal salin'));});
 }
 
 // AMBIL (cart mode)
@@ -762,8 +722,8 @@ function renderAmbil(){
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
     '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(0,0,0,.12);border:none;color:#374151;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;font-weight:600">☰</button>'+
-    '<span style="color:#DC2626;font-size:1.4rem;opacity:.9;cursor:default;font-weight:900" title="掃碼槍已準備">▌▌▌</span>'+
-    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(0,0,0,.12);border:none;color:#374151;padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:600" title="手機相機">📷</button></div>'+
+    '<span style="color:#DC2626;font-size:1.4rem;opacity:.9;cursor:default;font-weight:900" title="Barcode gun ready">▌▌▌</span>'+
+    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(0,0,0,.12);border:none;color:#374151;padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:600" title="Kamera">📷</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0;background:#fff;color:#1F2937;border:1.5px solid #FBCACA">'+
     '</div>'+
     (cats.length?'<div id="catg-chips" style="display:flex;gap:.6rem;padding:.55rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
@@ -781,7 +741,7 @@ function renderAmbil(){
 }
 function ambRows(q){
   var items=DATA.items.filter(function(i){return(!q||i.name.toLowerCase().includes(q))&&(!CATG_FILTER||(i.tags||[]).includes(CATG_FILTER));});
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+('Tidak ada barang')+'</div>';
   return items.map(function(i){
     var empty=i.qty<=0;
     var cqty=CART[i.id]||0;
@@ -789,7 +749,7 @@ function ambRows(q){
       :'<div class="amb-th-ph">📦</div>';
     return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
-      '<div class="amb-name">'+esc(i.name)+'</div>'+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+'</div></div>'+
+      '<div class="amb-name">'+esc(i.name)+'</div>'+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+'</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj(\''+esc(i.id)+'\',-1)" '+(empty?'disabled':'')+'>−</button>'+
       '<span id="aq-'+esc(i.id)+'" class="qi" style="font-size:.9rem">'+(cqty||'')+'</span>'+
@@ -806,7 +766,7 @@ function toggleAmbView(){
 }
 function ambGrid(q){
   var items=DATA.items.filter(function(i){return(!q||i.name.toLowerCase().includes(q))&&(!CATG_FILTER||(i.tags||[]).includes(CATG_FILTER));});
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+('Tidak ada barang')+'</div>';
   return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;padding:.6rem">'+
     items.map(function(i){
       var empty=i.qty<=0;
@@ -815,20 +775,20 @@ function ambGrid(q){
         :'<div style="width:100%;height:80px;background:var(--light);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>';
       return '<div style="background:#fff;border-radius:8px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.4rem;'+(empty?'opacity:.4':'')+'" onclick="cAdj(\''+esc(i.id)+'\',1)">'+
         ph+
-        '<div style="font-size:.8rem;font-weight:600;margin-top:.3rem;line-height:1.3;word-break:break-word;display:flex;align-items:center;justify-content:space-between">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0;margin-left:.3rem" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+'</div>'+
+        '<div style="font-size:.8rem;font-weight:600;margin-top:.3rem;line-height:1.3;word-break:break-word;display:flex;align-items:center;justify-content:space-between">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+'</div>'+
         '<div style="font-size:.75rem;color:#6B7280">'+i.qty+' '+esc(i.unit)+'</div>'+
         (cqty?'<div style="background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;text-align:center;border-radius:4px;margin-top:.2rem">+'+cqty+'</div>':'')+'</div>';
     }).join('')+'</div>';
 }
 function cartRowsAmb(){
   var keys=Object.keys(CART);
-  if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+(LANG==='zh'?'搜尋上方商品，按 + 加入':'Cari barang di atas, tekan +')+'</div>';
+  if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+('Cari barang di atas, tekan +')+'</div>';
   return keys.map(function(id){
     var item=DATA.items.find(function(i){return i.id==id;});if(!item)return'';
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
       '<div class="amb-name">'+esc(item.name)+'</div>'+
-      '<div class="amb-stk">'+(LANG==='zh'?'庫存':'stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
+      '<div class="amb-stk">'+('stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj(\''+esc(item.id)+'\',-1)">−</button>'+
@@ -844,29 +804,29 @@ function cAdj(id,d){
   var el=document.getElementById('aq-'+id);if(el)el.textContent=nv||'';
   var cw=document.getElementById('amb-cart');if(cw)cw.innerHTML=cartRowsAmb();
   var total=Object.keys(CART).length;
-  var cnt=document.getElementById('amb-cart-cnt');if(cnt)cnt.textContent=total?total+(LANG==='zh'?' 種商品':' barang'):'';
-  var btn=document.getElementById('amb-btn');if(btn)btn.textContent=total?t('doTake')+' ('+total+(LANG==='zh'?' 種':' item')+')':t('doTake');
+  var cnt=document.getElementById('amb-cart-cnt');if(cnt)cnt.textContent=total?total+(' barang'):'';
+  var btn=document.getElementById('amb-btn');if(btn)btn.textContent=total?t('doTake')+' ('+total+(' item')+')':t('doTake');
 }
 function showTakeConfirm(keys){
   var items_taken=keys.map(function(id){
     var item=DATA.items.find(function(i){return i.id==id;});
     return item?'✓ '+esc(item.name)+' x'+CART[id]+' '+esc(item.unit):'';
   }).filter(Boolean).join('<br>');
-  var title=(LANG==='zh'?'✅ 取貨完成':'✅ Ambil Selesai');
+  var title=('✅ Ambil Selesai');
   var msg='<div style="text-align:center">'+
     '<p style="font-size:1.2rem;margin-bottom:1rem">'+title+'</p>'+
     '<div style="background:var(--light);padding:1rem;border-radius:8px;margin-bottom:1rem;text-align:left;font-size:.9rem">'+
     items_taken+
     '</div>'+
     '<div style="display:flex;gap:.6rem">'+
-    '<button class="btn btn-p" style="flex:1" onclick="CART={};renderAmbil();">'+(LANG==='zh'?'繼續取貨':'Lanjut Ambil')+'</button>'+
-    '<button class="btn btn-s" style="flex:1" onclick="CART={};loadAll();goTab(\'home\',document.querySelector(\'.tb\'));">'+(LANG==='zh'?'完成':'Selesai')+'</button>'+
+    '<button class="btn btn-p" style="flex:1" onclick="CART={};renderAmbil();">'+('Lanjut Ambil')+'</button>'+
+    '<button class="btn btn-s" style="flex:1" onclick="CART={};loadAll();goTab(\'home\',document.querySelector(\'.tb\'));">'+('Selesai')+'</button>'+
     '</div></div>';
-  showModal((LANG==='zh'?'取貨確認':'Konfirmasi Ambil'),msg);
+  showModal(('Konfirmasi Ambil'),msg);
 }
 async function doAmbilCart(){
   var keys=Object.keys(CART);
-  if(!keys.length){toast(LANG==='zh'?'請先選擇商品':'Pilih barang dulu');return;}
+  if(!keys.length){toast('Pilih barang dulu');return;}
   var pname=CURRENT_USER.name;
   var pid=CURRENT_USER.id||null;
   var ok=true;
@@ -901,11 +861,11 @@ function renderMasuk(){
     '<div id="msk-cart">'+cartRowsMsk()+'</div>'+
     '</div>'+
     '<div class="card" style="margin:.7rem">'+
-    '<div class="ig"><label>👤 '+t('myName')+'（'+(LANG==='zh'?'現有員工或手寫名字':'Karyawan atau nama baru')+'）</label>'+
+    '<div class="ig"><label>👤 '+t('myName')+'（'+('Karyawan atau nama baru')+'）</label>'+
     '<select id="msk-p" onchange="onMskPersonChange()">'+(preselName?'<option value="'+preselName+'" selected>'+esc(preselName)+'</option>':'')+
     '<option value="">-- '+t('selPerson')+' --</option>'+
     DATA.people.map(function(p){return'<option value="'+p.id+'"'+(p.name===preselName?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+
-    '<option value="__new__">✏️ '+(LANG==='zh'?'輸入新人名':'Nama baru')+'...</option>'+
+    '<option value="__new__">✏️ '+('Nama baru')+'...</option>'+
     '</select>'+
     '<input id="msk-pn" type="text" placeholder="'+t('pName')+'..." style="display:none;margin-top:.4rem;">'+
     '</div>'+
@@ -914,14 +874,14 @@ function renderMasuk(){
 }
 function maskRows(q){
   var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+('Tidak ada barang')+'</div>';
   return items.map(function(i){
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="amb-th-ph">📦</div>';
     var cqty=CART_M[i.id]||0;
     return '<div class="amb-row">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
-      '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+' </div>'+
+      '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+' </div>'+
       '<div class="amb-stk">'+i.qty+' '+esc(i.unit)+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
@@ -934,13 +894,13 @@ function maskRows(q){
 function fltMask(){var q=(document.getElementById('msrch').value||'').toLowerCase();var el=document.getElementById('msk-list');if(el)el.innerHTML=maskRows(q);}
 function cartRowsMsk(){
   var keys=Object.keys(CART_M);
-  if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+(LANG==='zh'?'搜尋上方商品，按 + 加入':'Cari barang di atas, tekan +')+'</div>';
+  if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+('Cari barang di atas, tekan +')+'</div>';
   return keys.map(function(id){
     var item=DATA.items.find(function(i){return i.id==id;});if(!item)return'';
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
       '<div class="amb-name">'+esc(item.name)+'</div>'+
-      '<div class="amb-stk">'+(LANG==='zh'?'庫存':'stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
+      '<div class="amb-stk">'+('stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdjM(\''+esc(item.id)+'\',-1)">−</button>'+
@@ -955,8 +915,8 @@ function cAdjM(id,d){
   var el=document.getElementById('mq-'+id);if(el)el.textContent=nv||'';
   var cw=document.getElementById('msk-cart');if(cw)cw.innerHTML=cartRowsMsk();
   var total=Object.keys(CART_M).length;
-  var cnt=document.getElementById('msk-cart-cnt');if(cnt)cnt.textContent=total?total+(LANG==='zh'?' 種商品':' barang'):'';
-  var btn=document.getElementById('msk-btn');if(btn)btn.textContent=total?t('doRcv')+' ('+total+(LANG==='zh'?' 種':' item')+')':t('doRcv');
+  var cnt=document.getElementById('msk-cart-cnt');if(cnt)cnt.textContent=total?total+(' barang'):'';
+  var btn=document.getElementById('msk-btn');if(btn)btn.textContent=total?t('doRcv')+' ('+total+(' item')+')':t('doRcv');
 }
 function onMskPersonChange(){
   var sel=document.getElementById('msk-p');
@@ -989,7 +949,7 @@ function iGrid(mode){
     var ph=i.image_url?'<img class="ic-ph" src="'+esc(i.image_url)+'" onerror="this.style.display=\'none\'">'
       :'<div class="ic-ph-pl">📦</div>';
     return '<div class="ic'+(low?' low':'')+'" onclick="selI(this,\''+esc(i.id)+'\',\''+mode+'\')">'+
-      (low?'<div class="low-badge">低</div>':'')+ph+
+      (low?'<div class="low-badge">Rendah</div>':'')+ph+
       '<div class="ic-name">'+esc(i.name)+'</div>'+
       '<div class="ic-qty'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+'</div></div>';
   }).join('');
@@ -1010,22 +970,22 @@ function renderPermintaan(){
       '<select id="rn-sel" onchange="onReqNameSel()" style="margin-bottom:.4rem">'+
         '<option value="">-- '+t('selPerson')+' --</option>'+
         DATA.people.map(function(p){return'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>';}).join('')+
-        '<option value="__new__">✏️ '+(LANG==='zh'?'輸入新名字':'Nama baru')+'...</option>'+
+        '<option value="__new__">✏️ '+('Nama baru')+'...</option>'+
       '</select>'+
       '<input id="rn" type="text" placeholder="'+t('myName')+'..." style="display:none">'+
     '</div>'+
     '<div class="ig"><label>'+t('reqItems')+'</label>'+
       '<select id="ri-sel" onchange="onReqItemSel()" style="margin-bottom:.4rem">'+
-        '<option value="">-- '+(LANG==='zh'?'選擇現有商品':'Pilih barang ada')+'--</option>'+
-        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' ('+(LANG==='zh'?'庫存':'stok')+':'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
-        '<option value="__new__">✏️ '+(LANG==='zh'?'新品/其他':'Barang baru')+'...</option>'+
+        '<option value="">-- '+('Pilih barang ada')+'--</option>'+
+        DATA.items.map(function(i){return'<option value="'+esc(i.name)+'">'+esc(i.name)+' ('+('stok')+':'+i.qty+' '+esc(i.unit)+')</option>';}).join('')+
+        '<option value="__new__">✏️ '+('Barang baru')+'...</option>'+
       '</select>'+
-      '<textarea id="ri" placeholder="'+(LANG==='zh'?'品項內容':'Deskripsi barang')+'..." style="display:none"></textarea>'+
+      '<textarea id="ri" placeholder="'+('Deskripsi barang')+'..." style="display:none"></textarea>'+
     '</div>'+
-    '<div class="ig"><label>'+(LANG==='zh'?'📷 附上照片（可選）':'📷 Foto (opsional)')+'</label>'+
+    '<div class="ig"><label>'+('📷 Foto (opsional)')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
-        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'req-photo-cam\').click()">📷 '+(LANG==='zh'?'拍照':'Kamera')+'</button>'+
-        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'req-photo-inp\').click()">🖼️ '+(LANG==='zh'?'相簿':'Album')+'</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'req-photo-cam\').click()">📷 '+('Kamera')+'</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'req-photo-inp\').click()">🖼️ '+('Album')+'</button>'+
       '</div>'+
       '<input type="file" id="req-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="onReqPhoto(event)">'+
       '<input type="file" id="req-photo-inp" accept="image/*" style="display:none" onchange="onReqPhoto(event)">'+
@@ -1104,7 +1064,7 @@ function renderAdminFull(){
     '<div id="ait" class="tc active">'+
       '<div style="padding:.7rem;display:flex;gap:.5rem">'+
         '<button class="btn btn-p" style="flex:1" onclick="showAddItem()">➕ '+t('addItem')+'</button>'+
-        '<button class="btn btn-warn" style="flex:1" onclick="renderStocktake(\'\')">🔢 '+(LANG==='zh'?'庫存盤點':'Stock Check')+'</button>'+
+        '<button class="btn btn-warn" style="flex:1" onclick="renderStocktake(\'\')">🔢 '+('Stock Check')+'</button>'+
       '</div>'+
       '<div id="ait-content"><div class="ai-list">'+aiListHTML()+'</div></div>'+
     '</div>'+
@@ -1115,7 +1075,7 @@ function renderAdminFull(){
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
     '<div id="acg" class="tc">'+catgPanelHTML()+'</div>'+
-    '<div style="padding:.7rem;text-align:center"><button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:240px">🔒 '+(LANG==='zh'?'登出管理員':'Keluar Admin')+'</button></div>';
+    '<div style="padding:.7rem;text-align:center"><button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:240px">🔒 '+('Keluar Admin')+'</button></div>';
 }
 function aiListHTML(){
   return DATA.items.map(function(i){
@@ -1127,9 +1087,9 @@ function aiListHTML(){
         '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.15rem">'+(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag(\''+esc(i.id)+'\')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+'<button onclick="quickAssignTag(\''+esc(i.id)+'\')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:.05rem .4rem">+ tag</button></div>'+
         '<div style="display:flex;align-items:center;gap:.3rem;margin-top:.2rem;flex-wrap:wrap">'+
-        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+(LANG==='zh'?'新增採購連結':'Tambah link')+'</button>')+
+        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+('Link Beli')+'</a>':'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+('Tambah link')+'</button>')+
         (i.supplier_url?'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:0">✏️</button>':'')+
-        (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;padding:.1rem .3rem;color:#0D9488" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+
+        (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;padding:.1rem .3rem;color:#0D9488" title="'+('Tempat Simpan')+'">📍</button>':'')+
         '</div>'+
         '</div>'+
       '<div class="ai-actions">'+
@@ -1143,9 +1103,9 @@ function peListHTML(){
   return DATA.people.map(function(p){
     return '<div class="ai"><div class="av" style="flex-shrink:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
       '<div class="ai-info"><div class="ai-name">'+esc(p.name)+'</div>'+
-      '<div style="font-size:.73rem;color:#9CA3AF">PIN: '+(p.pin?'●●●●':'未設定')+'</div></div>'+
+      '<div style="font-size:.73rem;color:#9CA3AF">PIN: '+(p.pin?'****':'tidak ada')+'</div></div>'+
       '<div class="ai-actions">'+
-        '<button class="ib" title="設定PIN" onclick="showSetPin(\''+esc(p.id)+'\')">🔑</button>'+
+        '<button class="ib" title="Atur PIN" onclick="showSetPin(\''+esc(p.id)+'\')">🔑</button>'+
         '<button class="ib" onclick="delPerson(\''+esc(p.id)+'\')">🗑️</button>'+
       '</div></div>';
   }).join('');
@@ -1170,34 +1130,34 @@ function catgPanelHTML(){
   var cats=getCategories();
   var noTagCount=DATA.items.filter(function(i){return !i.tags||!i.tags.length;}).length;
   var html='<div style="padding:.7rem">'+
-    '<div class="ig"><label>➕ '+(LANG==='zh'?'新增標籤':'Tambah Tag')+'</label>'+
+    '<div class="ig"><label>➕ '+('Tambah Tag')+'</label>'+
     '<div style="display:flex;gap:.4rem">'+
-    '<input id="ncg" type="text" placeholder="'+(LANG==='zh'?'標籤名稱...':'Nama tag...')+'" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addCatg()}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px">'+
+    '<input id="ncg" type="text" placeholder="'+('Nama tag...')+'" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addCatg()}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px">'+
     '<button class="btn btn-p" style="flex-shrink:0;padding:.5rem 1rem" onclick="addCatg()">➕</button>'+
     '</div></div></div>';
   html+='<div class="ai-list">';
   if(noTagCount>0){
     html+='<div class="ai" style="background:#FFFBEB;border-left:3px solid #F59E0B">'+
       '<div class="ai-info">'+
-        '<div class="ai-name">📭 '+(LANG==='zh'?'未設標籤':'Tanpa Tag')+'</div>'+
-        '<div class="ai-detail">'+noTagCount+' '+(LANG==='zh'?'件商品未設標籤':'barang belum punya tag')+'</div>'+
+        '<div class="ai-name">📭 '+('Tanpa Tag')+'</div>'+
+        '<div class="ai-detail">'+noTagCount+' '+('barang belum punya tag')+'</div>'+
       '</div>'+
       '<button class="btn btn-s" style="white-space:nowrap;flex-shrink:0" onclick="showCatgItems(\'\')">📦 Kelola</button>'+
     '</div>';
   }
   if(!cats.length){
-    html+='<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+(LANG==='zh'?'尚無標籤，先新增一個吧！':'Belum ada tag, tambahkan dulu!')+'</div>';
+    html+='<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+('Belum ada tag, tambahkan dulu!')+'</div>';
   }else{
     cats.forEach(function(cat){
       var count=DATA.items.filter(function(i){return (i.tags||[]).includes(cat);}).length;
       html+='<div class="ai">'+
         '<div class="ai-info">'+
           '<div class="ai-name">🏷️ '+esc(cat)+'</div>'+
-          '<div class="ai-detail">'+count+' '+(LANG==='zh'?'件商品':'barang')+'</div>'+
+          '<div class="ai-detail">'+count+' '+('barang')+'</div>'+
         '</div>'+
         '<div class="ai-actions">'+
           '<button class="btn btn-s" style="white-space:nowrap" onclick="showCatgItems(\''+esc(cat)+'\')">📦 Kelola</button>'+
-          '<button class="ib" title="'+(LANG==='zh'?'重命名':'Ubah')+'" onclick="renameCatg(\''+esc(cat)+'\')">✏️</button>'+
+          '<button class="ib" title="'+('Ubah')+'" onclick="renameCatg(\''+esc(cat)+'\')">✏️</button>'+
           '<button class="ib" onclick="delCatg(\''+esc(cat)+'\')">🗑️</button>'+
         '</div></div>';
     });
@@ -1209,8 +1169,8 @@ function addCatg(){
   var inp=document.getElementById('ncg');
   if(!inp)return;
   var v=inp.value.trim();
-  if(!v){toast('⚠ '+(LANG==='zh'?'請輸入標籤名稱':'Isi nama tag'));return;}
-  if(getCategories().includes(v)){toast('⚠ '+(LANG==='zh'?'標籤已存在':'Tag sudah ada'));return;}
+  if(!v){toast('⚠ '+('Isi nama tag'));return;}
+  if(getCategories().includes(v)){toast('⚠ '+('Tag sudah ada'));return;}
   var saved=JSON.parse(localStorage.getItem('cats')||'[]');
   saved.push(v);localStorage.setItem('cats',JSON.stringify(saved));
   inp.value='';
@@ -1219,7 +1179,7 @@ function addCatg(){
   toast('✓ '+v);
 }
 async function delCatg(cat){
-  if(!confirm(LANG==='zh'?'刪除標籤「'+cat+'」？商品不會被刪除，只是移除此標籤。':'Hapus tag "'+cat+'"? Barang tetap ada, tag hanya dihapus.'))return;
+  if(!confirm('Hapus tag "'+cat+'"? Barang tetap ada, tag hanya dihapus.'))return;
   try{
     var affected=DATA.items.filter(function(i){return (i.tags||[]).includes(cat);});
     for(var ki=0;ki<affected.length;ki++){
@@ -1235,7 +1195,7 @@ async function delCatg(cat){
   }catch(e){toast('⚠ '+e.message);}
 }
 async function renameCatg(cat){
-  var newName=prompt(LANG==='zh'?'重命名「'+cat+'」為：':'Nama baru untuk "'+cat+'":',cat);
+  var newName=prompt('Nama baru untuk "'+cat+'":',cat);
   if(!newName||newName.trim()===cat)return;
   newName=newName.trim();if(!newName)return;
   try{
@@ -1282,14 +1242,14 @@ function quickAssignTag(id){
   var item=DATA.items.find(function(i){return i.id===id;});if(!item)return;
   var body='<div style="padding:.5rem .7rem .35rem">'+
     '<div style="display:flex;gap:.4rem;margin-bottom:.4rem">'+
-      '<input id="qt-new" type="text" list="qt-dl" placeholder="'+(LANG==='zh'?'新標籤名稱...':'Tag baru...')+'" style="flex:1;padding:.42rem .6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem">'+
+      '<input id="qt-new" type="text" list="qt-dl" placeholder="'+('Tag baru...')+'" style="flex:1;padding:.42rem .6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem">'+
       '<datalist id="qt-dl">'+getCategories().map(function(c){return'<option value="'+esc(c)+'">';}).join('')+'</datalist>'+
       '<button class="btn btn-p" style="padding:.4rem .8rem;font-size:.85rem" onclick="addNewTagInline('+id+')">+</button>'+
     '</div>'+
-    '<input id="qt-srch" type="text" placeholder="'+(LANG==='zh'?'搜尋現有標籤...':'Cari tag yang ada...')+'" oninput="refreshQtList('+id+')" style="width:100%;padding:.38rem .6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;box-sizing:border-box">'+
+    '<input id="qt-srch" type="text" placeholder="'+('Cari tag yang ada...')+'" oninput="refreshQtList('+id+')" style="width:100%;padding:.38rem .6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;box-sizing:border-box">'+
   '</div>'+
   '<div id="qt-list" style="max-height:46vh;overflow-y:auto">'+renderTagsForItem(item,getCategories())+'</div>'+
-  '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="saveQuickTag('+id+')">✓ '+(LANG==='zh'?'儲存':'Simpan')+'</button></div>';
+  '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="saveQuickTag('+id+')">✓ '+('Simpan')+'</button></div>';
   showModal('🏷️ '+esc(item.name),body);
 }
 function addNewTagInline(id){
@@ -1308,7 +1268,7 @@ function refreshQtList(id){
   document.getElementById('qt-list').innerHTML=renderTagsForItem(item,all);
 }
 function renderTagsForItem(item,allTags){
-  if(!allTags.length)return'<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+(LANG==='zh'?'暫無標籤，從上方新增':'Belum ada tag, tambah di atas')+'</div>';
+  if(!allTags.length)return'<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+('Belum ada tag, tambah di atas')+'</div>';
   return allTags.map(function(tag){
     var checked=(item.tags||[]).includes(tag);
     return '<label style="display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;border-bottom:1px solid #F3F4F6;cursor:pointer">'+
@@ -1332,7 +1292,7 @@ async function saveQuickTag(id){
 
 function showCatgItems(cat){
   CATG_MODAL_CAT=cat;
-  var title=cat?'📦 '+esc(cat):'📭 '+(LANG==='zh'?'未設標籤的商品':'Barang Tanpa Tag');
+  var title=cat?'📦 '+esc(cat):'📭 '+('Barang Tanpa Tag');
   var body;
   if(cat===''){
     var noTgItems=DATA.items.filter(function(i){return !i.tags||!i.tags.length;});
@@ -1342,14 +1302,14 @@ function showCatgItems(cat){
           '<span style="flex:1;font-size:.9rem">📦 '+esc(i.name)+'</span>'+
           '<button class="btn btn-s" onclick="closeModal();quickAssignTag('+i.id+')">🏷️ Tag</button>'+
         '</div>';
-      }).join(''):'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">'+(LANG==='zh'?'全部商品都有標籤了！':'Semua barang sudah punya tag!')+'</div>')+
+      }).join(''):'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">'+('Semua barang sudah punya tag!')+'</div>')+
     '</div>';
   }else{
     body='<div style="padding:.5rem .7rem .3rem">'+
-      '<input id="ci-srch" type="text" placeholder="'+(LANG==='zh'?'搜尋商品...':'Cari barang...')+'" oninput="refreshCatgItemList()" style="width:100%;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;box-sizing:border-box">'+
+      '<input id="ci-srch" type="text" placeholder="'+('Cari barang...')+'" oninput="refreshCatgItemList()" style="width:100%;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;box-sizing:border-box">'+
     '</div>'+
     '<div id="ci-list" style="max-height:52vh;overflow-y:auto">'+renderCatgItemList(cat,'')+'</div>'+
-    '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="saveCatgItems()">✓ '+(LANG==='zh'?'儲存':'Simpan')+'</button></div>';
+    '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="saveCatgItems()">✓ '+('Simpan')+'</button></div>';
   }
   showModal(title,body);
 }
@@ -1359,7 +1319,7 @@ function refreshCatgItemList(){
 }
 function renderCatgItemList(cat,q){
   var items=DATA.items.filter(function(i){return !q||i.name.toLowerCase().includes(q);});
-  if(!items.length)return'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">'+(LANG==='zh'?'沒有商品':'Tidak ada barang')+'</div>';
+  if(!items.length)return'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">'+('Tidak ada barang')+'</div>';
   return items.map(function(i){
     var checked=(i.tags||[]).includes(cat);
     return '<label style="display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;border-bottom:1px solid #F3F4F6;cursor:pointer">'+
@@ -1391,7 +1351,7 @@ async function saveCatgItems(){
       var r2=await sb.from('items').update({tags:nt2}).eq('id',toDel[j].id);
       if(r2.error)throw r2.error;toDel[j].tags=nt2;
     }
-    toast('✓ '+(LANG==='zh'?'已更新':'Tersimpan'));closeModal();
+    toast('✓ '+('Tersimpan'));closeModal();
     document.getElementById('acg').innerHTML=catgPanelHTML();
     document.getElementById('ait-content').innerHTML='<div class="ai-list">'+aiListHTML()+'</div>';
   }catch(e){toast('⚠ '+e.message);}
@@ -1402,11 +1362,11 @@ function renderStocktake(catFilter){
   var items=DATA.items.filter(function(i){return!STK_CATG||(i.tags||[]).includes(STK_CATG);});
   var html='<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--border);padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
-    '<span style="font-weight:700;font-size:.9rem">🔢 '+(LANG==='zh'?'庫存盤點':'Stock Check')+'</span>'+
+    '<span style="font-weight:700;font-size:.9rem">🔢 '+('Stock Check')+'</span>'+
     '<div style="display:flex;gap:.4rem;align-items:center">'+
-    '<span style="color:var(--p);font-size:1.2rem;font-weight:900;cursor:default" title="掃碼槍直接掃">▌▌▌</span>'+
-    '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')">📷 '+(LANG==='zh'?'相機':'Cam')+'</button>'+
-    '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+(LANG==='zh'?'返回':'Kembali')+'</button>'+
+    '<span style="color:var(--p);font-size:1.2rem;font-weight:900;cursor:default" title="Scan dengan barcode gun">▌▌▌</span>'+
+    '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')">📷 '+('Cam')+'</button>'+
+    '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+('Kembali')+'</button>'+
     '</div>'+
     '</div>';
   if(cats.length){
@@ -1417,10 +1377,10 @@ function renderStocktake(catFilter){
   }
   html+='</div>';
   if(!items.length){
-    html+='<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+(LANG==='zh'?'此分類無商品':'Tidak ada barang')+'</div>';
+    html+='<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+('Tidak ada barang')+'</div>';
   }else{
     html+='<div style="background:#F8FAFC;padding:.3rem .7rem;font-size:.75rem;color:#64748B;border-bottom:1px solid var(--border)">'+
-      (LANG==='zh'?'直接修改數量，有改動的行會變黃，最後點儲存':'Edit jumlah langsung, baris berubah warna kuning, lalu simpan')+
+      ('Edit jumlah langsung, baris berubah warna kuning, lalu simpan')+
     '</div>';
     items.forEach(function(i){
       var ph=i.image_url?'<img style="width:38px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0" src="'+esc(i.image_url)+'">'
@@ -1431,7 +1391,7 @@ function renderStocktake(catFilter){
           (i.category?'<div style="font-size:.7rem;color:#64748B">🏷️ '+esc(i.category)+'</div>':'')+
         '</div>'+
         '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
-          '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+i.id+'">'+(LANG==='zh'?'原':'Sebelum')+':'+i.qty+'</span>'+
+          '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+i.id+'">'+('Sebelum')+':'+i.qty+'</span>'+
           '<input type="number" class="stk-qty" id="sq-'+i.id+'" value="'+i.qty+'" min="0" oninput="onStkChange('+i.id+',this)">'+
           '<span style="font-size:.8rem;color:#64748B;min-width:24px">'+esc(i.unit)+'</span>'+
         '</div>'+
@@ -1440,7 +1400,7 @@ function renderStocktake(catFilter){
   }
   html+='<div style="padding:.7rem;background:#fff;border-top:1px solid var(--border)">'+
     '<button class="btn btn-ok btn-full" id="stk-save-btn" onclick="saveStocktake()" disabled>'+
-    (LANG==='zh'?'✓ 儲存盤點（尚無更動）':'✓ Simpan (belum ada perubahan)')+'</button></div>';
+    ('✓ Simpan (belum ada perubahan)')+'</button></div>';
   document.getElementById('ait-content').innerHTML=html;
 }
 function onStkChange(id,inp){
@@ -1451,22 +1411,22 @@ function onStkChange(id,inp){
   else{delete STOCKTAKE[id];document.getElementById('stk-'+id).classList.remove('changed');inp.classList.remove('changed');}
   var n=Object.keys(STOCKTAKE).length;
   var btn=document.getElementById('stk-save-btn');
-  if(btn){btn.disabled=n===0;btn.textContent=n?'✓ '+(LANG==='zh'?'儲存盤點（'+n+' 項更動）':'Simpan ('+n+' perubahan)'):(LANG==='zh'?'✓ 儲存盤點（尚無更動）':'✓ Simpan (belum ada perubahan)');}
+  if(btn){btn.disabled=n===0;btn.textContent=n?'✓ '+('Simpan ('+n+' perubahan)'):('✓ Simpan (belum ada perubahan)');}
 }
 async function saveStocktake(){
   var keys=Object.keys(STOCKTAKE);if(!keys.length)return;
-  var btn=document.getElementById('stk-save-btn');btn.disabled=true;btn.textContent=LANG==='zh'?'儲存中...':'Menyimpan...';
+  var btn=document.getElementById('stk-save-btn');btn.disabled=true;btn.textContent='Menyimpan...';
   try{
     for(var ki=0;ki<keys.length;ki++){
       var id=Number(keys[ki]);
       var item=DATA.items.find(function(i){return i.id===id;});
       var nv=STOCKTAKE[keys[ki]];var diff=nv-item.qty;
       await sb.from('items').update({qty:nv}).eq('id',id);
-      if(diff!==0)await sb.from('transactions').insert({type:diff>0?'masuk':'ambil',item_id:id,item_name:item.name,person_name:(CURRENT_USER?CURRENT_USER.name:'Admin')+(LANG==='zh'?'（盤點）':'(Opname)'),qty:Math.abs(diff)});
+      if(diff!==0)await sb.from('transactions').insert({type:diff>0?'masuk':'ambil',item_id:id,item_name:item.name,person_name:(CURRENT_USER?CURRENT_USER.name:'Admin')+('(Opname)'),qty:Math.abs(diff)});
       item.qty=nv;
     }
     var n=keys.length;STOCKTAKE={};
-    toast('✓ '+(LANG==='zh'?'盤點完成，更動 '+n+' 項':'Selesai, '+n+' item diubah'));
+    toast('✓ '+('Selesai, '+n+' item diubah'));
     renderStocktake(STK_CATG);
   }catch(e){toast('⚠ '+e.message);btn.disabled=false;}
 }
@@ -1476,15 +1436,15 @@ function exitStocktake(){
 }
 function showSetPin(id){
   var p=DATA.people.find(function(x){return x.id===id;});if(!p)return;
-  showModal('🔑 設定 PIN — '+esc(p.name),
-    '<p style="font-size:.82rem;color:#6B7280;margin-bottom:.7rem">4 位數字 PIN</p>'+
+  showModal('🔑 Atur PIN — '+esc(p.name),
+    '<p style="font-size:.82rem;color:#6B7280;margin-bottom:.7rem">4 digit PIN</p>'+
     '<div class="ig"><input id="sp-pin" type="number" maxlength="4" placeholder="1234" style="text-align:center;font-size:1.5rem;letter-spacing:.5rem"></div>'+
-    '<button class="btn btn-p btn-full" onclick="savePin('+id+')">儲存</button>'
+    '<button class="btn btn-p btn-full" onclick="savePin(\''+esc(id)+'\')">Simpan</button>'
   );
 }
 async function savePin(id){
   var pin=String(document.getElementById('sp-pin').value||'').trim();
-  if(!/^\d{4}$/.test(pin)){toast('⚠ 請輸入4位數字');return;}
+  if(!/^\d{4}$/.test(pin)){toast('⚠ Masukkan 4 digit');return;}
   try{var {error}=await sb.from('people').update({pin:pin}).eq('id',id);if(error)throw error;toast(t('saveOk'));closeModal();await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
@@ -1507,30 +1467,30 @@ function itemFormHTML(item){
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
     '</div>'+
     '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0"></div>'+
-    '<div class="ig"><label>'+(LANG==='zh'?'商品照片':'Foto Barang')+'</label>'+
+    '<div class="ig"><label>'+('Foto Barang')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
-        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-cam\').click()">📷 '+(LANG==='zh'?'拍照':'Kamera')+'</button>'+
-        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-fi\').click()">🖼️ '+(LANG==='zh'?'相簿':'Album')+'</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-cam\').click()">📷 '+('Kamera')+'</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-fi\').click()">🖼️ '+('Album')+'</button>'+
       '</div>'+
       '<input type="file" id="f-cam" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event)">'+
       '<input type="file" id="f-fi" accept="image/*" style="display:none" onchange="onPhoto(event)">'+
       '<div id="fph">'+(item&&item.image_url?'<img class="prev" src="'+esc(item.image_url)+'">':'')+'</div>'+
     '</div>'+
-    '<div class="ig"><label>'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'</label>'+
+    '<div class="ig"><label>'+('Tempat Simpan')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
-        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-stor-cam\').click()">📷 '+(LANG==='zh'?'拍照':'Kamera')+'</button>'+
-        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-stor-fi\').click()">🖼️ '+(LANG==='zh'?'相簿':'Album')+'</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-stor-cam\').click()">📷 '+('Kamera')+'</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-stor-fi\').click()">🖼️ '+('Album')+'</button>'+
       '</div>'+
       '<input type="file" id="f-stor-cam" accept="image/*" capture="environment" style="display:none" onchange="onStoragePhoto(event)">'+
       '<input type="file" id="f-stor-fi" accept="image/*" style="display:none" onchange="onStoragePhoto(event)">'+
       '<div id="fsp">'+(item&&item.storage_photo_url?'<img class="prev" src="'+esc(item.storage_photo_url)+'">':'')+'</div>'+
     '</div>'+
     '<div class="ig"><label>'+t('supUrl')+'</label><input id="fsu" type="url" placeholder="https://..." value="'+(item&&item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
-    '<div class="ig"><label>🏷️ '+(LANG==='zh'?'標籤（可多個）':'Tag (bisa banyak)')+'</label>'+
+    '<div class="ig"><label>🏷️ '+('Tag (bisa banyak)')+'</label>'+
     '<div id="ftag-list" style="display:flex;flex-wrap:wrap;gap:.35rem;min-height:20px;margin-bottom:.5rem">'+FORM_TAGS.map(function(tg,i){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem;display:inline-flex;align-items:center;gap:.25rem;background:#DBEAFE;color:#0369A1" onclick="removeFormTag('+i+')">🏷️ '+esc(tg)+' <span style="font-weight:700">✕</span></span>';}).join('')+
     '</div>'+
     '<div style="display:flex;gap:.3rem;margin-bottom:.5rem">'+
-    '<input id="ftag-inp" type="text" placeholder="'+(LANG==='zh'?'輸入標籤...':'Ketik tag...')+'" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addFormTag()}" style="flex:1;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;background:#fff">'+
+    '<input id="ftag-inp" type="text" placeholder="'+('Ketik tag...')+'" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addFormTag()}" style="flex:1;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;background:#fff">'+
     '<button type="button" class="btn btn-p" onclick="addFormTag()" style="flex-shrink:0;padding:.45rem 1rem">➕</button>'+
     '</div>'+
     (getCategories().length?'<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.3rem">'+getCategories().map(function(c){return'<button type="button" style="background:none;border:1px solid #CBD5E1;border-radius:14px;padding:.3rem .6rem;font-size:.8rem;cursor:pointer;color:#64748B" onclick="addFormTagVal(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join('')+'</div>':'')
@@ -1572,10 +1532,10 @@ async function saveItem(){
 }
 function editSupUrl(id){
   var item=DATA.items.find(function(i){return i.id===id;});if(!item)return;
-  showModal('🔗 '+(LANG==='zh'?'採購連結 — ':'Link Beli — ')+esc(item.name),
+  showModal('🔗 '+('Link Beli — ')+esc(item.name),
     '<div class="ig"><label>URL</label><input id="sup-url-inp" type="url" placeholder="https://..." value="'+(item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
     '<div style="display:flex;gap:.5rem;margin-top:.5rem">'+
-    '<button class="btn btn-p" style="flex:2" onclick="saveSupUrl('+id+')">✓ '+(LANG==='zh'?'儲存':'Simpan')+'</button>'+
+    '<button class="btn btn-p" style="flex:2" onclick="saveSupUrl('+id+')">✓ '+('Simpan')+'</button>'+
     (item.supplier_url?'<button class="btn btn-d" style="flex:1" onclick="saveSupUrl('+id+',true)">🗑️</button>':'')+
     '</div>'
   );
@@ -1595,22 +1555,22 @@ async function saveSupUrl(id,clear){
 async function delItem(id){
   var item=DATA.items.find(function(i){return i.id===id;});
   if(!item)return;
-  if(!confirm(LANG==='zh'?'確定刪除「'+item.name+'」?':'Hapus "'+item.name+'"?'))return;
+  if(!confirm('Hapus "'+item.name+'"?'))return;
   try{var {error}=await sb.from('items').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
 function showEditTx(id){
   var tx=DATA.transactions.find(function(t){return t.id===id;});
   if(!tx)return;
-  var types=[{val:'ambil',lbl:LANG==='zh'?'提取':'Ambil'},{val:'masuk',lbl:LANG==='zh'?'入庫':'Masuk'},{val:'opname',lbl:LANG==='zh'?'盤點':'Opname'}];
-  showModal('✏️ '+(LANG==='zh'?'編輯交易':'Edit Transaksi'),
-    '<div class="ig"><label>'+(LANG==='zh'?'員工名稱':'Nama Karyawan')+'</label><input id="etx-pn" type="text" value="'+esc(tx.person_name)+'"></div>'+
-    '<div class="ig"><label>'+(LANG==='zh'?'商品名稱':'Nama Barang')+'</label><input id="etx-in" type="text" value="'+esc(tx.item_name)+'"></div>'+
+  var types=[{val:'ambil',lbl:'Ambil'},{val:'masuk',lbl:'Masuk'},{val:'opname',lbl:'Opname'}];
+  showModal('✏️ '+('Edit Transaksi'),
+    '<div class="ig"><label>'+('Nama Karyawan')+'</label><input id="etx-pn" type="text" value="'+esc(tx.person_name)+'"></div>'+
+    '<div class="ig"><label>'+('Nama Barang')+'</label><input id="etx-in" type="text" value="'+esc(tx.item_name)+'"></div>'+
     '<div class="fr">'+
-      '<div class="ig"><label>'+(LANG==='zh'?'數量':'Jumlah')+'</label><input id="etx-q" type="number" value="'+tx.qty+'" min="1"></div>'+
-      '<div class="ig"><label>'+(LANG==='zh'?'類型':'Tipe')+'</label><select id="etx-t">'+types.map(function(tp){return'<option value="'+tp.val+'"'+(tx.type===tp.val?' selected':'')+'>'+(LANG==='zh'?tp.lbl:tp.lbl)+'</option>';}).join('')+'</select></div>'+
+      '<div class="ig"><label>'+('Jumlah')+'</label><input id="etx-q" type="number" value="'+tx.qty+'" min="1"></div>'+
+      '<div class="ig"><label>'+('Tipe')+'</label><select id="etx-t">'+types.map(function(tp){return'<option value="'+tp.val+'"'+(tx.type===tp.val?' selected':'')+'>'+(tp.lbl)+'</option>';}).join('')+'</select></div>'+
     '</div>'+
-    '<div style="color:#9CA3B8;font-size:.8rem;margin-bottom:.8rem;padding:.6rem;background:var(--light);border-radius:8px">'+(LANG==='zh'?'編輯時間：':'Waktu edit: ')+fmtDate(tx.created_at)+'</div>'+
+    '<div style="color:#9CA3B8;font-size:.8rem;margin-bottom:.8rem;padding:.6rem;background:var(--light);border-radius:8px">'+('Waktu edit: ')+fmtDate(tx.created_at)+'</div>'+
     '<button class="btn btn-p btn-full" onclick="saveTxEdit('+tx.id+')">✓ '+t('save')+'</button>'
   );
 }
@@ -1621,7 +1581,7 @@ async function saveTxEdit(id){
   var newIn=(document.getElementById('etx-in').value||'').trim();
   var newQ=parseInt(document.getElementById('etx-q').value)||1;
   var newT=(document.getElementById('etx-t').value||'ambil').trim();
-  if(!newPn||!newIn){toast('⚠ '+(LANG==='zh'?'請填入所有欄位':'Isi semua field'));return;}
+  if(!newPn||!newIn){toast('⚠ '+('Isi semua field'));return;}
   var oldVals={person_name:tx.person_name,item_name:tx.item_name,qty:tx.qty,type:tx.type};
   var newVals={person_name:newPn,item_name:newIn,qty:newQ,type:newT};
   try{
@@ -1655,7 +1615,7 @@ function printQR(id){
     '<div class="info">'+item.qty+' '+item.unit+' · min: '+item.critical_qty+'</div>'+
     (item.supplier_url?'<div class="url">🔗 '+item.supplier_url+'</div>':'')+
     '</div>'+
-    '<br><button onclick="window.print()" style="margin-top:14px;padding:10px 28px;background:#0D9488;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600">🖨️ '+(LANG==='zh'?'列印':'Cetak')+'</button>'+
+    '<br><button onclick="window.print()" style="margin-top:14px;padding:10px 28px;background:#0D9488;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600">🖨️ '+('Cetak')+'</button>'+
     '</body></html>');
   w.document.close();
 }
@@ -1668,7 +1628,7 @@ async function addPerson(){
 async function delPerson(id){
   var person=DATA.people.find(function(p){return p.id===id;});
   if(!person)return;
-  if(!confirm(LANG==='zh'?'確定刪除員工「'+person.name+'」?':'Hapus karyawan "'+person.name+'"?'))return;
+  if(!confirm('Hapus karyawan "'+person.name+'"?'))return;
   try{var {error}=await sb.from('people').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
@@ -1726,7 +1686,7 @@ async function doReq(){
   var it=(selI2.value&&selI2.value!=='__new__'?selI2.value:(document.getElementById('ri').value||'')).trim();
   if(!nm||!it){toast(t('fillAll'));return;}
   var no=(document.getElementById('rno').value||'').trim();
-  if(REQ_PHOTO) no=(no?no+'\n':'')+'[附圖]';
+  if(REQ_PHOTO) no=(no?no+'\n':'')+'[Foto]';
   try{
     await sb.from('requests').insert({person_name:nm,items_requested:it,note:no+(REQ_PHOTO?'\n'+REQ_PHOTO:''),status:'pending'});
     toast(t('reqOk'));
@@ -1751,15 +1711,15 @@ function showLow(item,need){
   LOW_ITEM=item;
   var msg='<div style="font-size:1.1rem;font-weight:700;color:var(--dark);margin-bottom:.8rem">📦 '+esc(item.name)+'</div>'+
     '<div style="background:#FEF2F2;border-left:4px solid var(--danger);padding:1rem;border-radius:8px;margin-bottom:1rem;font-size:.95rem;line-height:1.6">'+
-      '<div><strong style="color:var(--danger)">目前庫存</strong>: '+item.qty+' '+esc(item.unit)+'</div>'+
-      '<div style="margin-top:.4rem"><strong style="color:var(--danger)">最低庫存</strong>: '+item.critical_qty+' '+esc(item.unit)+'</div>'+
-      (need?'<div style="margin-top:.4rem"><strong style="color:#D97706">需要補充</strong>: 至少 '+need+' '+esc(item.unit)+'</div>':'')+
+      '<div><strong style="color:var(--danger)">Stok saat ini</strong>: '+item.qty+' '+esc(item.unit)+'</div>'+
+      '<div style="margin-top:.4rem"><strong style="color:var(--danger)">Stok minimum</strong>: '+item.critical_qty+' '+esc(item.unit)+'</div>'+
+      (need?'<div style="margin-top:.4rem"><strong style="color:#D97706">Perlu disiapkan</strong>: minimal '+need+' '+esc(item.unit)+'</div>':'')+
     '</div>'+
-    (item.supplier_url?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem"><strong style="color:#0369A1">採購連結</strong>:<br><a href="'+esc(item.supplier_url)+'" target="_blank" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'');
+    (item.supplier_url?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem"><strong style="color:#0369A1">Link beli</strong>:<br><a href="'+esc(item.supplier_url)+'" target="_blank" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'');
   document.getElementById('low-title').innerHTML='⚠️ '+t('lowTitle');
   document.getElementById('low-body').innerHTML=msg;
   var lb=document.getElementById('low-link-btn');
-  lb.textContent=(LANG==='zh'?'🔗 前往採購':'🔗 Beli Sekarang');
+  lb.textContent=('🔗 Beli Sekarang');
   lb.style.display=item.supplier_url?'':'none';
   document.getElementById('low-ov').classList.add('open');
 }
@@ -1825,12 +1785,12 @@ function showImg(url,name,icon){
   ov.innerHTML='<div style="text-align:center;max-width:100%">'+
     '<img src="'+esc(url)+'" style="max-width:100%;max-height:75vh;border-radius:10px;object-fit:contain;box-shadow:0 8px 30px rgba(0,0,0,.5)">'+
     '<div style="color:#fff;font-weight:600;margin-top:.7rem;font-size:.95rem">'+(icon||'')+' '+esc(name)+'</div>'+
-    '<div style="color:#aaa;font-size:.75rem;margin-top:.2rem">'+(LANG==='zh'?'點任意處關閉':'Tap untuk tutup')+'</div>'+
+    '<div style="color:#aaa;font-size:.75rem;margin-top:.2rem">'+('Tap untuk tutup')+'</div>'+
   '</div>';
   document.body.appendChild(ov);
 }
-function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString(LANG==='zh'?'zh-TW':'id-ID',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
-function fmtC(n){if(!n)return'-';return(LANG==='zh'?'NT$':'Rp ')+Math.round(n).toLocaleString();}
+function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString('id-ID',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
+function fmtC(n){if(!n)return'-';return('Rp ')+Math.round(n).toLocaleString();}
 function today(){return new Date().toISOString().slice(0,10);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2800);}
