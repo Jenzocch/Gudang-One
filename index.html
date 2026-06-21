@@ -761,8 +761,8 @@ function checkAndNotifyLow(items){
     if(i.qty<=i.critical_qty&&i.critical_qty>0&&!TG_NOTIFIED[i.id]){
       TG_NOTIFIED[i.id]=true;
       var emoji=i.qty<=0?'❌':'🟠';
-      var msg=emoji+' <b>Stok '+i.name+' rendah!</b>\n'+
-        '📦 Sisa: <b>'+i.qty+' '+i.unit+'</b> (min: '+i.critical_qty+')\n'+
+      var msg=emoji+' Stok rendah: '+i.name+'\n'+
+        '📦 Sisa stok: '+i.qty+' '+i.unit+' (min: '+i.critical_qty+')\n'+
         (i.supplier_url?'🔗 '+i.supplier_url+'\n':'')+
         '🕐 '+new Date().toLocaleString('id-ID');
       sendTelegram(msg);
@@ -922,9 +922,9 @@ async function doAmbilCart(){
       if(newQty<=item.critical_qty&&item.critical_qty>0&&!TG_NOTIFIED[item.id]){
         TG_NOTIFIED[item.id]=true;
         var emoji=newQty<=0?'❌':'🟠';
-        sendTelegram(emoji+' <b>Stok rendah: '+item.name+'</b>\n'+
-          '👤 Diambil oleh: <b>'+pname+'</b> ('+qty+' '+item.unit+')\n'+
-          '📦 Sisa stok: <b>'+newQty+' '+item.unit+'</b> (min: '+item.critical_qty+')\n'+
+        sendTelegram(emoji+' Stok rendah: '+item.name+'\n'+
+          '👤 Diambil oleh: '+pname+' ('+qty+' '+item.unit+')\n'+
+          '📦 Sisa stok: '+newQty+' '+item.unit+' (min: '+item.critical_qty+')\n'+
           (item.supplier_url?'🔗 '+item.supplier_url+'\n':'')+
           '🕐 '+new Date().toLocaleString('id-ID'));
       }
