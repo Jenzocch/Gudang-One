@@ -846,11 +846,26 @@ function ambRows(q){
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="amb-th-ph">📦</div>';
     var tagHtml=(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="font-size:.7rem">🏷️ '+esc(tg)+'</span>';}).join('');
+    // FIFO: 找到最舊的 active batch
+    var iBats=DATA.batches.filter(function(b){return b.item_id==i.id&&b.qty_remaining>0;}).sort(function(a,b){
+      if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);
+      if(a.expiry_date)return -1;if(b.expiry_date)return 1;
+      return new Date(a.created_at)-new Date(b.created_at);
+    });
+    var firstBat=iBats.length?iBats[0]:null;
+    var now=new Date();var isExp=firstBat&&firstBat.expiry_date&&new Date(firstBat.expiry_date)<now;
+    var batInfo='';
+    if(firstBat){
+      var expCol=isExp?'#DC2626':new Date(firstBat.expiry_date||'2099')<new Date(now.getTime()+30*86400000)?'#D97706':'#059669';
+      batInfo='<div style="font-size:.7rem;color:'+expCol+';margin-top:.1rem;font-weight:700">📋 要先用: '+(firstBat.lot_no||'(無Lot)')+' | Exp: '+(firstBat.expiry_date||'不詳')+(isExp?' ❌':'')+'</div>';
+    }
     return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
       '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem">📍</button>':'')+'</div>'+
       (tagHtml?'<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">'+tagHtml+'</div>':'')+
       '<div style="font-size:.75rem;color:'+(empty?'var(--danger)':'#6B7280')+';margin-top:.1rem">'+i.qty+' '+esc(i.unit)+(empty?' — Stok habis':'')+'</div>'+
+      (iBats.length>1?'<div style="font-size:.7rem;color:#9CA3AF;margin-top:.05rem">📦 '+iBats.length+' batch</div>':'')+
+      batInfo+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj(\''+esc(i.id)+'\',-1)" '+(empty?'disabled':'')+'>−</button>'+
@@ -887,10 +902,19 @@ function cartRowsAmb(){
   if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+('Cari barang di atas, tekan +')+'</div>';
   return keys.map(function(id){
     var item=DATA.items.find(function(i){return i.id==id;});if(!item)return'';
+    // 显示将被扣掉的批号列表（FIFO）
+    var toBatch=getAmbilBatches(id,CART[id]);
+    var batInfo='';
+    if(toBatch.length){
+      batInfo='<div style="font-size:.7rem;color:#0D9488;margin-top:.1rem;font-weight:700">📋 扣: '+
+        toBatch.map(function(b){return esc(b.lot_no||'(無)')+' ('+b.deduct+')'}).join(' + ')+
+      '</div>';
+    }
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
       '<div class="amb-name">'+esc(item.name)+'</div>'+
-      '<div class="amb-stk">'+('stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
+      '<div class="amb-stk">stok '+item.qty+' '+esc(item.unit)+'</div>'+
+      batInfo+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj(\''+esc(item.id)+'\',-1)">−</button>'+
@@ -926,6 +950,22 @@ function showTakeConfirm(keys){
     '</div></div>';
   showModal(('Konfirmasi Ambil'),msg);
 }
+function getAmbilBatches(itemId,qty){
+  var result=[];
+  var abat=DATA.batches.filter(function(b){return b.item_id==itemId&&b.qty_remaining>0;}).sort(function(a,b){
+    if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);
+    if(a.expiry_date)return -1;if(b.expiry_date)return 1;
+    return new Date(a.created_at)-new Date(b.created_at);
+  });
+  var remQ=qty;
+  for(var bi=0;bi<abat.length&&remQ>0;bi++){
+    var bat=abat[bi];
+    var ded=Math.min(bat.qty_remaining,remQ);
+    result.push({lot_no:bat.lot_no,expiry_date:bat.expiry_date,deduct:ded});
+    remQ-=ded;
+  }
+  return result;
+}
 async function doAmbilCart(){
   var keys=Object.keys(CART);
   if(!keys.length){toast('Pilih barang dulu');return;}
@@ -934,6 +974,31 @@ async function doAmbilCart(){
   var ok=true;
   keys.forEach(function(id){var item=DATA.items.find(function(i){return i.id==id;});if(item&&CART[id]>item.qty){showLow(item,CART[id]);ok=false;}});
   if(!ok)return;
+
+  // 显示 FIFO 确认对话框
+  var msg='<div style="margin-bottom:1rem"><strong>📋 FIFO Confirmation</strong> — Batch yang akan diambil:</div>';
+  keys.forEach(function(id){
+    var item=DATA.items.find(function(i){return i.id==id;});
+    var toBat=getAmbilBatches(id,CART[id]);
+    msg+='<div style="margin-bottom:.7rem;border-left:4px solid var(--p);padding:.5rem .7rem;background:#F0FDFA">'+
+      '<div style="font-weight:700;margin-bottom:.3rem">'+esc(item.name)+' ('+CART[id]+' '+esc(item.unit)+')</div>'+
+      (toBat.length?toBat.map(function(b,i){return'<div style="font-size:.82rem;color:#0F766E">'+
+        (i+1)+'. Lot: <strong>'+esc(b.lot_no||'(Tanpa Lot)')+'</strong> | -'+b.deduct+
+        (b.expiry_date?' | Exp: '+b.expiry_date:'')+'</div>';}).join(''):
+        '<div style="font-size:.82rem;color:#D97706">⚠ Tanpa batch info</div>')+
+    '</div>';
+  });
+  msg+='<div style="display:flex;gap:.5rem;margin-top:1rem">'+
+    '<button class="btn btn-d" style="flex:1" onclick="closeModal()">Batal</button>'+
+    '<button class="btn btn-ok" style="flex:1" onclick="executeAmbilCart()">✓ Lanjutkan</button>'+
+  '</div>';
+  showModal('📤 '+t('take'),msg);
+}
+async function executeAmbilCart(){
+  closeModal();
+  var keys=Object.keys(CART);
+  var pname=CURRENT_USER.name;
+  var pid=CURRENT_USER.id||null;
   var btn=document.getElementById('amb-btn');btn.disabled=true;btn.textContent='...';
   try{
     for(var ki=0;ki<keys.length;ki++){
@@ -957,6 +1022,9 @@ async function doAmbilCart(){
       }
     }
     showTakeConfirm(keys);
+    CART={};
+    await loadAll();
+    renderAmbil();
   }catch(e){toast('⚠ '+e.message);}
   btn.disabled=false;btn.textContent=t('doTake');
 }
