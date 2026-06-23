@@ -1277,7 +1277,10 @@ function renderAdminFull(){
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
     '<div id="acg" class="tc">'+catgPanelHTML()+'</div>'+
-    '<div style="padding:.7rem;text-align:center"><button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:240px">🔒 '+('Keluar Admin')+'</button></div>';
+    '<div style="padding:.7rem;display:flex;gap:.5rem;flex-direction:column">'+
+    '<button class="btn btn-ok btn-full" onclick="exportToCSV()">📥 Backup ke CSV</button>'+
+    '<button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:none">🔒 '+('Keluar Admin')+'</button>'+
+    '</div>';
 }
 function aiListHTML(){
   return DATA.items.map(function(i){
@@ -2225,6 +2228,65 @@ function selectWarehouse(wid){
   },function(e){
     document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1.5rem;text-align:center">⚠ '+e.message+'<br><button class="btn btn-p" style="margin-top:.5rem" onclick="clearSessions();location.reload()">↩ Login ulang</button></div>';
   });
+}
+// === CSV EXPORT ===
+function exportToCSV(){
+  try{
+    var now=new Date();
+    var dateStr=now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0')+'-'+now.getDate().toString().padStart(2,'0');
+
+    // 1. Items CSV
+    var itemsCSV='Item Name,Qty,Unit,Critical Qty,Supplier,Warehouse,Storage Condition,Description,COA URL\n';
+    itemsCSV+=DATA.items.map(function(i){return[
+      i.name,i.qty,i.unit,i.critical_qty,i.supplier_name||'',i.warehouse_id||'',i.storage_condition||'',i.description||'',i.coa_url||''
+    ].map(escapeCSV).join(',');}).join('\n');
+    downloadCSV(itemsCSV,'Items_'+dateStr+'.csv');
+
+    // 2. Transactions CSV
+    var txCSV='Date,Type,Item Name,Qty,Unit,Person,Warehouse,Lot No\n';
+    txCSV+=DATA.transactions.map(function(t){
+      var bat=DATA.batches.find(function(b){return b.id===t.id;});
+      return[
+        new Date(t.created_at).toLocaleDateString('id-ID'),
+        t.type,t.item_name,t.qty,
+        DATA.items.find(function(i){return i.id===t.item_id;})?DATA.items.find(function(i){return i.id===t.item_id;}).unit:'',
+        t.person_name||'',t.warehouse_id||'',''
+      ].map(escapeCSV).join(',');
+    }).join('\n');
+    downloadCSV(txCSV,'Transactions_'+dateStr+'.csv');
+
+    // 3. Batches CSV
+    var batCSV='Item Name,Lot No,Code Produksi,PO No,DO No,Production Date,Expiry Date,QC Status,Qty Initial,Qty Remaining,Warehouse\n';
+    batCSV+=DATA.batches.map(function(b){
+      var item=DATA.items.find(function(i){return i.id===b.item_id;});
+      return[
+        item?item.name:'?',b.lot_no||'',b.code_produksi||'',b.po_no||'',b.do_no||'',
+        b.production_date||'',b.expiry_date||'',b.qc_status||'',b.qty_initial||0,b.qty_remaining||0,b.warehouse_id||''
+      ].map(escapeCSV).join(',');
+    }).join('\n');
+    downloadCSV(batCSV,'Batches_'+dateStr+'.csv');
+
+    toast('✓ 3 個 CSV 已下載');
+  }catch(e){toast('⚠ '+e.message);}
+}
+function escapeCSV(val){
+  if(!val)return'';
+  var s=String(val);
+  if(s.includes(',')||s.includes('"')||s.includes('\n')){
+    return'"'+s.replace(/"/g,'""')+'"';
+  }
+  return s;
+}
+function downloadCSV(csv,filename){
+  var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString('id-ID',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function fmtC(n){if(!n)return'-';return('Rp ')+Math.round(n).toLocaleString();}
