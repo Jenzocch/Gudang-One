@@ -2757,20 +2757,26 @@ function selectWarehouse(wid){
   });
 }
 // === CSV EXPORT & GOOGLE SHEET BACKUP ===
-var GS_WEBHOOK='https://script.google.com/macros/s/AKfycbxmL9itTmkmatsI1GG_ptyRjN5NYtuO9m_fJBDXptKMJiR8uI_16W_xU0w3Nwtp2vdz/exec';
+var GS_WEBHOOKS={
+  HARDWARE:'https://script.google.com/macros/s/AKfycbxmL9itTmkmatsI1GG_ptyRjN5NYtuO9m_fJBDXptKMJiR8uI_16W_xU0w3Nwtp2vdz/exec',
+  SJA:'https://script.google.com/macros/s/AKfycbwOXm-fiaTOZttdSrUBz66clrVtJSxKfipCkpDskDZhMbTWtKiFKyJIfQsIAivn7WgjvA/exec',
+  DENIKIN:'https://script.google.com/macros/s/AKfycbyQ23iqrQK7HUolhHgT8VMDHK2gpu_BNSlWoUswVPDqMIDAoioR0z6v8r6YpLVZxO1n/exec',
+  OLENTIA:'https://script.google.com/macros/s/AKfycbzRz-RTM0_tLklodWdzCUi3Xgm3_cO1oKrxqRUDHPo4e9JWCAPVzVaOeSkYBoQKNQjSNA/exec'
+};
 function exportToCSV(){
   // Pastikan transaksi sudah dimuat agar CSV lengkap
   if(!TX_LOADED){toast('⏳ '+('Memuat transaksi dulu')+'...');loadTransactions(exportToCSV);return;}
+  if(!CURRENT_WAREHOUSE){toast('⚠ Pilih gudang dulu');return;}
   try{
     var now=new Date();
     var dateStr=now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0')+'-'+now.getDate().toString().padStart(2,'0');
 
-    // 準備資料為陣列格式（給 Google Sheet）
-    var itemsData=DATA.items.map(function(i){return[
+    // 準備資料為陣列格式（給 Google Sheet） - 只含目前倉庫的資料
+    var itemsData=DATA.items.filter(function(i){return i.warehouse_id===CURRENT_WAREHOUSE;}).map(function(i){return[
       i.name,i.qty,i.unit,i.critical_qty,i.supplier_name||'',i.warehouse_id||'',i.storage_condition||'',i.description||'',i.coa_url||''
     ];});
 
-    var txData=DATA.transactions.map(function(t){
+    var txData=DATA.transactions.filter(function(t){return t.warehouse_id===CURRENT_WAREHOUSE;}).map(function(t){
       var it=itemById(t.item_id);
       return[
         new Date(t.created_at).toLocaleDateString('id-ID'),
@@ -2780,7 +2786,7 @@ function exportToCSV(){
       ];
     });
 
-    var batchData=DATA.batches.map(function(b){
+    var batchData=DATA.batches.filter(function(b){return b.warehouse_id===CURRENT_WAREHOUSE;}).map(function(b){
       var item=itemById(b.item_id);
       return[
         item?item.name:'?',b.lot_no||'',b.code_produksi||'',b.po_no||'',b.do_no||'',
@@ -2788,14 +2794,19 @@ function exportToCSV(){
       ];
     });
 
+    // 根據倉庫選對應的 webhook
+    var webhook=GS_WEBHOOKS[CURRENT_WAREHOUSE];
+    if(!webhook){toast('⚠ Gudang tidak terdaftar');return;}
+
     // 寄到 Google Sheet
     var payload={items:itemsData,transactions:txData,batches:batchData};
-    fetch(GS_WEBHOOK,{
+    fetch(webhook,{
       method:'POST',
       body:JSON.stringify(payload)
     }).then(function(r){return r.json();}).then(function(res){
       if(res.success){
-        toast('✓ Backup ke Google Sheet: '+res.sheetUrl);
+        var whName=WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE;
+        toast('✓ '+whName+' backup sukses: '+res.sheetUrl);
       }else{
         toast('⚠ '+res.error);
       }
