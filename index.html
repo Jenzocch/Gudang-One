@@ -2015,7 +2015,9 @@ function showModal(title,body){
 function closeModal(){stopQrCamera();var o=document.getElementById('m-ov');if(o)o.remove();}
 
 function itemFormHTML(item){
-  return '<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
+  var twh=item?item.warehouse_id:CURRENT_WAREHOUSE;
+  var banner=twh?'<div style="background:'+(WH_COLORS[twh]||'#E2E8F0')+';color:'+(WH_TEXT[twh]||'#334155')+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.9rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[twh]||'#334155')+'22">🏭 '+(item?'Edit di ':'Tambah ke ')+(WH_SHORT[twh]||twh)+'</div>':'';
+  return banner+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
     '<div class="fr">'+
       '<div class="ig"><label>'+t('initQ')+'</label><input id="fq" type="number" value="'+(item?item.qty:0)+'" min="0"></div>'+
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
@@ -2047,8 +2049,9 @@ function showAddItem(){
   // Tanpa gudang aktif (super admin "Semua Gudang") -> langsung form baru
   if(!CURRENT_WAREHOUSE){showModal('➕ '+t('addItem'),itemFormHTML(null));return;}
   // Step 1: cari barang yang sudah ada (di gudang lain) untuk ditambah ke gudang ini, atau buat baru
-  showModal('➕ '+t('addItem'),
-    '<div style="font-size:.82rem;color:#64748B;margin-bottom:.6rem">Cari barang yang sudah ada di gudang lain untuk ditambah ke <strong>'+esc(CURRENT_WAREHOUSE)+'</strong>, atau buat barang baru.</div>'+
+  showModal('➕ '+t('addItem')+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE),
+    '<div style="background:'+(WH_COLORS[CURRENT_WAREHOUSE]||'#E2E8F0')+';color:'+(WH_TEXT[CURRENT_WAREHOUSE]||'#334155')+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.7rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[CURRENT_WAREHOUSE]||'#334155')+'22">🏭 Tambah ke '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div>'+
+    '<div style="font-size:.82rem;color:#64748B;margin-bottom:.6rem">Cari barang yang sudah ada di gudang lain, atau buat barang baru.</div>'+
     '<div class="ig"><input id="add-search" type="text" placeholder="🔍 Ketik nama barang..." oninput="searchExistingItems()" autocomplete="off"></div>'+
     '<div id="add-search-results" style="max-height:240px;overflow-y:auto;margin:.4rem 0"></div>'+
     '<button class="btn btn-p btn-full" onclick="proceedNewItem()">➕ Buat Barang Baru</button>'
