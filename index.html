@@ -2117,18 +2117,20 @@ function onStoragePhoto(e){
 async function sbInsertSafe(table,row){
   var r=await sb.from(table).insert(row).select(),g=0;
   while(r.error&&g<8){
-    var m=(r.error.message||'').match(/'([^']+)' column/i);
+    var msg=r.error.message||'',m=msg.match(/'([^']+)'(?:\s+column|\s+does not exist)/i);
+    if(!m){m=msg.match(/column\s+["`]?([^"`\s]+)["`]?/i);}
     if(!m||!(m[1] in row))break;
     delete row[m[1]];r=await sb.from(table).insert(row).select();g++;
   }
   return r;
 }
 async function sbUpdateSafe(table,row,idCol,idVal){
-  var r=await sb.from(table).update(row).eq(idCol,idVal),g=0;
+  var r=await sb.from(table).update(row).eq(idCol,idVal).select(),g=0;
   while(r.error&&g<8){
-    var m=(r.error.message||'').match(/'([^']+)' column/i);
+    var msg=r.error.message||'',m=msg.match(/'([^']+)'(?:\s+column|\s+does not exist)/i);
+    if(!m){m=msg.match(/column\s+["`]?([^"`\s]+)["`]?/i);}
     if(!m||!(m[1] in row))break;
-    delete row[m[1]];r=await sb.from(table).update(row).eq(idCol,idVal);g++;
+    delete row[m[1]];r=await sb.from(table).update(row).eq(idCol,idVal).select();g++;
   }
   return r;
 }
