@@ -124,6 +124,8 @@ textarea{resize:vertical;min-height:75px}
 .txt{font-size:.75rem;color:#94A3B8;margin-top:.15rem}
 .st{font-size:1rem;font-weight:700;padding:.75rem .8rem .3rem;color:var(--dark)}
 .ai-list{display:flex;flex-direction:column;gap:.4rem;margin:.4rem .7rem}
+.ai-list.grid{display:grid;grid-template-columns:1fr;gap:.6rem}
+@media(min-width:768px){.ai-list.grid{grid-template-columns:1fr 1fr}}
 .ai{display:flex;align-items:center;gap:.7rem;background:#fff;padding:.8rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .ai-img{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--light);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
 .ai-info{flex:1;min-width:0}
@@ -208,7 +210,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .tb.active{background:#F0FDFA;border-left:3px solid var(--p);padding-left:calc(1.2rem - 3px)}
   .modal-ov{align-items:center;padding:1.5rem}
   .modal{border-radius:16px;max-width:640px;margin:auto;max-height:90vh}
-  .ai-list{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+  .ai-list.grid{grid-template-columns:1fr 1fr;gap:.7rem}
   .toast{left:calc(220px + (100% - 220px)/2);transform:translateX(-50%)}
   .low-ov{padding-left:220px}
 }
@@ -522,6 +524,7 @@ var STAFF_PIN_ENT='';
 var CART={};
 var CART_M={};
 var CATG_FILTER='';
+var VIEW_AI='list';
 var STOCKTAKE={};
 var STK_CATG='';
 var NOTIFIED_LOW_ITEMS={};
@@ -1542,12 +1545,14 @@ function renderAdminFull(){
       '<button class="tsw" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
     '</div>'+
     '<div id="ait" class="tc active">'+
-      '<div style="padding:.7rem;display:flex;gap:.5rem">'+
-        (IS_ADMIN?'<button class="btn btn-p" style="flex:1" onclick="showAddItem()">➕ '+t('addItem')+'</button>':'<button class="btn btn-p" style="flex:1" disabled>➕ '+t('addItem')+'</button>')+
-        '<button class="btn btn-warn" style="flex:1" onclick="renderStocktake(\'\')">🔢 '+('Stock Check')+'</button>'+
+      '<div style="padding:.7rem;display:flex;gap:.5rem;flex-wrap:wrap">'+
+        (IS_ADMIN?'<button class="btn btn-p" style="flex:1;min-width:140px" onclick="showAddItem()">➕ '+t('addItem')+'</button>':'<button class="btn btn-p" style="flex:1;min-width:140px" disabled>➕ '+t('addItem')+'</button>')+
+        '<button class="btn btn-warn" style="flex:1;min-width:140px" onclick="renderStocktake(\'\')">🔢 '+('Stock Check')+'</button>'+
+        '<button id="ai-view-list" class="btn btn-s" style="flex:1;min-width:60px;opacity:1" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
+        '<button id="ai-view-grid" class="btn btn-s" style="flex:1;min-width:60px;opacity:.5" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
       '</div>'+
       (IS_ADMIN?'':(CURRENT_USER&&!CURRENT_USER.isGuest?'<div style="padding:.5rem .7rem;background:#FEF2F2;border-radius:8px;color:#64748B;font-size:.85rem;margin:.5rem .7rem">⚠ Anda adalah '+('Staf')+'. Hanya admin yang bisa menambah/edit/hapus barang.</div>':''))+
-      '<div id="ait-content"><div class="ai-list">'+aiListHTML()+'</div></div>'+
+      '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
     '</div>'+
     '<div id="ape" class="tc">'+
       (IS_SUPER?'<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
@@ -1592,6 +1597,20 @@ function aiItemHTML(i){
         (IS_ADMIN?'<button class="ib" onclick="showEdit(\''+esc(i.variant_id)+'\')">✏️</button>':'<button class="ib" disabled style="opacity:.3">✏️</button>')+
         (IS_ADMIN?'<button class="ib" onclick="delItem(\''+esc(i.variant_id)+'\')">🗑️</button>':'<button class="ib" disabled style="opacity:.3">🗑️</button>')+
       '</div></div>';
+}
+function toggleAIView(){
+  VIEW_AI=VIEW_AI==='list'?'grid':'list';
+  var aitc=document.getElementById('ait-content');
+  if(aitc){
+    aitc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div>';
+    updateAIViewBtns();
+  }
+}
+function updateAIViewBtns(){
+  var lbtn=document.getElementById('ai-view-list');
+  var gbtn=document.getElementById('ai-view-grid');
+  if(lbtn)lbtn.style.opacity=VIEW_AI==='list'?'1':'.5';
+  if(gbtn)gbtn.style.opacity=VIEW_AI==='grid'?'1':'.5';
 }
 function aiListHTML(){
   var items=DATA.items;
@@ -1841,7 +1860,7 @@ async function saveQuickTag(id){
     if(error)throw error;
     item.tags=newTags;
     toast('✓');closeModal();
-    document.getElementById('ait-content').innerHTML='<div class="ai-list">'+aiListHTML()+'</div>';
+    var tc=document.getElementById('ait-content');tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';updateAIViewBtns();
   }catch(e){toast('⚠ '+e.message);}
 }
 
@@ -1908,7 +1927,7 @@ async function saveCatgItems(){
     }
     toast('✓ '+('Tersimpan'));closeModal();
     document.getElementById('acg').innerHTML=catgPanelHTML();
-    document.getElementById('ait-content').innerHTML='<div class="ai-list">'+aiListHTML()+'</div>';
+    var tc=document.getElementById('ait-content');tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';updateAIViewBtns();
   }catch(e){toast('⚠ '+e.message);}
 }
 function renderStocktake(catFilter){
