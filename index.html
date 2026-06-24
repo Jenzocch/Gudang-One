@@ -1228,9 +1228,10 @@ function getAmbilBatches(itemId,qty){
   return result;
 }
 async function doAmbilCart(){
+  if(!CURRENT_USER){toast('⚠ Belum login');return;}
   var keys=Object.keys(CART);
   if(!keys.length){toast('Pilih barang dulu');return;}
-  var pname=CURRENT_USER.name;
+  var pname=CURRENT_USER.name||'Unknown';
   var pid=CURRENT_USER.id||null;
   var ok=true;
   keys.forEach(function(variantId){var item=DATA.items.find(function(i){return i.variant_id==variantId;});if(item&&CART[variantId]>item.qty){showLow(item,CART[variantId]);ok=false;}});
@@ -1413,6 +1414,7 @@ function onMskPersonChange(){
   else{inp.style.display='none';inp.value='';}
 }
 async function doMasukCart(){
+  if(!CURRENT_USER){toast('⚠ Belum login');return;}
   var sel=document.getElementById('msk-p');
   var pname=(sel.value==='__new__'?(document.getElementById('msk-pn').value||'').trim():sel.selectedOptions[0]?.text||'').trim();
   var keys=Object.keys(CART_M);
