@@ -524,7 +524,6 @@ var STAFF_PIN_ENT='';
 var CART={};
 var CART_M={};
 var CATG_FILTER='';
-var AI_TAG_FILTER='';
 var VIEW_AI='list';
 var STOCKTAKE={};
 var STK_CATG='';
@@ -1568,12 +1567,11 @@ function renderAdminFull(){
     '<div style="font-size:.8rem;font-weight:600;color:'+col+';opacity:.85;margin-bottom:.15rem">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+'</div>'+
     '<div style="font-size:2.1rem;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;gap:.5rem;color:'+col+'">'+whShort+(CURRENT_WAREHOUSE?'<span style="font-size:.7rem;font-weight:700;opacity:.7">('+esc(CURRENT_WAREHOUSE)+')</span>':'')+'</div>'+
     '</div>'+
-    (IS_SUPER?'<div style="padding:.7rem;background:#F0FDFA;border-bottom:2px solid var(--p)">'+
-    '<div style="font-size:.78rem;font-weight:700;color:#0F766E;margin-bottom:.5rem">🏭 Pilih Gudang:</div>'+
-    '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.45rem">'+
-    '<button onclick="switchWarehouse(null)" style="padding:.55rem .5rem;border-radius:10px;border:2px solid '+(CURRENT_WAREHOUSE===null?'var(--p)':'var(--border)')+';cursor:pointer;font-size:.85rem;font-weight:800;background:'+(CURRENT_WAREHOUSE===null?'var(--p)':'#fff')+';color:'+(CURRENT_WAREHOUSE===null?'#fff':'#64748B')+'">Semua</button>'+
-    WAREHOUSES.map(function(w){var col=WH_TEXT[w]||'#0F172A';var bg=CURRENT_WAREHOUSE===w?col:'#fff';var tc=CURRENT_WAREHOUSE===w?'#fff':col;return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.55rem .5rem;border-radius:10px;border:2px solid '+col+';cursor:pointer;font-size:.95rem;font-weight:900;background:'+bg+';color:'+tc+'">'+(WH_SHORT[w]||w)+'</button>';}).join('')+
-    '</div></div>':'')+
+    (IS_SUPER?'<div style="padding:.5rem .7rem;background:#F0FDFA;border-bottom:1px solid var(--p);display:flex;gap:.3rem;flex-wrap:wrap;align-items:center">'+
+    '<span style="font-size:.7rem;font-weight:700;color:#0F766E">🏭</span>'+
+    '<button onclick="switchWarehouse(null)" style="padding:.35rem .5rem;border-radius:6px;border:1.5px solid '+(CURRENT_WAREHOUSE===null?'var(--p)':'var(--border)')+';cursor:pointer;font-size:.75rem;font-weight:700;background:'+(CURRENT_WAREHOUSE===null?'var(--p)':'#fff')+';color:'+(CURRENT_WAREHOUSE===null?'#fff':'#64748B')+';min-width:50px;text-align:center">Semua</button>'+
+    WAREHOUSES.map(function(w){var col=WH_TEXT[w]||'#0F172A';var bg=CURRENT_WAREHOUSE===w?col:'#fff';var tc=CURRENT_WAREHOUSE===w?'#fff':col;return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.35rem .4rem;border-radius:6px;border:1.5px solid '+col+';cursor:pointer;font-size:.75rem;font-weight:700;background:'+bg+';color:'+tc+';min-width:50px;text-align:center">'+(WH_SHORT[w]||w)+'</button>';}).join('')+
+    '</div>':'')+
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
       (IS_SUPER?'<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>':'')+
@@ -1588,12 +1586,6 @@ function renderAdminFull(){
       '</div>'+
       '<div style="padding:.5rem .7rem;background:#FFFBEB;border-top:1px solid #FDE68A;border-bottom:1px solid #FDE68A">'+
         '<input id="ai-search-inp" type="text" placeholder="🔍 搜尋產品..." style="width:100%;padding:.65rem .8rem;border:2px solid #D97706;border-radius:8px;font-size:1rem;box-sizing:border-box;background:#fff" oninput="aiSearchItems()">'+
-      '</div>'+
-      '<div style="padding:.5rem .7rem;background:#fff;border-bottom:1px solid var(--border)">'+
-        '<select id="ai-tag-filter" style="width:100%;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;cursor:pointer" onchange="setAITagFilter(this.value)">'+
-          '<option value="">🏭 所有工廠</option>'+
-          (getAITagOptions?getAITagOptions():'')+
-        '</select>'+
       '</div>'+
       (IS_ADMIN?'':(CURRENT_USER&&!CURRENT_USER.isGuest?'<div style="padding:.5rem .7rem;background:#FEF2F2;border-radius:8px;color:#64748B;font-size:.85rem;margin:.5rem .7rem">⚠ Anda adalah '+('Staf')+'. Hanya admin yang bisa menambah/edit/hapus barang.</div>':''))+
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
@@ -1659,13 +1651,13 @@ function updateAIViewBtns(){
 var AI_SEARCH_FILTER='';
 function aiListHTML(){
   var items=DATA.items;
-  var q=AI_SEARCH_FILTER?AI_SEARCH_FILTER.toLowerCase():'';
-  items=items.filter(function(i){
-    if(CURRENT_WAREHOUSE&&IS_ADMIN&&i.warehouse_id!==CURRENT_WAREHOUSE&&i.warehouse_id!=='HARDWARE')return false;
-    if(q&&!i.name.toLowerCase().includes(q))return false;
-    if(AI_TAG_FILTER&&!(i.tags||[]).includes(AI_TAG_FILTER))return false;
-    return true;
-  });
+  if(CURRENT_WAREHOUSE&&IS_ADMIN){
+    items=items.filter(function(i){return i.warehouse_id===CURRENT_WAREHOUSE||i.warehouse_id==='HARDWARE';});
+  }
+  if(AI_SEARCH_FILTER){
+    var q=AI_SEARCH_FILTER.toLowerCase();
+    items=items.filter(function(i){return i.name.toLowerCase().includes(q);});
+  }
   if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER?'找不到相符的產品 🚫':'-')+'</div>';
   // 先渲染前 50 筆，其餘異步載入
   var first=items.slice(0,50).map(aiItemHTML).join('');
@@ -1681,21 +1673,6 @@ function aiListHTML(){
 function aiSearchItems(){
   var inp=document.getElementById('ai-search-inp');
   AI_SEARCH_FILTER=inp?inp.value:'';
-  var tc=document.getElementById('ait-content');
-  if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
-}
-var AI_TAG_CACHE='';
-function getAITagOptions(){
-  if(AI_TAG_CACHE)return AI_TAG_CACHE;
-  var seen={};var tags=[];
-  DATA.items.forEach(function(i){var tt=i.tags||[];tt.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;tags.push(tg);}});});
-  AI_TAG_CACHE=tags.sort().map(function(tg){return'<option value="'+esc(tg)+'">'+esc(tg)+'</option>';}).join('');
-  return AI_TAG_CACHE;
-}
-function setAITagFilter(tag){
-  AI_TAG_FILTER=tag;
-  var sel=document.getElementById('ai-tag-filter');
-  if(sel)sel.value=tag;
   var tc=document.getElementById('ait-content');
   if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
 }
@@ -2447,8 +2424,6 @@ async function saveWarehouses(id){
 }
 function switchWarehouse(wid){
   CURRENT_WAREHOUSE=wid;
-  AI_TAG_FILTER='';
-  AI_TAG_CACHE='';
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
   // Don't use cache when switching - show loading state, then update with fresh data
   loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);});
