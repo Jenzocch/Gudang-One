@@ -1562,10 +1562,10 @@ function renderAdminFull(){
     '<div style="font-size:.8rem;font-weight:600;color:'+col+';opacity:.85;margin-bottom:.15rem">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+'</div>'+
     '<div style="font-size:2.1rem;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;gap:.5rem;color:'+col+'">'+whShort+(CURRENT_WAREHOUSE?'<span style="font-size:.7rem;font-weight:700;opacity:.7">('+esc(CURRENT_WAREHOUSE)+')</span>':'')+'</div>'+
     '</div>'+
-    (IS_SUPER?'<div style="padding:.6rem .7rem;background:#F0FDFA;border-bottom:1px solid var(--p);display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'+
-    '<span style="font-size:.7rem;font-weight:700;color:#0F766E">🏭</span>'+
-    '<button onclick="switchWarehouse(null)" style="padding:.45rem .8rem;border-radius:8px;border:1.5px solid '+(CURRENT_WAREHOUSE===null?'var(--p)':'var(--border)')+';cursor:pointer;font-size:.8rem;font-weight:700;background:'+(CURRENT_WAREHOUSE===null?'var(--p)':'#fff')+';color:'+(CURRENT_WAREHOUSE===null?'#fff':'#64748B')+';min-width:58px;text-align:center">Semua</button>'+
-    WAREHOUSES.map(function(w){var col=WH_TEXT[w]||'#0F172A';var bg=CURRENT_WAREHOUSE===w?col:'#fff';var tc=CURRENT_WAREHOUSE===w?'#fff':col;return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.45rem .7rem;border-radius:8px;border:1.5px solid '+col+';cursor:pointer;font-size:.8rem;font-weight:700;background:'+bg+';color:'+tc+';min-width:58px;text-align:center">'+(WH_SHORT[w]||w)+'</button>';}).join('')+
+    (IS_SUPER?'<div style="padding:.4rem .5rem;background:#F0FDFA;border-bottom:1px solid var(--p);display:flex;gap:.25rem;overflow-x:auto;align-items:center;-webkit-overflow-scrolling:touch">'+
+    '<span style="font-size:.7rem;font-weight:700;color:#0F766E;flex-shrink:0">🏭</span>'+
+    '<button onclick="switchWarehouse(null)" style="padding:.35rem .5rem;border-radius:6px;border:1.5px solid '+(CURRENT_WAREHOUSE===null?'var(--p)':'var(--border)')+';cursor:pointer;font-size:.75rem;font-weight:700;background:'+(CURRENT_WAREHOUSE===null?'var(--p)':'#fff')+';color:'+(CURRENT_WAREHOUSE===null?'#fff':'#64748B')+';min-width:50px;text-align:center;flex-shrink:0">Semua</button>'+
+    WAREHOUSES.map(function(w){var col=WH_TEXT[w]||'#0F172A';var bg=CURRENT_WAREHOUSE===w?col:'#fff';var tc=CURRENT_WAREHOUSE===w?'#fff':col;return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.35rem .4rem;border-radius:6px;border:1.5px solid '+col+';cursor:pointer;font-size:.75rem;font-weight:700;background:'+bg+';color:'+tc+';min-width:50px;text-align:center;flex-shrink:0">'+(WH_SHORT[w]||w)+'</button>';}).join('')+
     '</div>':'')+
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
@@ -1573,11 +1573,11 @@ function renderAdminFull(){
       '<button class="tsw" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
     '</div>'+
     '<div id="ait" class="tc active">'+
-      '<div style="padding:.6rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.4rem;align-items:center">'+
-        (IS_ADMIN?'<button class="btn btn-p" onclick="showAddItem()">➕ '+t('addItem')+'</button>':'<button class="btn btn-p" disabled>➕ '+t('addItem')+'</button>')+
-        '<button class="btn btn-warn" onclick="renderStocktake(\'\')">🔢 Stock Check</button>'+
-        '<button id="ai-view-list" class="btn btn-s" style="width:40px;padding:.5rem;opacity:1" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
-        '<button id="ai-view-grid" class="btn btn-s" style="width:40px;padding:.5rem;opacity:.5" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
+      '<div style="padding:.4rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.3rem;align-items:center">'+
+        (IS_ADMIN?'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Add Item</button>':'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" disabled>➕ Add Item</button>')+
+        '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="renderStocktake(\'\')">🔢 Stock Check</button>'+
+        '<button id="ai-view-list" class="btn btn-s" style="width:40px;padding:.4rem;opacity:1;font-size:.85rem" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
+        '<button id="ai-view-grid" class="btn btn-s" style="width:40px;padding:.4rem;opacity:.5;font-size:.85rem" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
       '</div>'+
       '<div style="padding:.5rem .7rem;background:#FFFBEB;border-top:1px solid #FDE68A;border-bottom:1px solid #FDE68A">'+
         '<input id="ai-search-inp" type="text" placeholder="🔍 搜尋產品..." style="width:100%;padding:.65rem .8rem;border:2px solid #D97706;border-radius:8px;font-size:1rem;box-sizing:border-box;background:#fff" oninput="aiSearchItems()">'+
