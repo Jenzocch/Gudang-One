@@ -126,14 +126,14 @@ textarea{resize:vertical;min-height:75px}
 .ai-list{display:flex;flex-direction:column;gap:.4rem;margin:.4rem .7rem}
 .ai-list.grid{display:grid;grid-template-columns:1fr;gap:.6rem}
 @media(min-width:768px){.ai-list.grid{grid-template-columns:1fr 1fr}}
-.ai{display:flex;align-items:center;gap:.7rem;background:#fff;padding:.8rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.ai-img{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--light);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+.ai{display:flex;align-items:flex-start;gap:.6rem;background:#fff;padding:.7rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.ai-img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--light);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-top:.05rem}
 .ai-info{flex:1;min-width:0}
-.ai-name{font-weight:600;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ai-detail{font-size:.88rem;color:#64748B;margin-top:.15rem}
-.ai-link{color:var(--p);font-size:.78rem}
-.ai-actions{display:flex;gap:.3rem;flex-shrink:0}
-.ib{width:32px;height:32px;border:1.5px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.ai-name{font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-detail{font-size:.82rem;color:#64748B;margin-top:.1rem}
+.ai-link{color:var(--p);font-size:.75rem}
+.ai-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:.2rem;flex-shrink:0;width:62px}
+.ib{width:28px;height:28px;border:1.5px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;padding:0;flex:1}
 .ib:hover{background:var(--light)}
 .pu-item{background:#fff;padding:.9rem;margin:.4rem .7rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .pu-hdr{display:flex;justify-content:space-between;margin-bottom:.35rem}
@@ -981,19 +981,24 @@ function renderHome(){
   checkAndNotifyLow(DATA.items);
 }
 
+var _audioCtx=null;
+var _userInteracted=false;
+document.addEventListener('click',function(){_userInteracted=true;if(_audioCtx&&_audioCtx.state==='suspended')_audioCtx.resume();},{once:false,passive:true});
 function playNotificationSound(){
+  if(!_userInteracted)return;
   try{
-    var audioContext=new (window.AudioContext||window.webkitAudioContext)();
-    var oscillator=audioContext.createOscillator();
-    var gainNode=audioContext.createGain();
+    if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    if(_audioCtx.state==='suspended'){_audioCtx.resume();}
+    var oscillator=_audioCtx.createOscillator();
+    var gainNode=_audioCtx.createGain();
     oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    gainNode.connect(_audioCtx.destination);
     oscillator.frequency.value=800;
     oscillator.type='sine';
-    gainNode.gain.setValueAtTime(0.3,audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01,audioContext.currentTime+0.5);
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime+0.5);
+    gainNode.gain.setValueAtTime(0.3,_audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01,_audioCtx.currentTime+0.5);
+    oscillator.start(_audioCtx.currentTime);
+    oscillator.stop(_audioCtx.currentTime+0.5);
   }catch(e){}
 }
 
@@ -1574,11 +1579,14 @@ function renderAdminFull(){
       '<button class="tsw" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
     '</div>'+
     '<div id="ait" class="tc active">'+
-      '<div style="padding:.7rem;display:flex;gap:.5rem;flex-wrap:wrap">'+
-        (IS_ADMIN?'<button class="btn btn-p" style="flex:1;min-width:140px" onclick="showAddItem()">➕ '+t('addItem')+'</button>':'<button class="btn btn-p" style="flex:1;min-width:140px" disabled>➕ '+t('addItem')+'</button>')+
-        '<button class="btn btn-warn" style="flex:1;min-width:140px" onclick="renderStocktake(\'\')">🔢 '+('Stock Check')+'</button>'+
-        '<button id="ai-view-list" class="btn btn-s" style="flex:1;min-width:60px;opacity:1" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
-        '<button id="ai-view-grid" class="btn btn-s" style="flex:1;min-width:60px;opacity:.5" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
+      '<div style="padding:.6rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.4rem;align-items:center">'+
+        (IS_ADMIN?'<button class="btn btn-p" onclick="showAddItem()">➕ '+t('addItem')+'</button>':'<button class="btn btn-p" disabled>➕ '+t('addItem')+'</button>')+
+        '<button class="btn btn-warn" onclick="renderStocktake(\'\')">🔢 Stock Check</button>'+
+        '<button id="ai-view-list" class="btn btn-s" style="width:40px;padding:.5rem;opacity:1" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
+        '<button id="ai-view-grid" class="btn btn-s" style="width:40px;padding:.5rem;opacity:.5" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
+      '</div>'+
+      '<div style="padding:.5rem .7rem;background:#FFFBEB;border-top:1px solid #FDE68A;border-bottom:1px solid #FDE68A">'+
+        '<input id="ai-search-inp" type="text" placeholder="🔍 搜尋產品..." style="width:100%;padding:.65rem .8rem;border:2px solid #D97706;border-radius:8px;font-size:1rem;box-sizing:border-box;background:#fff" oninput="aiSearchItems()">'+
       '</div>'+
       (IS_ADMIN?'':(CURRENT_USER&&!CURRENT_USER.isGuest?'<div style="padding:.5rem .7rem;background:#FEF2F2;border-radius:8px;color:#64748B;font-size:.85rem;margin:.5rem .7rem">⚠ Anda adalah '+('Staf')+'. Hanya admin yang bisa menambah/edit/hapus barang.</div>':''))+
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
@@ -1641,9 +1649,17 @@ function updateAIViewBtns(){
   if(lbtn)lbtn.style.opacity=VIEW_AI==='list'?'1':'.5';
   if(gbtn)gbtn.style.opacity=VIEW_AI==='grid'?'1':'.5';
 }
+var AI_SEARCH_FILTER='';
 function aiListHTML(){
   var items=DATA.items;
-  if(!items.length)return'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">-</div>';
+  if(CURRENT_WAREHOUSE&&IS_ADMIN){
+    items=items.filter(function(i){return i.warehouse_id===CURRENT_WAREHOUSE||i.warehouse_id==='HARDWARE';});
+  }
+  if(AI_SEARCH_FILTER){
+    var q=AI_SEARCH_FILTER.toLowerCase();
+    items=items.filter(function(i){return i.name.toLowerCase().includes(q);});
+  }
+  if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER?'找不到相符的產品 🚫':'-')+'</div>';
   // 先渲染前 50 筆，其餘異步載入
   var first=items.slice(0,50).map(aiItemHTML).join('');
   if(items.length>50){
@@ -1654,6 +1670,12 @@ function aiListHTML(){
     return first+'<div id="ait-more" style="padding:.8rem;text-align:center;color:#9CA3AF;font-size:.82rem">⏳ 載入中…（還有 '+(items.length-50)+' 件）</div>';
   }
   return first;
+}
+function aiSearchItems(){
+  var inp=document.getElementById('ai-search-inp');
+  AI_SEARCH_FILTER=inp?inp.value:'';
+  var tc=document.getElementById('ait-content');
+  if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
 }
 function peListHTML(){
   return DATA.people.map(function(p){
@@ -2077,7 +2099,8 @@ function closeModal(){stopQrCamera();var o=document.getElementById('m-ov');if(o)
 function itemFormHTML(item){
   var twh=item?item.warehouse_id:CURRENT_WAREHOUSE;
   var banner=twh?'<div style="background:'+(WH_COLORS[twh]||'#E2E8F0')+';color:'+(WH_TEXT[twh]||'#334155')+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.9rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[twh]||'#334155')+'22">🏭 '+(item?'Edit di ':'Tambah ke ')+(WH_SHORT[twh]||twh)+'</div>':'';
-  return banner+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
+  return banner+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
+    '<div style="display:none" id="fn-dup-info"></div>'+
     '<div class="fr">'+
       '<div class="ig"><label>'+t('initQ')+'</label><input id="fq" type="number" value="'+(item?item.qty:0)+'" min="0"></div>'+
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
@@ -2200,9 +2223,44 @@ async function sbUpdateSafe(table,row,idCol,idVal){
   }
   return r;
 }
-async function saveItem(){
+function checkDuplicateItem(){
+  var inp=document.getElementById('fn');
+  var dupEl=document.getElementById('fn-dup');
+  if(!inp||!dupEl)return;
+  var name=(inp.value||'').trim().toLowerCase();
+  if(!name){dupEl.style.display='none';return;}
+  var existing=DATA.items.find(function(i){return i.name.toLowerCase()===name&&i.id!==EDIT_ITEM?.id;});
+  if(existing){
+    dupEl.style.display='block';
+    dupEl.innerHTML='⚠️ 已有此商品：<strong>'+esc(existing.name)+'</strong>（'+esc(existing.warehouse_id)+'）';
+  }else{
+    dupEl.style.display='none';
+  }
+}
+async function saveItem(forceNew){
+  if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa tambah/edit barang'));return;}
   var name=(document.getElementById('fn').value||'').trim();
   if(!name){toast('⚠ '+t('iName'));return;}
+  // 新增時檢查重複（編輯時跳過）
+  if(!EDIT_ITEM&&!forceNew){
+    var dup=DATA.items.find(function(i){return i.name.toLowerCase()===name.toLowerCase();});
+    if(dup){
+      // 跳出對話框讓使用者選擇
+      showModal('⚠️ 商品名稱已存在',
+        '<div style="background:#FEF3C7;border-left:4px solid #D97706;padding:1rem;border-radius:8px;margin-bottom:1rem">'+
+          '<div style="font-weight:700;margin-bottom:.3rem">📦 '+esc(dup.name)+'</div>'+
+          '<div style="font-size:.85rem;color:#92400E">倉庫：'+esc(dup.warehouse_id)+'　|　庫存：'+dup.qty+' '+esc(dup.unit)+'</div>'+
+        '</div>'+
+        '<div style="font-size:.9rem;color:#374151;margin-bottom:1rem">你要怎麼做？</div>'+
+        '<div style="display:flex;flex-direction:column;gap:.5rem">'+
+          '<button class="btn btn-p btn-full" onclick="closeModal();showEdit(\''+esc(dup.variant_id)+'\')">✏️ 編輯現有商品</button>'+
+          '<button class="btn btn-warn btn-full" onclick="saveItem(true)">➕ 仍然新增（不同倉庫用）</button>'+
+          '<button class="btn btn-s btn-full" onclick="closeModal()">取消</button>'+
+        '</div>'
+      );
+      return;
+    }
+  }
   var qty=parseInt(document.getElementById('fq').value)||0;
   var unit=(document.getElementById('fu').value||'pcs').trim();
   var min=parseInt(document.getElementById('fm').value)||10;
@@ -2375,9 +2433,13 @@ function switchWarehouse(wid){
 async function delPerson(id){
   var person=DATA.people.find(function(p){return p.id==id;});
   if(!person)return;
-  if(!confirm('Hapus karyawan "'+person.name+'"?'))return;
-  try{var {error}=await sb.from('people').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
-  catch(e){toast('⚠ '+e.message);}
+  if(!confirm('Hapus karyawan "'+person.name+'"?\n\n⚠️ Transaksi yang terkait akan dihapus juga.'))return;
+  try{
+    var {error}=await sb.from('people').delete().eq('id',id);
+    if(error)throw error;
+    toast(t('delOk'));
+    await loadAll();
+  }catch(e){toast('⚠ '+e.message);}
 }
 function logoutAdmin(){
   // Admin gudang (staff) keluar penuh ke layar login; super admin kembali ke layar PIN
@@ -2451,6 +2513,7 @@ async function doReq(){
   }catch(e){toast('⚠ '+e.message);}
 }
 async function updReq(id,status){
+  if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa setujui/tolak'));return;}
   try{await sb.from('requests').update({status:status}).eq('id',id);toast('✓');await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
