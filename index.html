@@ -1659,16 +1659,13 @@ function updateAIViewBtns(){
 var AI_SEARCH_FILTER='';
 function aiListHTML(){
   var items=DATA.items;
-  if(CURRENT_WAREHOUSE&&IS_ADMIN){
-    items=items.filter(function(i){return i.warehouse_id===CURRENT_WAREHOUSE||i.warehouse_id==='HARDWARE';});
-  }
-  if(AI_SEARCH_FILTER){
-    var q=AI_SEARCH_FILTER.toLowerCase();
-    items=items.filter(function(i){return i.name.toLowerCase().includes(q);});
-  }
-  if(AI_TAG_FILTER){
-    items=items.filter(function(i){return(i.tags||[]).includes(AI_TAG_FILTER);});
-  }
+  var q=AI_SEARCH_FILTER?AI_SEARCH_FILTER.toLowerCase():'';
+  items=items.filter(function(i){
+    if(CURRENT_WAREHOUSE&&IS_ADMIN&&i.warehouse_id!==CURRENT_WAREHOUSE&&i.warehouse_id!=='HARDWARE')return false;
+    if(q&&!i.name.toLowerCase().includes(q))return false;
+    if(AI_TAG_FILTER&&!(i.tags||[]).includes(AI_TAG_FILTER))return false;
+    return true;
+  });
   if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER?'找不到相符的產品 🚫':'-')+'</div>';
   // 先渲染前 50 筆，其餘異步載入
   var first=items.slice(0,50).map(aiItemHTML).join('');
@@ -1687,10 +1684,13 @@ function aiSearchItems(){
   var tc=document.getElementById('ait-content');
   if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
 }
+var AI_TAG_CACHE='';
 function getAITagOptions(){
+  if(AI_TAG_CACHE)return AI_TAG_CACHE;
   var seen={};var tags=[];
   DATA.items.forEach(function(i){var tt=i.tags||[];tt.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;tags.push(tg);}});});
-  return tags.sort().map(function(tg){return'<option value="'+esc(tg)+'">'+esc(tg)+'</option>';}).join('');
+  AI_TAG_CACHE=tags.sort().map(function(tg){return'<option value="'+esc(tg)+'">'+esc(tg)+'</option>';}).join('');
+  return AI_TAG_CACHE;
 }
 function setAITagFilter(tag){
   AI_TAG_FILTER=tag;
@@ -2447,6 +2447,8 @@ async function saveWarehouses(id){
 }
 function switchWarehouse(wid){
   CURRENT_WAREHOUSE=wid;
+  AI_TAG_FILTER='';
+  AI_TAG_CACHE='';
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
   // INSTANT: admin sering ganti gudang - tampilkan cache dulu, refresh di background
   var shown=tryRenderFromCache(wid);
