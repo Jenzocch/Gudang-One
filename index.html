@@ -842,9 +842,8 @@ function renderHome(){
   }
 
   // Welcome card - render immediately
-  h+='<div class="card" style="margin:1rem .7rem;background:linear-gradient(135deg,var(--p),var(--s));color:#fff">'+
-    '<h2 style="margin:0 0 .5rem;font-size:1.1rem">👋 '+('Selamat datang')+', '+esc(CURRENT_USER.name)+'</h2>'+
-    '<p style="margin:.3rem 0;font-size:.9rem;opacity:.9">'+('Cek stok barang di bawah atau klik "Ambil" untuk mulai')+'</p>'+
+  h+='<div style="margin:.5rem .7rem;padding:.6rem .9rem;background:linear-gradient(135deg,var(--p),var(--s));color:#fff;border-radius:10px;display:flex;align-items:center;gap:.5rem">'+
+    '<span style="font-size:.9rem;font-weight:700">👋 '+esc(CURRENT_USER.name)+'</span>'+
   '</div>';
   if(CURRENT_USER&&CURRENT_USER.isGuest){
     h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
@@ -866,9 +865,9 @@ function renderHome(){
     var sorted=IDX.sortedByRatio;
     var lowItems=sorted.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
 
-    h+='<div class="g2">'+
-      '<div class="sc"><div class="sc-val">'+DATA.items.length+'</div><div class="sc-lbl">'+t('items')+'</div></div>'+
-      '<div class="sc"><div class="sc-val" style="color:'+(lowItems.length>0?'var(--danger)':'var(--ok)')+'">'+lowItems.length+'</div><div class="sc-lbl">'+t('lowStock')+'</div></div>'+
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;padding:.4rem .7rem">'+
+      '<div style="background:#fff;border-radius:10px;padding:.5rem .7rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:1.4rem;font-weight:800;color:var(--p)">'+DATA.items.length+'</div><div style="font-size:.75rem;color:#64748B;font-weight:500">'+t('items')+'</div></div>'+
+      '<div style="background:#fff;border-radius:10px;padding:.5rem .7rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:1.4rem;font-weight:800;color:'+(lowItems.length>0?'var(--danger)':'var(--ok)')+'">'+lowItems.length+'</div><div style="font-size:.75rem;color:#64748B;font-weight:500">'+t('lowStock')+'</div></div>'+
     '</div>';
 
     if(lowItems.length){
