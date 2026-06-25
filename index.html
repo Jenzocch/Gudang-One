@@ -2450,9 +2450,8 @@ function switchWarehouse(wid){
   AI_TAG_FILTER='';
   AI_TAG_CACHE='';
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
-  // INSTANT: admin sering ganti gudang - tampilkan cache dulu, refresh di background
-  var shown=tryRenderFromCache(wid);
-  loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);},shown);
+  // Don't use cache when switching - show loading state, then update with fresh data
+  loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);});
 }
 async function delPerson(id){
   var person=DATA.people.find(function(p){return p.id==id;});
