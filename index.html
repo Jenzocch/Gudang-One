@@ -187,6 +187,20 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .stk-qty{width:68px;padding:.38rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.95rem;font-weight:700;text-align:center;background:#fff}
 .stk-qty:focus{outline:none;border-color:var(--p)}
 .stk-qty.changed{border-color:var(--warn);background:#FFFBEB}
+/* 首頁區塊卡片（清楚分隔、各有顏色） */
+.home-sec{background:#fff;border-radius:12px;margin:.9rem .7rem;box-shadow:0 2px 8px rgba(0,0,0,.09);overflow:hidden;border-left:5px solid var(--p)}
+.home-sec.low{border-left-color:var(--danger)}
+.home-sec.stock{border-left-color:#0F766E}
+.home-sec-hd{padding:.7rem .9rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:.5rem;-webkit-user-select:none;user-select:none}
+.home-sec-title{font-weight:800;font-size:.95rem}
+.home-sec.low .home-sec-hd{background:#FEF2F2}
+.home-sec.low .home-sec-title{color:var(--danger)}
+.home-sec.stock .home-sec-hd{background:#F0FDFA}
+.home-sec.stock .home-sec-title{color:#0F766E}
+.home-sec-srch{padding:.55rem .7rem;background:#fff;border-top:1px solid #EEF2F6}
+.home-sec-srch input{width:100%;padding:.55rem .75rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;background:#fff;box-sizing:border-box}
+.home-sec.stock .home-sec-srch input{border-color:var(--p);border-width:2px}
+.home-sec-toggle{font-size:1.1rem;transition:.2s;display:inline-block;flex-shrink:0}
 /* iOS safe-area 适配 */
 .tabs{padding-bottom:env(safe-area-inset-bottom)}
 .content{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
@@ -213,8 +227,9 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .ai-list.grid{grid-template-columns:1fr 1fr;gap:.9rem;margin:.6rem 0}
   .toast{left:calc(180px + (100% - 180px)/2);transform:translateX(-50%)}
   .low-ov{padding-left:180px}
-  #mc{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;padding:1rem}
-  .sec-card{margin:0!important}
+  /* 桌面：兩個區塊並排，間距清楚 */
+  #home-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:1.5rem;align-items:start;margin:.9rem .7rem}
+  #home-sections .home-sec{margin:0}
 }
 </style>
 </head>
@@ -849,7 +864,7 @@ function renderHome(){
   var nowTime=Date.now();var d30Time=nowTime+30*86400000;
   var expWarn=DATA.batches.filter(function(b){return b.expiry_date&&b.qty_remaining>0&&b._expT<=d30Time;}).sort(function(a,b){return a._expT-b._expT;}).slice(0,20);
   if(expWarn.length){
-    h+='<div class="card sec-card" style="margin:.7rem;border-left:4px solid #D97706;padding:.8rem 1rem">'+
+    h+='<div class="card" style="margin:.9rem .7rem;border-left:5px solid #D97706;padding:.8rem 1rem">'+
       '<div style="font-weight:700;font-size:.88rem;color:#D97706;margin-bottom:.5rem">⏰ Kadaluarsa dalam 30 hari ('+expWarn.length+')</div>'+
       expWarn.slice(0,8).map(function(b){var item=itemById(b.item_id);var isExp=b._expT<nowTime;return'<div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid #FEF3C7;font-size:.82rem"><span>'+(item?esc(item.name):'?')+(b.lot_no?' · <span style="color:#64748B">Lot '+esc(b.lot_no)+'</span>':'')+'<br><span style="font-size:.7rem;color:#9CA3AF">Sisa: '+b.qty_remaining+'</span></span><span style="font-weight:700;color:'+(isExp?'#DC2626':'#D97706')+'">'+b.expiry_date+(isExp?' ❌':' ⏰')+'</span></div>';}).join('')+
       (expWarn.length>8?'<div style="font-size:.75rem;color:#9CA3AF;margin-top:.3rem">+'+(expWarn.length-8)+' lainnya</div>':'')+
@@ -867,22 +882,18 @@ function renderHome(){
       '<div style="background:#fff;border-radius:8px;padding:.4rem .7rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><span style="font-size:.78rem;color:#64748B;font-weight:500">'+t('lowStock')+'</span><span style="font-size:1.1rem;font-weight:800;color:'+(lowItems.length>0?'var(--danger)':'var(--ok)')+'">'+lowItems.length+'</span></div>'+
     '</div>';
 
+    h+='<div id="home-sections">';
     if(lowItems.length){
-      h+='<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:#FEF2F2;border-radius:10px 10px 0 0">'+
-      '<input id="low-search" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterLowItems()">'+
-      '</div>'+
-      '<div id="low-section" class="sec-card" style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
-      '<div style="padding:.5rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleLowSection()">'+
-      '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 Perlu Beli ('+lowItems.length+' item)</span>'+
+      h+='<div class="home-sec low">'+
+      '<div class="home-sec-hd" onclick="toggleLowSection()">'+
+      '<span class="home-sec-title">🛒 Perlu Beli ('+lowItems.length+')</span>'+
       '<div style="display:flex;gap:.4rem;align-items:center">'+
-      '<button onclick="copyBuyList();event.stopPropagation()" style="background:var(--danger);color:#fff;border:none;padding:.2rem .5rem;border-radius:6px;cursor:pointer;font-size:.7rem;font-weight:600">📋 Salin</button>'+
-      '<span id="low-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
+      '<button onclick="copyBuyList();event.stopPropagation()" style="background:var(--danger);color:#fff;border:none;padding:.25rem .55rem;border-radius:6px;cursor:pointer;font-size:.72rem;font-weight:700">📋 Salin</button>'+
+      '<span id="low-toggle" class="home-sec-toggle" style="transform:rotate(-90deg)">▼</span>'+
       '</div>'+
       '</div>'+
-      '<div id="low-content" style="display:none">'+
-      '<div style="padding:.4rem .7rem;border-bottom:1px solid #F3F4F6">'+
-      '<input id="low-search" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterLowItems()">'+
-      '</div>';
+      '<div class="home-sec-srch"><input id="low-search" type="text" placeholder="🔍 Cari barang perlu beli..." oninput="filterLowItems()"></div>'+
+      '<div id="low-content" style="display:none">';
       var catGrp={};var noCat=[];
       lowItems.forEach(function(i){var tt=i.tags||[];if(tt.length){tt.forEach(function(tg){if(!catGrp[tg])catGrp[tg]=[];catGrp[tg].push(i);});}else{noCat.push(i);}});
       var renderLowRow=function(i){
@@ -912,14 +923,12 @@ function renderHome(){
       h+='</div></div>';
     }
 
-    h+='<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:var(--light);border-radius:10px 10px 0 0">'+
-    '<input id="stock-search" type="text" placeholder="🔍 Cari semua barang..." style="width:100%;padding:.5rem .7rem;border:2px solid var(--p);border-radius:6px;font-size:.9rem;background:#fff" oninput="filterStockItems()">'+
+    h+='<div id="stock-list" class="home-sec stock">'+
+    '<div class="home-sec-hd" onclick="toggleStockSection()">'+
+    '<span class="home-sec-title">📦 Status Stok ('+sorted.length+')</span>'+
+    '<span id="stock-toggle" class="home-sec-toggle" style="transform:rotate(-90deg)">▼</span>'+
     '</div>'+
-    '<div id="stock-list" class="sec-card" style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
-    '<div style="padding:.5rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleStockSection()">'+
-    '<span>📦 Status Stok (Urgensi)</span>'+
-    '<span id="stock-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
-    '</div>'+
+    '<div class="home-sec-srch"><input id="stock-search" type="text" placeholder="🔍 Cari semua barang..." oninput="filterStockItems()"></div>'+
     '<div id="stock-content" style="display:none">';
     // 先渲染前20個（快速顯示）
     var renderStockItems=function(startIdx,endIdx,cb){
@@ -943,7 +952,7 @@ function renderHome(){
     };
     renderStockItems(0,20,false);
     if(sorted.length>20)h+='<div id="stock-load" style="padding:.5rem .9rem;text-align:center;background:#FAFAFA;color:#9CA3AF;font-size:.8rem">⏳ 加載中...（還有 '+(sorted.length-20)+' 件）</div>';
-    h+='</div></div>';
+    h+='</div></div></div>'; // 關閉 stock-content / stock 卡片 / #home-sections
 
     if(IS_ADMIN){
       h+='<div class="st">📋 '+t('recentReq')+'（'+('Tertunda')+'）</div>';
@@ -1002,7 +1011,7 @@ function toggleLowSection(){
   if(content){
     var isOpen=content.style.display!=='none';
     content.style.display=isOpen?'none':'block';
-    if(toggle)toggle.style.transform=isOpen?'rotate(90deg)':'rotate(0deg)';
+    if(toggle)toggle.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
   }
 }
 function toggleStockSection(){
@@ -1011,12 +1020,15 @@ function toggleStockSection(){
   if(content){
     var isOpen=content.style.display!=='none';
     content.style.display=isOpen?'none':'block';
-    if(toggle)toggle.style.transform=isOpen?'rotate(90deg)':'rotate(0deg)';
+    if(toggle)toggle.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
   }
 }
 function filterLowItems(){
   var inp=document.getElementById('low-search');if(!inp)return;
   var q=(inp.value||'').toLowerCase().trim();
+  // 有輸入就自動展開區塊，否則搜尋結果被收合擋住看不到
+  var content=document.getElementById('low-content');
+  if(content&&q&&content.style.display==='none'){content.style.display='block';var tg=document.getElementById('low-toggle');if(tg)tg.style.transform='rotate(0deg)';}
   document.querySelectorAll('.srch-low').forEach(function(row){
     var name=row.getAttribute('data-name')||'';
     row.style.display=(!q||name.indexOf(q)>=0)?'':'none';
@@ -1027,6 +1039,9 @@ function filterLowItems(){
 function filterStockItems(){
   var inp=document.getElementById('stock-search');if(!inp)return;
   var q=(inp.value||'').toLowerCase().trim();
+  // 有輸入就自動展開區塊
+  var content=document.getElementById('stock-content');
+  if(content&&q&&content.style.display==='none'){content.style.display='block';var tg=document.getElementById('stock-toggle');if(tg)tg.style.transform='rotate(0deg)';}
   document.querySelectorAll('.srch-stock').forEach(function(row){
     var name=row.getAttribute('data-name')||'';
     row.style.display=(!q||name.indexOf(q)>=0)?'':'none';
