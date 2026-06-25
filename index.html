@@ -475,13 +475,14 @@ function staffLogout(){
 var sb;
 var DATA={items:[],people:[],requests:[],transactions:[],batches:[]};
 // Performance indexes: built once per data load to avoid O(n²) lookups during render
-var IDX={variantsById:{},batchesByItem:{},sortedByRatio:[]};
+var IDX={variantsById:{},itemsById:{},batchesByItem:{},sortedByRatio:[]};
 function buildIndexes(){
   IDX.variantsById={};
+  IDX.itemsById={};
   IDX.batchesByItem={};
   var k,b,arr,id;
   // Index by variant_id (不用item_id，因為同item可能多倉庫)
-  for(k=0;k<DATA.items.length;k++){IDX.variantsById[DATA.items[k].variant_id]=DATA.items[k];}
+  for(k=0;k<DATA.items.length;k++){IDX.variantsById[DATA.items[k].variant_id]=DATA.items[k];IDX.itemsById[DATA.items[k].id]=DATA.items[k];}
   for(k=0;k<DATA.batches.length;k++){
     b=DATA.batches[k];
     b._expT=b.expiry_date?new Date(b.expiry_date).getTime():Infinity;
@@ -507,10 +508,8 @@ function buildIndexes(){
 }
 function batchesOf(itemId){return IDX.batchesByItem[itemId]||[];}
 function itemById(id){
-  // 新架構: 在當前倉庫的 items 中找 item_id 匹配的
-  for(var k=0;k<DATA.items.length;k++){
-    if(DATA.items[k].id==id)return DATA.items[k];
-  }
+  // 用 buildIndexes 建好的 item_id 索引 O(1) 查找（取代原本 O(n) 線性掃描）
+  if(IDX.itemsById&&IDX.itemsById[id])return IDX.itemsById[id];
   return null;
 }
 var IS_ADMIN=false; // bisa kelola barang (tambah/edit/hapus) — admin gudang & super admin
@@ -779,8 +778,8 @@ async function loadAll(afterCb,fromCache){
     saveWhCache(CURRENT_WAREHOUSE);
     setDot('ok');
     LAST_LOADED_WAREHOUSE=CURRENT_WAREHOUSE;
-    renderAll();
-    setTimeout(function(){renderHome();if(afterCb)afterCb();},100);
+    renderAll(); // renderAll 內部已呼叫 renderHome，不要重複渲染（避免雙倍 DOM 建構導致卡頓）
+    if(afterCb)setTimeout(afterCb,0);
     setTimeout(checkLowStock,800);
     // Untuk admin: preload semua gudang di background untuk switch cepat
     if(IS_ADMIN||IS_SUPER)setTimeout(function(){preloadAllWarehouses();},2000);
@@ -869,10 +868,7 @@ function renderHome(){
     '</div>';
 
     if(lowItems.length){
-      h+='<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:#FEF2F2;border-radius:10px 10px 0 0">'+
-      '<input id="low-search" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterLowItems()">'+
-      '</div>'+
-      '<div id="low-section" class="sec-card" style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+      h+='<div id="low-section" class="sec-card" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
       '<div style="padding:.5rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleLowSection()">'+
       '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 Perlu Beli ('+lowItems.length+' item)</span>'+
       '<div style="display:flex;gap:.4rem;align-items:center">'+
@@ -880,7 +876,10 @@ function renderHome(){
       '<span id="low-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
       '</div>'+
       '</div>'+
-      '<div id="low-content" style="display:none">';
+      '<div id="low-content" style="display:none">'+
+      '<div style="padding:.4rem .7rem;border-bottom:1px solid #F3F4F6">'+
+      '<input id="low-search" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterLowItems()">'+
+      '</div>';
       var catGrp={};var noCat=[];
       lowItems.forEach(function(i){var tt=i.tags||[];if(tt.length){tt.forEach(function(tg){if(!catGrp[tg])catGrp[tg]=[];catGrp[tg].push(i);});}else{noCat.push(i);}});
       var renderLowRow=function(i){
@@ -910,15 +909,15 @@ function renderHome(){
       h+='</div></div>';
     }
 
-    h+='<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:var(--light);border-radius:10px 10px 0 0">'+
-    '<input id="stock-search" type="text" placeholder="🔍 Cari semua barang..." style="width:100%;padding:.5rem .7rem;border:2px solid var(--p);border-radius:6px;font-size:.9rem;background:#fff" oninput="filterStockItems()">'+
-    '</div>'+
-    '<div id="stock-list" class="sec-card" style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+    h+='<div id="stock-list" class="sec-card" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.5rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleStockSection()">'+
     '<span>📦 Status Stok (Urgensi)</span>'+
     '<span id="stock-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
     '</div>'+
-    '<div id="stock-content" style="display:none">';
+    '<div id="stock-content" style="display:none">'+
+    '<div style="padding:.4rem .7rem;border-bottom:1px solid #F3F4F6;position:sticky;top:0;background:#fff;z-index:2">'+
+    '<input id="stock-search" type="text" placeholder="🔍 Cari semua barang..." style="width:100%;padding:.5rem .7rem;border:2px solid var(--p);border-radius:6px;font-size:.9rem;background:#fff" oninput="filterStockItems()">'+
+    '</div>';
     // 先渲染前20個（快速顯示）
     var renderStockItems=function(startIdx,endIdx,cb){
       var frag='';
@@ -2508,10 +2507,15 @@ async function saveWarehouses(id){
   catch(e){toast('⚠ '+e.message);}
 }
 function switchWarehouse(wid){
+  if(wid===CURRENT_WAREHOUSE)return; // 已在該倉庫，免重載
   CURRENT_WAREHOUSE=wid;
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
-  // Don't use cache when switching - show loading state, then update with fresh data
-  loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);});
+  // INSTANT: 先用 preloadAllWarehouses 已快取的資料瞬間顯示，再背景刷新
+  var shown=tryRenderFromCache(wid);
+  if(!shown){
+    document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
+  }
+  loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);},shown);
 }
 async function delPerson(id){
   var person=DATA.people.find(function(p){return p.id==id;});
@@ -2918,8 +2922,13 @@ function preloadAllWarehouses(){
             warehouse_id:v.warehouse_id
           };
         });
+        // Strip gambar base64 spt saveWhCache — supaya muat di kuota localStorage (~5MB)
+        // & cache benar2 tersimpan agar switch warehouse instan
+        var litItems=flatItems.map(function(i){
+          var c={};for(var k in i){if(k!=='image_url'&&k!=='storage_photo_url')c[k]=i[k];}return c;
+        });
         // Simpan cache tanpa ubah DATA/UI (silent background load)
-        localStorage.setItem('wh_cache_'+w,JSON.stringify({items:flatItems,batches:bRes.data||[],requests:rRes.data||[]}));
+        localStorage.setItem('wh_cache_'+w,JSON.stringify({items:litItems,batches:bRes.data||[],requests:rRes.data||[],ts:Date.now()}));
       }catch(e){}
     })();
   });
