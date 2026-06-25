@@ -178,7 +178,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
 .login-person-btn{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:1.2rem 1rem;display:flex;justify-content:center;align-items:center;cursor:pointer;transition:.2s;text-align:center;font-family:inherit;width:100%;min-height:56px}
 .login-person-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
-.hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.2rem .6rem;border-radius:12px;cursor:pointer;font-size:.75rem;font-weight:600;display:none}
+.hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.3rem .8rem;border-radius:12px;cursor:pointer;font-size:.9rem;font-weight:700;display:none}
 .catg-chip{padding:.45rem 1rem;border:1.5px solid var(--border);background:#fff;border-radius:20px;cursor:pointer;font-size:.86rem;font-weight:600;color:#64748B;white-space:nowrap;transition:.2s}
 .catg-chip.act{background:var(--p);color:#fff;border-color:var(--p)}
 .catg-badge{display:inline-block;padding:.12rem .45rem;border-radius:10px;font-size:.65rem;font-weight:700;background:#E0F2FE;color:#0369A1;margin-left:.2rem}
@@ -841,10 +841,6 @@ function renderHome(){
     '</div>';
   }
 
-  // Welcome card - render immediately
-  h+='<div style="margin:.5rem .7rem;padding:.6rem .9rem;background:linear-gradient(135deg,var(--p),var(--s));color:#fff;border-radius:10px;display:flex;align-items:center;gap:.5rem">'+
-    '<span style="font-size:.9rem;font-weight:700">👋 '+esc(CURRENT_USER.name)+'</span>'+
-  '</div>';
   if(CURRENT_USER&&CURRENT_USER.isGuest){
     h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
   }
