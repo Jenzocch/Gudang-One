@@ -2101,9 +2101,9 @@ function itemFormHTML(item){
       '<input type="file" id="f-stor-fi" accept="image/*" style="display:none" onchange="onStoragePhoto(event)">'+
       '<div id="fsp">'+(item&&item.storage_photo_url?'<img class="prev" src="'+esc(item.storage_photo_url)+'">':'')+'</div>'+
     '</div>'+
-    '<div class="ig"><label>📅 生產日期</label><input id="fpd" type="date" value="'+(item&&item.production_date?item.production_date:'')+'"></div>'+
-    '<div class="ig"><label>📅 到期日期</label><input id="fed" type="date" value="'+(item&&item.expiry_date?item.expiry_date:'')+'"></div>'+
-    '<div class="ig"><label>📝 備註</label><textarea id="frm" placeholder="規格、成分、等級..." style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;min-height:80px;font-family:inherit">'+(item&&item.remark?esc(item.remark):'')+'</textarea></div>'+
+    '<div class="ig"><label>📅 Production Date</label><input id="fpd" type="date" value="'+(item&&item.production_date?item.production_date:'')+'"></div>'+
+    '<div class="ig"><label>📅 Expiry Date</label><input id="fed" type="date" value="'+(item&&item.expiry_date?item.expiry_date:'')+'"></div>'+
+    '<div class="ig"><label>📝 Remarks</label><textarea id="frm" placeholder="Specifications, ingredients, grade..." style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;min-height:80px;font-family:inherit">'+(item&&item.remark?esc(item.remark):'')+'</textarea></div>'+
     (IS_ADMIN&&!CURRENT_WAREHOUSE?'<div class="ig"><label>🏭 Gudang</label><select id="f-warehouse" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"><option value="">-- Pilih Gudang --</option>'+WAREHOUSES.map(function(w){return'<option value="'+w+'"'+(item&&item.warehouse_id===w?' selected':'')+'>'+WH_EMOJI[w]+' '+w+'</option>';}).join('')+'</select></div>':'')+(CURRENT_WAREHOUSE?'<input type="hidden" id="f-warehouse" value="'+CURRENT_WAREHOUSE+'">':'')+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
