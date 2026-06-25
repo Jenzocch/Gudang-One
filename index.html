@@ -869,7 +869,10 @@ function renderHome(){
     '</div>';
 
     if(lowItems.length){
-      h+='<div id="low-section" class="sec-card" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+      h+='<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:#FEF2F2;border-radius:10px 10px 0 0">'+
+      '<input id="low-search" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterLowItems()">'+
+      '</div>'+
+      '<div id="low-section" class="sec-card" style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
       '<div style="padding:.5rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleLowSection()">'+
       '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 Perlu Beli ('+lowItems.length+' item)</span>'+
       '<div style="display:flex;gap:.4rem;align-items:center">'+
@@ -877,10 +880,7 @@ function renderHome(){
       '<span id="low-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
       '</div>'+
       '</div>'+
-      '<div id="low-content" style="display:none">'+
-      '<div style="padding:.4rem .7rem;border-bottom:1px solid #F3F4F6">'+
-      '<input id="low-search" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterLowItems()">'+
-      '</div>';
+      '<div id="low-content" style="display:none">';
       var catGrp={};var noCat=[];
       lowItems.forEach(function(i){var tt=i.tags||[];if(tt.length){tt.forEach(function(tg){if(!catGrp[tg])catGrp[tg]=[];catGrp[tg].push(i);});}else{noCat.push(i);}});
       var renderLowRow=function(i){
@@ -910,15 +910,15 @@ function renderHome(){
       h+='</div></div>';
     }
 
-    h+='<div id="stock-list" class="sec-card" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+    h+='<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:var(--light);border-radius:10px 10px 0 0">'+
+    '<input id="stock-search" type="text" placeholder="🔍 Cari semua barang..." style="width:100%;padding:.5rem .7rem;border:2px solid var(--p);border-radius:6px;font-size:.9rem;background:#fff" oninput="filterStockItems()">'+
+    '</div>'+
+    '<div id="stock-list" class="sec-card" style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.5rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleStockSection()">'+
     '<span>📦 Status Stok (Urgensi)</span>'+
     '<span id="stock-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
     '</div>'+
-    '<div id="stock-content" style="display:none">'+
-    '<div style="padding:.4rem .7rem;border-bottom:1px solid #F3F4F6;position:sticky;top:0;background:#fff;z-index:2">'+
-    '<input id="stock-search" type="text" placeholder="🔍 Cari semua barang..." style="width:100%;padding:.5rem .7rem;border:2px solid var(--p);border-radius:6px;font-size:.9rem;background:#fff" oninput="filterStockItems()">'+
-    '</div>';
+    '<div id="stock-content" style="display:none">';
     // 先渲染前20個（快速顯示）
     var renderStockItems=function(startIdx,endIdx,cb){
       var frag='';
