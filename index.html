@@ -1035,6 +1035,14 @@ function filterStockItems(){
   if(loadEl&&q)loadEl.style.display='none';
   else if(loadEl)loadEl.style.display='';
 }
+function filterRequests(){
+  var inp=document.getElementById('req-search');if(!inp)return;
+  var q=(inp.value||'').toLowerCase().trim();
+  document.querySelectorAll('.ri').forEach(function(row){
+    var text=(row.textContent||'').toLowerCase();
+    row.style.display=(!q||text.indexOf(q)>=0)?'':'none';
+  });
+}
 
 var _audioCtx=null;
 var _userInteracted=false;
@@ -1548,7 +1556,13 @@ function renderPermintaan(){
     '</div>'+
     '<div class="ig"><label>'+t('reqNote')+'</label><textarea id="rno" style="min-height:55px"></textarea></div>'+
     '<button class="btn btn-p btn-full" onclick="doReq()">'+t('sendReq')+'</button></div>'+
-    '<div class="st">📋 '+t('recentReq')+'</div><div id="req-list">'+h+'</div>';
+    '<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:#F0F9FF;border-radius:10px 10px 0 0">'+
+    '<input id="req-search" type="text" placeholder="🔍 Cari permintaan..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterRequests()">'+
+    '</div>'+
+    '<div style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+    '<div style="padding:.5rem .9rem;font-weight:700;font-size:.85rem;background:#F0F9FF;border-bottom:1px solid var(--border)">📋 '+t('recentReq')+'</div>'+
+    '<div id="req-list">'+h+'</div>'+
+    '</div>';
 }
 function reqHTML(r){
   var cls=r.status==='approved'?'b-a':r.status==='rejected'?'b-r':'b-p';
