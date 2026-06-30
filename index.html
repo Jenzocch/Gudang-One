@@ -1100,21 +1100,20 @@ function sendTelegram(msg){
   });
 }
 
-// Telegram low-stock throttle: notify each item at most once per 24h.
-// Persisted in localStorage so page refresh / warehouse switch won't re-spam.
-var TG_DAY=86400000;
+// Telegram low-stock throttle：同商品重複提醒間隔，30 天（原本 24h，避免一直轟炸）。
+var TG_INTERVAL=30*86400000;
 function tgGetNotified(){try{return JSON.parse(localStorage.getItem('tg_notified')||'{}');}catch(e){return {};}}
 function tgSaveNotified(m){try{localStorage.setItem('tg_notified',JSON.stringify(m));}catch(e){}}
 function checkAndNotifyLow(items){
   var map=tgGetNotified();var now=Date.now();var changed=false;
   items.forEach(function(i){
     if(i.remark&&i.remark.includes('#noalert')){if(map[i.id]){delete map[i.id];changed=true;}return;}
-    if(i.qty<=i.critical_qty&&i.critical_qty>0){
+    // qty<=0 視為「新增/尚未進貨的目錄商品」，載入時不通知，避免新增即轟炸
+    if(i.qty>0&&i.qty<=i.critical_qty&&i.critical_qty>0){
       var last=map[i.id]||0;
-      if(now-last>=TG_DAY){
+      if(now-last>=TG_INTERVAL){
         map[i.id]=now;changed=true;
-        var emoji=i.qty<=0?'❌':'🟠';
-        var msg=emoji+' Stok rendah: '+i.name+'\n'+
+        var msg='🟠 Stok rendah: '+i.name+'\n'+
           '📦 Sisa stok: '+i.qty+' '+i.unit+' (min: '+i.critical_qty+')\n'+
           (i.supplier_url?'🔗 '+i.supplier_url+'\n':'')+
           '🕐 '+new Date().toLocaleString('id-ID');
@@ -1361,7 +1360,7 @@ async function executeAmbilCart(){
       // Telegram throttle: use variant_id to ensure per-warehouse-item throttling
       if(newQty<=item.critical_qty&&item.critical_qty>0){
         var tgm=tgGetNotified();var lastN=tgm[variantId]||0;
-        if(Date.now()-lastN>=TG_DAY){
+        if(Date.now()-lastN>=TG_INTERVAL){
           tgm[variantId]=Date.now();tgSaveNotified(tgm);
           var emoji=newQty<=0?'❌':'🟠';
           sendTelegram(emoji+' Stok rendah: '+item.name+'\n'+
@@ -2246,10 +2245,10 @@ function searchExistingItems(){
       if(error)throw error;
       var avail=(data||[]).filter(function(it){return!here[it.id];});
       if(!avail.length){box.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:.78rem;padding:.6rem">無相符商品，建立新商品吧！</div>';return;}
-      // 按標籤分組
+      // 按標籤分組（每個商品只歸到第一個標籤，避免重複顯示）
       var byTag={};avail.forEach(function(it){
-        var tags=it.tags||[];if(!tags.length)tags=['📭 未分類'];
-        tags.forEach(function(tag){if(!byTag[tag])byTag[tag]=[];byTag[tag].push(it);});
+        var tags=it.tags||[];var tag=tags.length?tags[0]:'📭 未分類';
+        if(!byTag[tag])byTag[tag]=[];byTag[tag].push(it);
       });
       var html='';Object.keys(byTag).sort().forEach(function(tag){
         html+='<div style="padding:.5rem .7rem;background:#F8FAFC;border-bottom:1px solid #E2E8F0;font-weight:600;font-size:.75rem;color:#64748B;text-transform:uppercase;letter-spacing:.04em">'+esc(tag)+'</div>';
