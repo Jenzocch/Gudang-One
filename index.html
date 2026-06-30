@@ -295,8 +295,8 @@ var SUPA_URL = 'https://klswfuzuhlowzrbncreu.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmdXp1aGxvd3pyYm5jcmV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjM5NTEsImV4cCI6MjA5NzA5OTk1MX0.yfqyBjGFwMsryWZszo-nONINYG8QdcIAUGL97TEWgDk';
 var ADMIN_PIN = '123456'; // Admin PIN
 var GUEST_PIN = '0000';  // Guest PIN
-var TG_TOKEN = '8781911171:AAEaU8niWNiGjemUrVheBUy5c89f5MsAxeg';
-var TG_IDS = ['5003966994','6860586246','8388678925','5097723576'];
+// Telegram token/chat-id 已移到後端 Supabase Edge Function (notify-telegram) 的 secret，
+// 前端不再持有任何 token，sendTelegram() 改為呼叫該 Edge Function。
 // ══════════════════════════════════
 
 var LANG = 'id';  // Indonesian only
@@ -1091,13 +1091,11 @@ function showBrowserNotification(title,message){
 }
 
 function sendTelegram(msg){
-  TG_IDS.forEach(function(cid){
-    fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:cid,text:msg,parse_mode:'HTML'})
-    }).catch(function(){});
-  });
+  // 透過 Supabase Edge Function 發送；token 留在後端 secret，前端不再持有
+  try{
+    if(typeof sb==='undefined'||!sb||!sb.functions)return;
+    sb.functions.invoke('notify-telegram',{body:{msg:msg,parse_mode:'HTML'}}).catch(function(){});
+  }catch(e){}
 }
 
 // Telegram low-stock throttle：同商品重複提醒間隔，30 天（原本 24h，避免一直轟炸）。
