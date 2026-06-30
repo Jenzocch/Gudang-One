@@ -2246,10 +2246,10 @@ function searchExistingItems(){
       if(error)throw error;
       var avail=(data||[]).filter(function(it){return!here[it.id];});
       if(!avail.length){box.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:.78rem;padding:.6rem">無相符商品，建立新商品吧！</div>';return;}
-      // 按標籤分組
+      // 按標籤分組（每個商品只歸到第一個標籤，避免重複顯示）
       var byTag={};avail.forEach(function(it){
-        var tags=it.tags||[];if(!tags.length)tags=['📭 未分類'];
-        tags.forEach(function(tag){if(!byTag[tag])byTag[tag]=[];byTag[tag].push(it);});
+        var tags=it.tags||[];var tag=tags.length?tags[0]:'📭 未分類';
+        if(!byTag[tag])byTag[tag]=[];byTag[tag].push(it);
       });
       var html='';Object.keys(byTag).sort().forEach(function(tag){
         html+='<div style="padding:.5rem .7rem;background:#F8FAFC;border-bottom:1px solid #E2E8F0;font-weight:600;font-size:.75rem;color:#64748B;text-transform:uppercase;letter-spacing:.04em">'+esc(tag)+'</div>';

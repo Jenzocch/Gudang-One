@@ -351,7 +351,7 @@ function checkCritical() {
   var result = getItems();
   var critical = result.items.filter(function(i){ return i.qty <= i.min_qty; });
   if (critical.length === 0) return;
-  var msg = '🚨 *STOK K�ITIS — '+Utilities.formatDate(new Date(),'Asia/Jakarta','dd/MM HH:mm')+'*\n\n';
+  var msg = '🚨 *STOK KRITIS — '+Utilities.formatDate(new Date(),'Asia/Jakarta','dd/MM HH:mm')+'*\n\n';
   critical.forEach(function(item) {
     msg += '• *'+item.name+'*: sisa '+item.qty+' '+item.unit+' (min '+item.min_qty+')\n';
     if (item.link) msg += '  🛒 '+item.link+'\n';
@@ -423,8 +423,8 @@ function exportItemsCSV() {
 function importFromSheet(body) {
   var sourceSheetId = body.source_sheet_id || '';
   var sourceSheetName = body.source_sheet_name || 'Sheet1';
-  var idCol = body.id_col || 0;      // 'code' 欄位位置 (0-based)
-  var nameCol = body.name_col || 1;  // 'name' 欄位位置
+  var idCol = (body.id_col !== undefined && body.id_col !== null) ? Number(body.id_col) : 0;      // 'code' 欄位位置 (0-based)
+  var nameCol = (body.name_col !== undefined && body.name_col !== null) ? Number(body.name_col) : 1;  // 'name' 欄位位置
 
   if (!sourceSheetId) return {ok:false, error:'missing source_sheet_id'};
 
@@ -433,6 +433,7 @@ function importFromSheet(body) {
   var destRows = destSheet.getDataRange().getValues();
 
   var sourceSheet = SpreadsheetApp.openById(sourceSheetId).getSheetByName(sourceSheetName);
+  if (!sourceSheet) return {ok:false, error:'分頁 "'+sourceSheetName+'" 不存在，請確認分頁名稱'};
   var sourceRows = sourceSheet.getDataRange().getValues();
 
   var added = 0;
