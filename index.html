@@ -2236,24 +2236,33 @@ function searchExistingItems(){
   var q=(document.getElementById('add-search').value||'').trim().toLowerCase();
   var box=document.getElementById('add-search-results');
   if(!box)return;
-  if(q.length<2){box.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:.78rem;padding:.6rem">Ketik minimal 2 huruf...</div>';return;}
+  if(q.length<2){box.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:.78rem;padding:.6rem">🔍 輸入商品名稱搜尋 (≥2個字)</div>';return;}
   // ID barang yang sudah ada di gudang ini (jangan tampilkan lagi)
   var here={};DATA.items.forEach(function(i){here[i.id]=true;});
   clearTimeout(ADD_SEARCH_TIMER);
   ADD_SEARCH_TIMER=setTimeout(async function(){
     try{
-      var {data,error}=await sb.from('items').select('id,name,unit,image_url').ilike('name','%'+q+'%').order('name').limit(20);
+      var {data,error}=await sb.from('items').select('id,name,unit,image_url,tags').ilike('name','%'+q+'%').order('name').limit(50);
       if(error)throw error;
       var avail=(data||[]).filter(function(it){return!here[it.id];});
-      if(!avail.length){box.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:.78rem;padding:.6rem">Tidak ada barang lain yang cocok.<br>Buat barang baru di bawah.</div>';return;}
-      box.innerHTML=avail.map(function(it){
-        var ph=it.image_url?'<img src="'+esc(it.image_url)+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0">':'<div style="width:36px;height:36px;border-radius:6px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📦</div>';
-        return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border-bottom:1px solid #F1F5F9">'+ph+
-          '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.name)+'</div>'+
-          '<div style="font-size:.72rem;color:#94A3B8">'+esc(it.unit||'pcs')+'</div></div>'+
-          '<button class="btn btn-ok" style="padding:.3rem .6rem;font-size:.78rem;flex-shrink:0" onclick="addExistingToWarehouse(\''+esc(it.id)+'\')">➕ Sini</button>'+
-        '</div>';
-      }).join('');
+      if(!avail.length){box.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:.78rem;padding:.6rem">無相符商品，建立新商品吧！</div>';return;}
+      // 按標籤分組
+      var byTag={};avail.forEach(function(it){
+        var tags=it.tags||[];if(!tags.length)tags=['📭 未分類'];
+        tags.forEach(function(tag){if(!byTag[tag])byTag[tag]=[];byTag[tag].push(it);});
+      });
+      var html='';Object.keys(byTag).sort().forEach(function(tag){
+        html+='<div style="padding:.5rem .7rem;background:#F8FAFC;border-bottom:1px solid #E2E8F0;font-weight:600;font-size:.75rem;color:#64748B;text-transform:uppercase;letter-spacing:.04em">'+esc(tag)+'</div>';
+        byTag[tag].forEach(function(it){
+          var ph=it.image_url?'<img src="'+esc(it.image_url)+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0">':'<div style="width:36px;height:36px;border-radius:6px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📦</div>';
+          html+='<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border-bottom:1px solid #F1F5F9">'+ph+
+            '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.name)+'</div>'+
+            '<div style="font-size:.72rem;color:#94A3B8">'+esc(it.unit||'pcs')+'</div></div>'+
+            '<button class="btn btn-ok" style="padding:.3rem .6rem;font-size:.78rem;flex-shrink:0" onclick="addExistingToWarehouse(\''+esc(it.id)+'\')">➕ 加</button>'+
+          '</div>';
+        });
+      });
+      box.innerHTML=html;
     }catch(e){box.innerHTML='<div style="color:var(--danger);font-size:.78rem;padding:.6rem">⚠ '+esc(e.message)+'</div>';}
   },300);
 }

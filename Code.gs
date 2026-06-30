@@ -42,6 +42,7 @@ function doGet(e) {
         case 'identify':   result = identifyPhoto(body);    break;
         case 'addItem':    result = addItem(body);          break;
         case 'updateItem': result = updateItem(body);       break;
+        case 'importFromSheet': result = importFromSheet(body); break;
         default:           result = {ok:false, error:'Unknown action'};
       }
     } else {
@@ -51,6 +52,7 @@ function doGet(e) {
         case 'people':   result = getPeople();      break;
         case 'requests': result = getRequests();    break;
         case 'trx':      result = getTransactions(); break;
+        case 'exportItems': result = exportItemsCSV(); break;
         default:         result = {ok:true, msg:'Gudang API ready'};
       }
     }
@@ -90,6 +92,7 @@ function doPost(e) {
       case 'identify':   return cors(identifyPhoto(body));
       case 'addItem':    return cors(addItem(body));
       case 'updateItem': return cors(updateItem(body));
+      case 'importFromSheet': return cors(importFromSheet(body));
       default:           return cors({ok:false, error:'Unknown action'});
     }
   } catch(err) {
@@ -200,7 +203,10 @@ function recordAmbil(body) {
   if (newQty <= minQty) {
     var linkCol  = headers.indexOf('link');
     var priceCol = headers.indexOf('price');
-    sendTelegram('⚠️ *STOK KRITIS: ' + body.item_name + '*\nSisa: *' + newQty + ' ' + body.unit + '* (min ' + minQty + ')\n🛒 ' + itemSheet.getRange(itemRow, linkCol+1).getValue());
+    // 只有庫存低於 min_qty 的 30% 時才傳 Telegram（避免新增時頻繁通知）
+    if(newQty < minQty * 0.3) {
+      sendTelegram('⚠️ *STOK KRITIS: ' + body.item_name + '*\nSisa: *' + newQty + ' ' + body.unit + '* (min ' + minQty + ')\n🛒 ' + itemSheet.getRange(itemRow, linkCol+1).getValue());
+    }
   }
   return {ok:true, new_qty: newQty, trx_id: trxId};
 }
@@ -337,10 +343,15 @@ function sendTelegram(text) {
 }
 
 function checkCritical() {
+  // 只在每月 1,2,3 號執行（避免每天都通知）
+  var today = new Date();
+  var day = today.getDate();
+  if (![1, 2, 3].includes(day)) return;
+
   var result = getItems();
   var critical = result.items.filter(function(i){ return i.qty <= i.min_qty; });
   if (critical.length === 0) return;
-  var msg = '🚨 *STOK KRITIS — '+Utilities.formatDate(new Date(),'Asia/Jakarta','dd/MM HH:mm')+'*\n\n';
+  var msg = '🚨 *STOK K�ITIS — '+Utilities.formatDate(new Date(),'Asia/Jakarta','dd/MM HH:mm')+'*\n\n';
   critical.forEach(function(item) {
     msg += '• *'+item.name+'*: sisa '+item.qty+' '+item.unit+' (min '+item.min_qty+')\n';
     if (item.link) msg += '  🛒 '+item.link+'\n';
@@ -386,4 +397,69 @@ function initSheets() {
   }
 
   SpreadsheetApp.getActiveSpreadsheet().toast('✅ Sheets sudah siap!', 'Gudang Init', 5);
+}
+
+// ── 導出商品成 CSV ──
+function exportItemsCSV() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(SH_ITEMS);
+  var rows = sheet.getDataRange().getValues();
+
+  var headers = rows[0];
+  var csv = headers.map(function(h){ return '"' + (h||'').toString().replace(/"/g,'""') + '"'; }).join(',') + '\n';
+
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row[0] || row[14] === false || row[14] === 'FALSE') continue;
+    csv += row.map(function(c){
+      return '"' + (c||'').toString().replace(/"/g,'""') + '"';
+    }).join(',') + '\n';
+  }
+
+  return {ok: true, csv: csv};
+}
+
+// ── 從其他 Google Sheet 匯入商品 ──
+function importFromSheet(body) {
+  var sourceSheetId = body.source_sheet_id || '';
+  var sourceSheetName = body.source_sheet_name || 'Sheet1';
+  var idCol = body.id_col || 0;      // 'code' 欄位位置 (0-based)
+  var nameCol = body.name_col || 1;  // 'name' 欄位位置
+
+  if (!sourceSheetId) return {ok:false, error:'missing source_sheet_id'};
+
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var destSheet = ss.getSheetByName(SH_ITEMS);
+  var destRows = destSheet.getDataRange().getValues();
+
+  var sourceSheet = SpreadsheetApp.openById(sourceSheetId).getSheetByName(sourceSheetName);
+  var sourceRows = sourceSheet.getDataRange().getValues();
+
+  var added = 0;
+
+  for (var i = 1; i < sourceRows.length; i++) {
+    var row = sourceRows[i];
+    var code = row[idCol] || '';
+    var name = row[nameCol] || '';
+
+    if (!name || !code) continue;
+
+    // 檢查是否已存在 (by code)
+    var exists = false;
+    for (var j = 1; j < destRows.length; j++) {
+      if (String(destRows[j][2]).toLowerCase() === String(code).toLowerCase()) {
+        exists = true;
+        break;
+      }
+    }
+
+    if (exists) continue;
+
+    // 新增
+    var itemId = 'ITM-' + new Date().getTime() + '-' + code;
+    destSheet.appendRow([itemId, name, code, '📦', '', '', 0, 'pcs', 5, '', '', 'Perusahaan', '', '', true]);
+    added++;
+  }
+
+  return {ok: true, added: added};
 }
