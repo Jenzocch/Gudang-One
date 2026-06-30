@@ -203,7 +203,10 @@ function recordAmbil(body) {
   if (newQty <= minQty) {
     var linkCol  = headers.indexOf('link');
     var priceCol = headers.indexOf('price');
-    sendTelegram('⚠️ *STOK KRITIS: ' + body.item_name + '*\nSisa: *' + newQty + ' ' + body.unit + '* (min ' + minQty + ')\n🛒 ' + itemSheet.getRange(itemRow, linkCol+1).getValue());
+    // 只有庫存低於 min_qty 的 30% 時才傳 Telegram（避免新增時頻繁通知）
+    if(newQty < minQty * 0.3) {
+      sendTelegram('⚠️ *STOK KRITIS: ' + body.item_name + '*\nSisa: *' + newQty + ' ' + body.unit + '* (min ' + minQty + ')\n🛒 ' + itemSheet.getRange(itemRow, linkCol+1).getValue());
+    }
   }
   return {ok:true, new_qty: newQty, trx_id: trxId};
 }
@@ -340,10 +343,15 @@ function sendTelegram(text) {
 }
 
 function checkCritical() {
+  // 只在每月 1,2,3 號執行（避免每天都通知）
+  var today = new Date();
+  var day = today.getDate();
+  if (![1, 2, 3].includes(day)) return;
+
   var result = getItems();
   var critical = result.items.filter(function(i){ return i.qty <= i.min_qty; });
   if (critical.length === 0) return;
-  var msg = '🚨 *STOK KRITIS — '+Utilities.formatDate(new Date(),'Asia/Jakarta','dd/MM HH:mm')+'*\n\n';
+  var msg = '🚨 *STOK K�ITIS — '+Utilities.formatDate(new Date(),'Asia/Jakarta','dd/MM HH:mm')+'*\n\n';
   critical.forEach(function(item) {
     msg += '• *'+item.name+'*: sisa '+item.qty+' '+item.unit+' (min '+item.min_qty+')\n';
     if (item.link) msg += '  🛒 '+item.link+'\n';
