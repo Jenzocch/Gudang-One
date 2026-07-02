@@ -29,7 +29,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 // 只允許這些欄位被寫入，避免本函數變成任意寫入的破口
-const ALLOWED = ["name", "pin", "is_admin", "can_view_pricing", "warehouses"];
+const ALLOWED = ["name", "pin", "is_admin", "can_view_pricing", "warehouses", "can_ambil", "can_masuk"];
 function pick(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of ALLOWED) {

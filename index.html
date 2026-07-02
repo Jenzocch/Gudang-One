@@ -523,7 +523,7 @@ function lpk(k){
 function finishStaffLogin(){
   IS_SUPER=false;
   IS_ADMIN=!!CURRENT_USER.is_admin;
-  localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,ts:Date.now()}));
+  localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,can_ambil:CURRENT_USER.can_ambil,can_masuk:CURRENT_USER.can_masuk,ts:Date.now()}));
   var btn=document.getElementById('hdr-user-btn');
   if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
   showWarehouseSelect(null);
@@ -630,6 +630,20 @@ function whTitleBanner(wid){
   '</div>';
 }
 
+// 每人可獨立設定的 Ambil/Masuk 權限（super admin 在員工列表用 📤/📥 切換）。
+// 欄位未設定(舊資料/尚未跑 migration)時沿用舊行為：人人可 Ambil、admin 才可 Masuk。
+function canAmbil(){
+  if(IS_SUPER)return true;
+  if(!CURRENT_USER)return false;
+  return CURRENT_USER.can_ambil!==false;
+}
+function canMasuk(){
+  if(IS_SUPER)return true;
+  if(!CURRENT_USER)return false;
+  if(CURRENT_USER.can_masuk===true)return true;
+  if(CURRENT_USER.can_masuk===false)return false;
+  return !!CURRENT_USER.is_admin;
+}
 function autoLogin(type,data){
   IS_SUPER=(type==='admin');
   IS_ADMIN=(type==='admin')||!!(data&&data.is_admin);
@@ -786,7 +800,7 @@ function saveWhCache(wid){
         var c={};for(var k in i){if(k!=='image_url'&&k!=='storage_photo_url')c[k]=i[k];}return c;
       });
       localStorage.setItem('wh_cache_'+(wid||'ALL'),JSON.stringify({
-        items:litItems,batches:DATA.batches,requests:DATA.requests,ts:Date.now()
+        items:litItems,batches:DATA.batches,requests:DATA.requests,categories:DATA.categories||[],ts:Date.now()
       }));
     }catch(e){/* kuota penuh - lewati */}
   },400);
@@ -798,13 +812,15 @@ function tryRenderFromCache(wid){
     var c=JSON.parse(raw);
     if(!c||!c.items||!c.items.length)return false;
     DATA.items=c.items;DATA.batches=c.batches||[];DATA.requests=c.requests||[];
+    DATA.categories=c.categories||[]; // 換倉時分類一起換，避免殘留上一倉的分類
     DATA.transactions=[];TX_LOADED=false;
     if((!DATA.people||!DATA.people.length)){try{var cp=JSON.parse(localStorage.getItem('cached_people')||'[]');if(cp.length)DATA.people=cp;}catch(e){}}
     buildIndexes();
     setDot('');
     renderAll();
     if(IS_ADMIN)goTab('admin',document.querySelectorAll('.tb')[5]);
-    else goTab('ambil',document.querySelectorAll('.tb')[1]);
+    else if(canAmbil())goTab('ambil',document.querySelectorAll('.tb')[1]);
+    else goTab('home',document.querySelectorAll('.tb')[0]);
     return true;
   }catch(e){return false;}
 }
@@ -820,13 +836,13 @@ async function loadAll(afterCb,fromCache){
     var q5;
     if(CURRENT_WAREHOUSE){
       q1=sb.from('item_variants').select('*, items(*)').eq('warehouse_id',CURRENT_WAREHOUSE).order('items(name)');
-      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
+      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk').order('name');
       q3=sb.from('requests').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('expiry_date',{ascending:true});
       q5=sb.from('categories').select('name').eq('warehouse_id',CURRENT_WAREHOUSE).order('name');
     }else{
       q1=sb.from('item_variants').select('*, items(*)').order('items(name)');
-      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
+      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk').order('name');
       q3=sb.from('requests').select('*').order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').order('expiry_date',{ascending:true});
       q5=sb.from('categories').select('name').order('name');
@@ -858,7 +874,11 @@ async function loadAll(afterCb,fromCache){
         warehouse_id:v.warehouse_id
       };
     });
-    DATA.people=p.data||[];
+    // 容錯：can_ambil/can_masuk 欄位還沒加(migration 未跑)時退回舊欄位清單
+    if(p&&p.error){
+      p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
+    }
+    DATA.people=(p&&p.data)||[];
     DATA.requests=r.data||[];
     DATA.batches=bt?bt.data||[]:[];
     DATA.transactions=[];TX_LOADED=false;
@@ -893,17 +913,22 @@ function renderAll(){
     hdrSub.textContent=whLabel;
   }
   updateWhChips();
+  var tabAmbil=document.querySelectorAll('.tb')[1];
   var tabMasuk=document.querySelectorAll('.tb')[2];
   var tabRiwayat=document.querySelectorAll('.tb')[4];
   var tabAdmin=document.querySelectorAll('.tb')[5];
-  if(tabMasuk)tabMasuk.style.display=IS_ADMIN?'':'none';
+  // 分頁依「每人權限」顯示：Ambil/Masuk 由 super admin 在員工列表設定
+  if(tabAmbil)tabAmbil.style.display=canAmbil()?'':'none';
+  if(tabMasuk)tabMasuk.style.display=canMasuk()?'':'none';
   if(tabRiwayat)tabRiwayat.style.display=IS_ADMIN?'':'none';
   if(tabAdmin)tabAdmin.style.display=IS_ADMIN?'':'none';
   // 只重繪「目前所在的分頁」，其他分頁等切過去時才建（lazy）。
   // 之前每次 loadAll 都整頁砍掉+固定重繪 home，切分頁就得從零重蓋 → 卡頓主因之一
   var SEC_IDS=['home','ambil','masuk','permintaan','riwayat','admin'];
   if(SEC_IDS.indexOf(ACTIVE_TAB)<0)ACTIVE_TAB='home';
-  if(!IS_ADMIN&&(ACTIVE_TAB==='masuk'||ACTIVE_TAB==='riwayat'))ACTIVE_TAB='home';
+  if(ACTIVE_TAB==='ambil'&&!canAmbil())ACTIVE_TAB='home';
+  if(ACTIVE_TAB==='masuk'&&!canMasuk())ACTIVE_TAB='home';
+  if(!IS_ADMIN&&ACTIVE_TAB==='riwayat')ACTIVE_TAB='home';
   document.getElementById('mc').innerHTML=SEC_IDS.map(function(s){
     return '<div id="'+s+'" class="sec'+(s===ACTIVE_TAB?' active':'')+'"></div>';
   }).join('');
@@ -1916,13 +1941,20 @@ function peListHTML(){
     var whBadges=whs.length?whs.map(function(w){return'<span style="background:'+(WH_COLORS[w]||'#E2E8F0')+';border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#334155">'+w+'</span>';}).join(' '):'<span style="color:#F59E0B;font-size:.7rem">⚠ belum ada gudang</span>';
     var admBadge=p.is_admin?'<span style="background:#FEF3C7;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#B45309">👑 Admin</span>':'';
     var priceBadge=p.can_view_pricing?'<span style="background:#DCE8FF;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#1E40AF">💰 查價</span>':'';
+    // 未設定(null/undefined)時沿用預設：Ambil 人人可、Masuk 只有 admin
+    var pAmbil=p.can_ambil!==false;
+    var pMasuk=p.can_masuk===true||(p.can_masuk==null&&p.is_admin);
+    var permBadge=(pAmbil?'<span style="background:#FEE2E2;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#B91C1C">📤 Ambil</span> ':'')+
+      (pMasuk?'<span style="background:#DCFCE7;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#15803D">📥 Masuk</span>':'');
     return '<div class="ai"><div class="av" style="flex-shrink:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
       '<div class="ai-info"><div class="ai-name">'+esc(p.name)+' '+admBadge+' '+priceBadge+'</div>'+
-      '<div style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;margin:.15rem 0">'+whBadges+'</div>'+
+      '<div style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;margin:.15rem 0">'+whBadges+' '+permBadge+'</div>'+
       '<div style="font-size:.73rem;color:#9CA3AF">PIN: •••• <span style="opacity:.7">(🔑 untuk atur)</span></div></div>'+
       '<div class="ai-actions">'+
         '<button class="ib" title="Ubah Nama" onclick="showEditPersonName(\''+esc(p.id)+'\')">✏️</button>'+
         '<button class="ib" title="'+(p.is_admin?'Cabut Admin':'Jadikan Admin')+'" onclick="toggleAdmin(\''+esc(p.id)+'\')" style="'+(p.is_admin?'opacity:1':'opacity:.4')+'">👑</button>'+
+        '<button class="ib" title="'+(pAmbil?'關閉 Ambil 權限':'開啟 Ambil 權限')+'" onclick="toggleAmbilPerm(\''+esc(p.id)+'\')" style="'+(pAmbil?'opacity:1':'opacity:.4')+'">📤</button>'+
+        '<button class="ib" title="'+(pMasuk?'關閉 Masuk 權限':'開啟 Masuk 權限')+'" onclick="toggleMasukPerm(\''+esc(p.id)+'\')" style="'+(pMasuk?'opacity:1':'opacity:.4')+'">📥</button>'+
         '<button class="ib" title="'+(p.can_view_pricing?'取消查價':'允許查價')+'" onclick="togglePricing(\''+esc(p.id)+'\')" style="'+(p.can_view_pricing?'opacity:1':'opacity:.4')+'">💰</button>'+
         '<button class="ib" title="Atur Gudang" onclick="showSetWarehouses(\''+esc(p.id)+'\')">🏭</button>'+
         '<button class="ib" title="Atur PIN" onclick="showSetPin(\''+esc(p.id)+'\')">🔑</button>'+
@@ -1954,6 +1986,28 @@ async function toggleAdmin(id){
     else toast('⚠ '+e.message);
   }
 }
+async function toggleAmbilPerm(id){
+  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
+  var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
+  var cur=p.can_ambil!==false;var nv=!cur;
+  if(!confirm(nv?('開啟 "'+p.name+'" 的 📤 Ambil(領料)權限？'):('關閉 "'+p.name+'" 的 📤 Ambil(領料)權限？')))return;
+  try{await managePeople('update',{id:id,patch:{can_ambil:nv}});toast(nv?'✓ '+p.name+' 📤 可領料':'✓ Ambil 權限已關閉');await loadAll();}
+  catch(e){
+    if(/can_ambil/i.test(e.message||''))toast('⚠ 先跑 MIGRATION_PERMISSIONS.sql 加欄位');
+    else toast('⚠ '+e.message);
+  }
+}
+async function toggleMasukPerm(id){
+  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
+  var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
+  var cur=p.can_masuk===true||(p.can_masuk==null&&p.is_admin);var nv=!cur;
+  if(!confirm(nv?('開啟 "'+p.name+'" 的 📥 Masuk(進貨)權限？'):('關閉 "'+p.name+'" 的 📥 Masuk(進貨)權限？')))return;
+  try{await managePeople('update',{id:id,patch:{can_masuk:nv}});toast(nv?'✓ '+p.name+' 📥 可進貨':'✓ Masuk 權限已關閉');await loadAll();}
+  catch(e){
+    if(/can_masuk/i.test(e.message||''))toast('⚠ 先跑 MIGRATION_PERMISSIONS.sql 加欄位');
+    else toast('⚠ '+e.message);
+  }
+}
 async function togglePricing(id){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
@@ -1966,12 +2020,11 @@ async function togglePricing(id){
   }
 }
 // Kategori bawaan Bahan Baku (BB): selalu tersedia untuk filter & tagging
-var DEFAULT_CATS=['Packing','Food Ingredient'];
 function getCategories(){
+  // 分類來源 = 該倉庫商品身上的標籤 + 資料庫 categories 表（依倉庫分開）。
+  // 不再硬塞預設分類（之前 Packing/Food Ingredient 會出現在每個倉庫 → HARDWARE 分類錯亂）
   var seen={};var all=[];
-  DEFAULT_CATS.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}});
   DATA.items.forEach(function(i){var tags=i.tags||[];for(var k=0;k<tags.length;k++){var tg=tags[k];if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}}});
-  // 分類存在資料庫（categories 表，依倉庫分開），loadAll 已載入 DATA.categories
   (DATA.categories||[]).forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}});
   return all.sort();
 }
@@ -2766,8 +2819,9 @@ function switchWarehouse(wid){
   if(!shown){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
-  // 員工回 Ambil、admin 回 Admin 分頁（tryRenderFromCache 內已同樣分流）
-  var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}:function(){goTab('ambil',document.querySelectorAll('.tb')[1]);};
+  // 員工回 Ambil（無權限則回首頁）、admin 回 Admin 分頁（tryRenderFromCache 內已同樣分流）
+  var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}
+    :function(){canAmbil()?goTab('ambil',document.querySelectorAll('.tb')[1]):goTab('home',document.querySelectorAll('.tb')[0]);};
   loadAll(cb,shown);
 }
 // 頂部倉庫快速切換 chips：有 2 個以上倉庫權限才顯示，目前倉庫用該倉顏色高亮
@@ -3251,10 +3305,11 @@ function preloadAllWarehouses(){
     // Background fetch silently - jangan interrupt user
     (async function(){
       try{
-        var [iRes,rRes,bRes]=await Promise.all([
+        var [iRes,rRes,bRes,cRes]=await Promise.all([
           sb.from('item_variants').select('*, items(*)').eq('warehouse_id',w).order('items(name)'),
           sb.from('requests').select('*').eq('warehouse_id',w).order('created_at',{ascending:false}),
-          sb.from('item_batches').select('*').eq('warehouse_id',w).order('expiry_date',{ascending:true})
+          sb.from('item_batches').select('*').eq('warehouse_id',w).order('expiry_date',{ascending:true}),
+          sb.from('categories').select('name').eq('warehouse_id',w).order('name')
         ]);
         // Flatten item_variants + items like loadAll does
         var flatItems=(iRes.data||[]).map(function(v){
@@ -3284,7 +3339,7 @@ function preloadAllWarehouses(){
           var c={};for(var k in i){if(k!=='image_url'&&k!=='storage_photo_url')c[k]=i[k];}return c;
         });
         // Simpan cache tanpa ubah DATA/UI (silent background load)
-        localStorage.setItem('wh_cache_'+w,JSON.stringify({items:litItems,batches:bRes.data||[],requests:rRes.data||[],ts:Date.now()}));
+        localStorage.setItem('wh_cache_'+w,JSON.stringify({items:litItems,batches:bRes.data||[],requests:rRes.data||[],categories:(cRes&&!cRes.error&&cRes.data)?cRes.data.map(function(c){return c.name;}):[],ts:Date.now()}));
       }catch(e){}
     })();
   });
@@ -3300,7 +3355,10 @@ function selectWarehouse(wid){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
   initSupabase(function(){
-    var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}:function(){goTab('ambil',document.querySelectorAll('.tb')[1]);setTimeout(function(){var s=document.getElementById('asrch');if(s)s.focus();},300);};
+    var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}:function(){
+      if(!canAmbil()){goTab('home',document.querySelectorAll('.tb')[0]);return;}
+      goTab('ambil',document.querySelectorAll('.tb')[1]);setTimeout(function(){var s=document.getElementById('asrch');if(s)s.focus();},300);
+    };
     loadAll(cb,shown);
   },function(e){
     if(shown){toast('⚠ '+('Offline - data tersimpan'));return;}
