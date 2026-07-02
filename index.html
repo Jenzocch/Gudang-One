@@ -828,6 +828,7 @@ async function loadAll(afterCb,fromCache){
         id:v.item_id,
         variant_id:v.id,
         name:itm.name||'?',
+        code:itm.code,
         description:itm.description,
         image_url:itm.image_url,
         supplier_name:itm.supplier_name,
@@ -1877,11 +1878,13 @@ async function togglePricing(id){
 }
 // Kategori bawaan Bahan Baku (BB): selalu tersedia untuk filter & tagging
 var DEFAULT_CATS=['Packing','Food Ingredient'];
+// 分類(tag)清單改為「每個倉庫各自一份」，避免 SJA 的分類跑到 HARDWARE
+function catsKey(){return 'cats_'+(CURRENT_WAREHOUSE||'_all');}
 function getCategories(){
   var seen={};var all=[];
   DEFAULT_CATS.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}});
   DATA.items.forEach(function(i){var tags=i.tags||[];for(var k=0;k<tags.length;k++){var tg=tags[k];if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}}});
-  var saved=JSON.parse(localStorage.getItem('cats')||'[]');
+  var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
   saved.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}});
   return all.sort();
 }
@@ -1939,8 +1942,8 @@ function addCatg(){
   var v=inp.value.trim();
   if(!v){toast('⚠ '+('Isi nama tag'));return;}
   if(getCategories().includes(v)){toast('⚠ '+('Tag sudah ada'));return;}
-  var saved=JSON.parse(localStorage.getItem('cats')||'[]');
-  saved.push(v);localStorage.setItem('cats',JSON.stringify(saved));
+  var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
+  saved.push(v);localStorage.setItem(catsKey(),JSON.stringify(saved));
   inp.value='';
   document.getElementById('acg').innerHTML=catgPanelHTML();
   setTimeout(function(){var ni=document.getElementById('ncg');if(ni)ni.focus();},100);
@@ -1956,8 +1959,8 @@ async function delCatg(cat){
       if(error)throw error;
       affected[ki].tags=nt;
     }
-    var saved=JSON.parse(localStorage.getItem('cats')||'[]');
-    localStorage.setItem('cats',JSON.stringify(saved.filter(function(c){return c!==cat;})));
+    var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
+    localStorage.setItem(catsKey(),JSON.stringify(saved.filter(function(c){return c!==cat;})));
     document.getElementById('acg').innerHTML=catgPanelHTML();
     toast(t('delOk'));
   }catch(e){toast('⚠ '+e.message);}
@@ -1974,9 +1977,9 @@ async function renameCatg(cat){
       if(error)throw error;
       affected[ki].tags=nt;
     }
-    var saved=JSON.parse(localStorage.getItem('cats')||'[]');
+    var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
     var idx=saved.indexOf(cat);if(idx>=0)saved[idx]=newName;
-    localStorage.setItem('cats',JSON.stringify(saved));
+    localStorage.setItem(catsKey(),JSON.stringify(saved));
     document.getElementById('acg').innerHTML=catgPanelHTML();
     toast(t('saveOk'));
   }catch(e){toast('⚠ '+e.message);}
@@ -2023,8 +2026,8 @@ function quickAssignTag(id){
 function addNewTagInline(id){
   var v=(document.getElementById('qt-new').value||'').trim();
   if(!v)return;
-  var saved=JSON.parse(localStorage.getItem('cats')||'[]');
-  if(!saved.includes(v)){saved.push(v);localStorage.setItem('cats',JSON.stringify(saved));}
+  var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
+  if(!saved.includes(v)){saved.push(v);localStorage.setItem(catsKey(),JSON.stringify(saved));}
   document.getElementById('qt-new').value='';
   refreshQtList(id);
   document.querySelectorAll('#qt-list input[type=checkbox]').forEach(function(cb){if(cb.value===v)cb.checked=true;});
