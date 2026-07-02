@@ -1247,12 +1247,9 @@ function ambRows(q){
     var th=i.image_url?'<img loading="lazy" class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="amb-th-ph">📦</div>';
     var tagHtml=(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="font-size:.7rem">🏷️ '+esc(tg)+'</span>';}).join('');
-    // FIFO: batches from current warehouse only
-    var iBats=DATA.batches.filter(function(b){return b.item_id==i.id&&b.warehouse_id==CURRENT_WAREHOUSE&&b.qty_remaining>0;}).sort(function(a,b){
-      if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);
-      if(a.expiry_date)return -1;if(b.expiry_date)return 1;
-      return new Date(a.created_at)-new Date(b.created_at);
-    });
+    // FIFO：用預建索引（已按 FIFO 排序、僅含 qty_remaining>0、且已依當前倉庫載入），
+    // 避免每個商品都全掃一次 DATA.batches 造成 O(商品×批次) 卡頓
+    var iBats=IDX.batchesByItem[i.id]||[];
     var firstBat=iBats.length?iBats[0]:null;
     var nowT=Date.now();var isExp=firstBat&&firstBat.expiry_date&&firstBat._expT<nowT;
     var batInfo='';
