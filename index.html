@@ -290,7 +290,7 @@ if('serviceWorker' in navigator){
       var newSW=reg.installing;
       newSW.addEventListener('statechange',function(){
         if(newSW.state==='activated'){
-          showToast('🔄 有新版本可用','更新',function(){
+          showToast('🔄 Ada versi baru','Perbarui',function(){
             newSW.postMessage({type:'SKIP_WAITING'});
             setTimeout(function(){window.location.reload();},100);
           });
@@ -1073,7 +1073,7 @@ function renderHome(){
       else h+=frag;
     };
     renderStockItems(0,20,false);
-    if(sorted.length>20)h+='<div id="stock-load" style="padding:.5rem .9rem;text-align:center;background:#FAFAFA;color:#9CA3AF;font-size:.8rem">⏳ 加載中...（還有 '+(sorted.length-20)+' 件）</div>';
+    if(sorted.length>20)h+='<div id="stock-load" style="padding:.5rem .9rem;text-align:center;background:#FAFAFA;color:#9CA3AF;font-size:.8rem">⏳ Memuat... (+'+(sorted.length-20)+' lagi)</div>';
     h+='</div></div></div>'; // 關閉 stock-content / stock 卡片 / #home-sections
 
     if(IS_ADMIN){
@@ -2065,7 +2065,7 @@ function peListHTML(){
     var whs=p.warehouses||[];
     var whBadges=whs.length?whs.map(function(w){return'<span style="background:'+(WH_COLORS[w]||'#E2E8F0')+';border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#334155">'+w+'</span>';}).join(' '):'<span style="color:#F59E0B;font-size:.7rem">⚠ belum ada gudang</span>';
     var admBadge=p.is_admin?'<span style="background:#FEF3C7;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#B45309">👑 Admin</span>':'';
-    var priceBadge=p.can_view_pricing?'<span style="background:#DCE8FF;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#1E40AF">💰 查價</span>':'';
+    var priceBadge=p.can_view_pricing?'<span style="background:#DCE8FF;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#1E40AF">💰 Harga</span>':'';
     // 未設定(null/undefined)時沿用預設：Ambil 人人可、Masuk 只有 admin
     var pAmbil=p.can_ambil!==false;
     var pMasuk=p.can_masuk===true||(p.can_masuk==null&&p.is_admin);
@@ -2080,7 +2080,7 @@ function peListHTML(){
         '<button class="ib" title="'+(p.is_admin?'Cabut Admin':'Jadikan Admin')+'" onclick="toggleAdmin(\''+esc(p.id)+'\')" style="'+(p.is_admin?'opacity:1':'opacity:.4')+'">👑</button>'+
         '<button class="ib" title="'+(pAmbil?'Matikan akses Ambil':'Izinkan Ambil')+'" onclick="toggleAmbilPerm(\''+esc(p.id)+'\')" style="'+(pAmbil?'opacity:1':'opacity:.4')+'">📤</button>'+
         '<button class="ib" title="'+(pMasuk?'Matikan akses Masuk':'Izinkan Masuk')+'" onclick="toggleMasukPerm(\''+esc(p.id)+'\')" style="'+(pMasuk?'opacity:1':'opacity:.4')+'">📥</button>'+
-        '<button class="ib" title="'+(p.can_view_pricing?'取消查價':'允許查價')+'" onclick="togglePricing(\''+esc(p.id)+'\')" style="'+(p.can_view_pricing?'opacity:1':'opacity:.4')+'">💰</button>'+
+        '<button class="ib" title="'+(p.can_view_pricing?'Matikan lihat harga':'Izinkan lihat harga')+'" onclick="togglePricing(\''+esc(p.id)+'\')" style="'+(p.can_view_pricing?'opacity:1':'opacity:.4')+'">💰</button>'+
         '<button class="ib" title="Atur Gudang" onclick="showSetWarehouses(\''+esc(p.id)+'\')">🏭</button>'+
         '<button class="ib" title="Atur PIN" onclick="showSetPin(\''+esc(p.id)+'\')">🔑</button>'+
         '<button class="ib" onclick="delPerson(\''+esc(p.id)+'\')">🗑️</button>'+
@@ -2118,7 +2118,7 @@ async function toggleAmbilPerm(id){
   if(!confirm(nv?('Izinkan "'+p.name+'" 📤 Ambil (keluar barang)?'):('Matikan akses 📤 Ambil "'+p.name+'"?')))return;
   try{await managePeople('update',{id:id,patch:{can_ambil:nv}});toast(nv?'✓ '+p.name+' 📤 boleh Ambil':'✓ Akses Ambil dimatikan');await loadAll();}
   catch(e){
-    if(/can_ambil/i.test(e.message||''))toast('⚠ 先跑 MIGRATION_PERMISSIONS.sql 加欄位');
+    if(/can_ambil/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMISSIONS.sql dulu');
     else toast('⚠ '+e.message);
   }
 }
@@ -2129,7 +2129,7 @@ async function toggleMasukPerm(id){
   if(!confirm(nv?('Izinkan "'+p.name+'" 📥 Masuk (terima barang)?'):('Matikan akses 📥 Masuk "'+p.name+'"?')))return;
   try{await managePeople('update',{id:id,patch:{can_masuk:nv}});toast(nv?'✓ '+p.name+' 📥 boleh Masuk':'✓ Akses Masuk dimatikan');await loadAll();}
   catch(e){
-    if(/can_masuk/i.test(e.message||''))toast('⚠ 先跑 MIGRATION_PERMISSIONS.sql 加欄位');
+    if(/can_masuk/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMISSIONS.sql dulu');
     else toast('⚠ '+e.message);
   }
 }
@@ -2137,10 +2137,10 @@ async function togglePricing(id){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var nv=!p.can_view_pricing;
-  if(!confirm(nv?('允許 "'+p.name+'" 查看 HARDWARE 價格？'):('取消 "'+p.name+'" 查看 HARDWARE 價格？')))return;
-  try{await managePeople('update',{id:id,patch:{can_view_pricing:nv}});toast(nv?'✓ '+p.name+' 💰 可查價':'✓ 查價權限已取消');await loadAll();}
+  if(!confirm(nv?('Izinkan "'+p.name+'" lihat harga HARDWARE?'):('Matikan "'+p.name+'" lihat harga HARDWARE?')))return;
+  try{await managePeople('update',{id:id,patch:{can_view_pricing:nv}});toast(nv?'✓ '+p.name+' 💰 boleh lihat harga':'✓ Akses harga dimatikan');await loadAll();}
   catch(e){
-    if(/can_view_pricing/i.test(e.message||''))toast('⚠ 先在 Supabase 加 can_view_pricing 欄位: ALTER TABLE people ADD COLUMN can_view_pricing BOOLEAN DEFAULT FALSE;');
+    if(/can_view_pricing/i.test(e.message||''))toast('⚠ Tambah kolom can_view_pricing di Supabase: ALTER TABLE people ADD COLUMN can_view_pricing BOOLEAN DEFAULT FALSE;');
     else toast('⚠ '+e.message);
   }
 }
@@ -2558,7 +2558,7 @@ function itemFormHTML(item){
   var banner=twh?'<div style="background:'+(WH_COLORS[twh]||'#E2E8F0')+';color:'+(WH_TEXT[twh]||'#334155')+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.9rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[twh]||'#334155')+'22">🏭 '+(item?'Edit di ':'Tambah ke ')+(WH_SHORT[twh]||twh)+'</div>':'';
   return banner+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
     '<div style="display:none" id="fn-dup-info"></div>'+
-    '<div class="ig"><label>🏷️ Kode Barang / 代號</label><input id="fc" type="text" value="'+(item&&item.code?esc(item.code):'')+'" placeholder="cth: SJA-001 (opsional)"></div>'+
+    '<div class="ig"><label>🏷️ Kode Barang</label><input id="fc" type="text" value="'+(item&&item.code?esc(item.code):'')+'" placeholder="cth: SJA-001 (opsional)"></div>'+
     '<div class="fr">'+
       '<div class="ig"><label>'+t('initQ')+'</label><input id="fq" type="number" value="'+(item?item.qty:0)+'" min="0"></div>'+
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
@@ -2620,7 +2620,7 @@ function searchExistingItems(){
       if(!avail.length){box.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:.78rem;padding:.6rem">Tidak ada yang cocok — buat barang baru!</div>';return;}
       // 按標籤分組（每個商品只歸到第一個標籤，避免重複顯示）
       var byTag={};avail.forEach(function(it){
-        var tags=it.tags||[];var tag=tags.length?tags[0]:'📭 未分類';
+        var tags=it.tags||[];var tag=tags.length?tags[0]:'📭 Tanpa Kategori';
         if(!byTag[tag])byTag[tag]=[];byTag[tag].push(it);
       });
       var html='';Object.keys(byTag).sort().forEach(function(tag){
@@ -2630,7 +2630,7 @@ function searchExistingItems(){
           html+='<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border-bottom:1px solid #F1F5F9">'+ph+
             '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.name)+'</div>'+
             '<div style="font-size:.72rem;color:#94A3B8">'+esc(it.unit||'pcs')+'</div></div>'+
-            '<button class="btn btn-ok" style="padding:.3rem .6rem;font-size:.78rem;flex-shrink:0" onclick="addExistingToWarehouse(\''+esc(it.id)+'\')">➕ 加</button>'+
+            '<button class="btn btn-ok" style="padding:.3rem .6rem;font-size:.78rem;flex-shrink:0" onclick="addExistingToWarehouse(\''+esc(it.id)+'\')">➕ Tambah</button>'+
           '</div>';
         });
       });
@@ -2757,7 +2757,7 @@ async function saveItem(forceNew){
       var targetWh=CURRENT_WAREHOUSE||(whEl?whEl.value:'')||'';
       if(!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
       var ins=await sbInsertSafe('items',{name:name,code:code||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
-      if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('新增商品失敗');
+      if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
       var itemId=ins.data[0].id;
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
       if(vins.error)throw vins.error;
@@ -2849,28 +2849,28 @@ async function saveTxEdit(id){
   }catch(e){toast('⚠ '+e.message);}
 }
 function confirmDeleteTx(id,itemName){
-  showModal('🗑️ 確認刪除交易記錄',
+  showModal('🗑️ Hapus Riwayat Transaksi',
     '<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:8px;padding:.8rem;margin-bottom:1rem">'+
-    '<div style="font-size:.9rem;color:#991B1B;margin-bottom:.3rem;font-weight:600">⚠️ 注意</div>'+
+    '<div style="font-size:.9rem;color:#991B1B;margin-bottom:.3rem;font-weight:600">⚠️ Perhatian</div>'+
     '<div style="font-size:.85rem;color:#7F1D1D;line-height:1.5">'+
-    '將刪除商品 <strong>'+esc(itemName)+'</strong> 的交易記錄。<br>'+
-    '此動作無法復原，請確認後再繼續。'+
+    'Menghapus riwayat transaksi <strong>'+esc(itemName)+'</strong>.<br>'+
+    'Tindakan ini tidak bisa dibatalkan.'+
     '</div>'+
     '</div>'+
     '<div style="display:flex;gap:.5rem">'+
     '<button class="btn btn-s" style="flex:1" onclick="closeModal()">✕ Batal</button>'+
-    '<button class="btn btn-danger" style="flex:1;background:#DC2626;color:#fff" onclick="deleteTx(\''+esc(id)+'\')">🗑️ 確認刪除</button>'+
+    '<button class="btn btn-danger" style="flex:1;background:#DC2626;color:#fff" onclick="deleteTx(\''+esc(id)+'\')">🗑️ Hapus</button>'+
     '</div>'
   );
 }
 async function deleteTx(id){
   try{
     await sb.from('transactions').delete().eq('id',id);
-    toast('✓ 交易記錄已刪除');
+    toast('✓ Riwayat transaksi dihapus');
     closeModal();
     await loadAll();
   }catch(e){
-    toast('⚠ 刪除失敗: '+e.message);
+    toast('⚠ Gagal hapus: '+e.message);
   }
 }
 function printQR(id){
@@ -3249,8 +3249,8 @@ function showLotInfoModal(variantId){
     '</div>'+
     '<div class="ig"><label>Masa Simpan</label><input id="li-sl" type="text" placeholder="mis: 12 bulan" value="'+esc(cur.shelf_life||'')+'"></div>'+
     '<div class="fr">'+
-      '<div class="ig"><label>💰 單價</label><input id="li-price" type="number" step="0.01" value="'+(cur.unit_price||'')+'" placeholder="0.00"></div>'+
-      '<div class="ig"><label>🏢 供應商</label><input id="li-supplier" type="text" value="'+esc(cur.supplier||'')+'" placeholder="供應商名稱"></div>'+
+      '<div class="ig"><label>💰 Harga Satuan</label><input id="li-price" type="number" step="0.01" value="'+(cur.unit_price||'')+'" placeholder="0.00"></div>'+
+      '<div class="ig"><label>🏢 Pemasok</label><input id="li-supplier" type="text" value="'+esc(cur.supplier||'')+'" placeholder="Nama pemasok"></div>'+
     '</div>'+
     '<div style="display:flex;gap:.5rem;margin-top:.5rem">'+
       '<button class="btn btn-p" style="flex:2" onclick="saveLotInfo(\''+esc(variantId)+'\')">✓ Simpan</button>'+
@@ -3311,8 +3311,8 @@ function showItemBatches(itemId){
             '</div>'+
             (b.qc_date?'<div style="font-size:.73rem;color:#6B7280;margin-top:.1rem">QC: '+b.qc_date+'</div>':'')+
             (((IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing))&&CURRENT_WAREHOUSE==='HARDWARE')?(b.unit_price||b.supplier?'<div style="margin-top:.25rem;padding:.45rem;background:rgba(79,70,229,.08);border-radius:8px;border-left:3px solid #4F46E5">'+
-              (b.unit_price?'<div style="font-weight:700;color:#4F46E5;font-size:.88rem">💰 单价: Rp '+parseFloat(b.unit_price).toLocaleString('id-ID')+'</div>':'')+
-              (b.supplier?'<div style="color:#6B7280;font-size:.75rem;margin-top:.2rem">🏢 供应商: '+esc(b.supplier)+'</div>':'')+
+              (b.unit_price?'<div style="font-weight:700;color:#4F46E5;font-size:.88rem">💰 Harga: Rp '+parseFloat(b.unit_price).toLocaleString('id-ID')+'</div>':'')+
+              (b.supplier?'<div style="color:#6B7280;font-size:.75rem;margin-top:.2rem">🏢 Pemasok: '+esc(b.supplier)+'</div>':'')+
               '</div>':''):'')+
             (b.coa_url?'<div style="margin-top:.25rem"><a href="'+esc(b.coa_url)+'" target="_blank" style="font-size:.75rem;color:var(--p);text-decoration:none">📄 Lihat COA</a></div>':'')+
             '<div style="margin-top:.25rem;font-weight:700;color:var(--p);font-size:.88rem">Sisa: '+b.qty_remaining+' / '+b.qty_initial+' '+esc(item.unit)+'</div>'+
