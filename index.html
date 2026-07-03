@@ -130,6 +130,8 @@ textarea{resize:vertical;min-height:75px}
 .txt{font-size:.75rem;color:#94A3B8;margin-top:.15rem}
 .st{font-size:1rem;font-weight:700;padding:.75rem .8rem .3rem;color:var(--dark)}
 .ai-list{display:flex;flex-direction:column;gap:.4rem;margin:.4rem .7rem}
+/* 員工卡片列表：電腦版空間大，改雙欄填滿 */
+@media(min-width:900px){#pe-list{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;align-items:start}}
 .ai-list.grid{display:grid;grid-template-columns:1fr;gap:.6rem}
 @media(min-width:768px){.ai-list.grid{grid-template-columns:1fr 1fr}}
 .ai{display:flex;align-items:flex-start;gap:.6rem;background:#fff;padding:.7rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
@@ -1965,7 +1967,9 @@ function pk(k){
     });
   }
 }
+var ADMIN_SUBTAB='ait'; // 目前所在的 admin 子分頁（Kelola Barang/Orang/Tag），重繪時還原
 function renderAdminFull(){
+  var sub=(ADMIN_SUBTAB==='ape'&&!IS_SUPER)?'ait':(ADMIN_SUBTAB||'ait');
   var whShort=CURRENT_WAREHOUSE?(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE):'Semua Gudang';
   var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||'#0F172A'):'#0F766E';
   var bg=CURRENT_WAREHOUSE?(WH_COLORS[CURRENT_WAREHOUSE]||'#F1F5F9'):'#F0FDFA';
@@ -1980,11 +1984,11 @@ function renderAdminFull(){
     WAREHOUSES.map(function(w){var col=WH_TEXT[w]||'#0F172A';var bg=CURRENT_WAREHOUSE===w?col:'#fff';var tc=CURRENT_WAREHOUSE===w?'#fff':col;return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.35rem .4rem;border-radius:6px;border:1.5px solid '+col+';cursor:pointer;font-size:.75rem;font-weight:700;background:'+bg+';color:'+tc+';min-width:50px;text-align:center;flex-shrink:0">'+(WH_SHORT[w]||w)+'</button>';}).join('')+
     '</div>':'')+
     '<div class="tab-nav" id="atnav">'+
-      '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
-      (IS_SUPER?'<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>':'')+
-      '<button class="tsw" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
+      '<button class="tsw'+(sub==='ait'?' act':'')+'" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
+      (IS_SUPER?'<button class="tsw'+(sub==='ape'?' act':'')+'" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>':'')+
+      '<button class="tsw'+(sub==='acg'?' act':'')+'" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
     '</div>'+
-    '<div id="ait" class="tc active">'+
+    '<div id="ait" class="tc'+(sub==='ait'?' active':'')+'">'+
       '<div style="padding:.4rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.3rem;align-items:center">'+
         (IS_ADMIN?'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Add Item</button>':'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" disabled>➕ Add Item</button>')+
         '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="renderStocktake(\'\')">🔢 Stock Check</button>'+
@@ -1997,7 +2001,7 @@ function renderAdminFull(){
       (IS_ADMIN?'':(CURRENT_USER&&!CURRENT_USER.isGuest?'<div style="padding:.5rem .7rem;background:#FEF2F2;border-radius:8px;color:#64748B;font-size:.85rem;margin:.5rem .7rem">⚠ Anda adalah '+('Staf')+'. Hanya admin yang bisa menambah/edit/hapus barang.</div>':''))+
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
     '</div>'+
-    '<div id="ape" class="tc">'+
+    '<div id="ape" class="tc'+(sub==='ape'?' active':'')+'">'+
       (IS_SUPER?'<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
       '<div class="ig"><label>'+t('pName')+'</label><input id="npn" type="text" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addPerson()}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"></div>'+
       '<div class="ig"><label>🏭 Akses Gudang</label><div style="display:flex;gap:.5rem;flex-wrap:wrap">'+WAREHOUSES.map(function(w){return'<label style="display:flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.88rem;background:#fff"><input type="checkbox" id="np-wh-'+w+'"> '+WH_EMOJI[w]+' '+w+'</label>';}).join('')+'</div></div>'+
@@ -2005,7 +2009,7 @@ function renderAdminFull(){
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>':'')+
     '</div>'+
-    '<div id="acg" class="tc">'+catgPanelHTML()+'</div>'+
+    '<div id="acg" class="tc'+(sub==='acg'?' active':'')+'">'+catgPanelHTML()+'</div>'+
     '<div style="padding:.7rem;display:flex;gap:.5rem;flex-direction:column">'+
     '<button class="btn btn-ok btn-full" onclick="exportToCSV()">📊 Backup ke Google Sheet</button>'+
     '<button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:none">🔒 '+('Keluar Admin')+'</button>'+
@@ -2086,31 +2090,49 @@ function aiSearchItems(){
   var tc=document.getElementById('ait-content');
   if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
 }
+// 員工卡片：權限 = 大顆開關按鈕（有色=開、灰=關，一眼看懂、好點），只有 admin 看得到這頁
+function peToggleBtn(on,color,icon,label,onclick){
+  return '<button onclick="'+onclick+'" style="display:flex;align-items:center;justify-content:center;gap:.35rem;flex:1;min-width:108px;min-height:44px;padding:.5rem .6rem;border-radius:10px;cursor:pointer;font-size:.88rem;font-weight:800;'+
+    (on?'border:2px solid '+color+';background:'+color+';color:#fff;box-shadow:0 1px 4px '+color+'55'
+       :'border:2px dashed #CBD5E1;background:#F8FAFC;color:#94A3B8')+'">'+
+    icon+' '+label+' '+(on?'✓':'✗')+'</button>';
+}
+function peActBtn(icon,label,onclick,danger){
+  return '<button onclick="'+onclick+'" style="display:flex;align-items:center;justify-content:center;gap:.3rem;flex:1;min-width:96px;min-height:40px;padding:.45rem .55rem;border-radius:10px;cursor:pointer;font-size:.84rem;font-weight:700;background:#fff;'+
+    (danger?'border:1.5px solid #FCA5A5;color:#DC2626':'border:1.5px solid var(--border);color:#334155')+'">'+
+    icon+' '+label+'</button>';
+}
 function peListHTML(){
-  return DATA.people.map(function(p){
+  var head='<div style="grid-column:1/-1;font-size:.8rem;color:#64748B;padding:.15rem .2rem .35rem">💡 Klik tombol izin: <b style="color:#059669">berwarna ✓ = aktif</b> · <span style="color:#94A3B8">abu-abu ✗ = nonaktif</span></div>';
+  return head+DATA.people.map(function(p){
     var whs=p.warehouses||[];
-    var whBadges=whs.length?whs.map(function(w){return'<span style="background:'+(WH_COLORS[w]||'#E2E8F0')+';border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#334155">'+w+'</span>';}).join(' '):'<span style="color:#F59E0B;font-size:.7rem">⚠ belum ada gudang</span>';
-    var admBadge=p.is_admin?'<span style="background:#FEF3C7;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#B45309">👑 Admin</span>':'';
-    var priceBadge=p.can_view_pricing?'<span style="background:#DCE8FF;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#1E40AF">💰 Harga</span>':'';
+    var whBadges=whs.length?whs.map(function(w){return'<span style="background:'+(WH_COLORS[w]||'#E2E8F0')+';border-radius:6px;padding:.15rem .5rem;font-size:.72rem;font-weight:700;color:'+(WH_TEXT[w]||'#334155')+'">'+(WH_SHORT[w]||w)+'</span>';}).join(' '):'<span style="color:#F59E0B;font-size:.75rem;font-weight:700">⚠ belum ada gudang</span>';
     // 未設定(null/undefined)時沿用預設：Ambil 人人可、Masuk 只有 admin
     var pAmbil=p.can_ambil!==false;
     var pMasuk=p.can_masuk===true||(p.can_masuk==null&&p.is_admin);
-    var permBadge=(pAmbil?'<span style="background:#FEE2E2;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#B91C1C">📤 Ambil</span> ':'')+
-      (pMasuk?'<span style="background:#DCFCE7;border-radius:6px;padding:.1rem .4rem;font-size:.65rem;font-weight:700;color:#15803D">📥 Masuk</span>':'');
-    return '<div class="ai"><div class="av" style="flex-shrink:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
-      '<div class="ai-info"><div class="ai-name">'+esc(p.name)+' '+admBadge+' '+priceBadge+'</div>'+
-      '<div style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;margin:.15rem 0">'+whBadges+' '+permBadge+'</div>'+
-      '<div style="font-size:.73rem;color:#9CA3AF">PIN: •••• <span style="opacity:.7">(🔑 untuk atur)</span></div></div>'+
-      '<div class="ai-actions">'+
-        '<button class="ib" title="Ubah Nama" onclick="showEditPersonName(\''+esc(p.id)+'\')">✏️</button>'+
-        '<button class="ib" title="'+(p.is_admin?'Cabut Admin':'Jadikan Admin')+'" onclick="toggleAdmin(\''+esc(p.id)+'\')" style="'+(p.is_admin?'opacity:1':'opacity:.4')+'">👑</button>'+
-        '<button class="ib" title="'+(pAmbil?'Matikan akses Ambil':'Izinkan Ambil')+'" onclick="toggleAmbilPerm(\''+esc(p.id)+'\')" style="'+(pAmbil?'opacity:1':'opacity:.4')+'">📤</button>'+
-        '<button class="ib" title="'+(pMasuk?'Matikan akses Masuk':'Izinkan Masuk')+'" onclick="toggleMasukPerm(\''+esc(p.id)+'\')" style="'+(pMasuk?'opacity:1':'opacity:.4')+'">📥</button>'+
-        '<button class="ib" title="'+(p.can_view_pricing?'Matikan lihat harga':'Izinkan lihat harga')+'" onclick="togglePricing(\''+esc(p.id)+'\')" style="'+(p.can_view_pricing?'opacity:1':'opacity:.4')+'">💰</button>'+
-        '<button class="ib" title="Atur Gudang" onclick="showSetWarehouses(\''+esc(p.id)+'\')">🏭</button>'+
-        '<button class="ib" title="Atur PIN" onclick="showSetPin(\''+esc(p.id)+'\')">🔑</button>'+
-        '<button class="ib" onclick="delPerson(\''+esc(p.id)+'\')">🗑️</button>'+
-      '</div></div>';
+    var id=esc(p.id);
+    return '<div style="background:#fff;padding:.75rem .85rem;border-radius:12px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
+      '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.55rem">'+
+        '<div class="av" style="flex-shrink:0;margin:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:800;font-size:1.02rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'+
+          '<div style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap;margin-top:.2rem">'+whBadges+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="font-size:.72rem;font-weight:700;color:#94A3B8;margin-bottom:.3rem;letter-spacing:.03em">IZIN (klik untuk ubah)</div>'+
+      '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.55rem">'+
+        peToggleBtn(pAmbil,'#DC2626','📤','Ambil',"toggleAmbilPerm('"+id+"')")+
+        peToggleBtn(pMasuk,'#059669','📥','Masuk',"toggleMasukPerm('"+id+"')")+
+        peToggleBtn(!!p.is_admin,'#D97706','👑','Admin',"toggleAdmin('"+id+"')")+
+        peToggleBtn(!!p.can_view_pricing,'#4F46E5','💰','Harga',"togglePricing('"+id+"')")+
+      '</div>'+
+      '<div style="display:flex;gap:.45rem;flex-wrap:wrap">'+
+        peActBtn('✏️','Nama',"showEditPersonName('"+id+"')")+
+        peActBtn('🏭','Gudang',"showSetWarehouses('"+id+"')")+
+        peActBtn('🔑','PIN',"showSetPin('"+id+"')")+
+        peActBtn('🗑️','Hapus',"delPerson('"+id+"')",true)+
+      '</div>'+
+    '</div>';
   }).join('');
 }
 function showEditPersonName(id){
@@ -3198,6 +3220,7 @@ function swTab(el,id){
   document.getElementById(id).classList.add('active');
 }
 function swATab(el,id){
+  ADMIN_SUBTAB=id; // 記住目前子分頁，loadAll 重繪後不會被踢回 Kelola Barang
   document.getElementById('atnav').querySelectorAll('.tsw').forEach(function(b){b.classList.remove('act')});
   if(el)el.classList.add('act');
   document.querySelectorAll('#admin .tc').forEach(function(t){t.classList.remove('active')});
