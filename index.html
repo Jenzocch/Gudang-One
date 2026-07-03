@@ -536,7 +536,7 @@ function lpk(k){
 function finishStaffLogin(){
   IS_SUPER=false;
   IS_ADMIN=!!CURRENT_USER.is_admin;
-  localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,can_ambil:CURRENT_USER.can_ambil,can_masuk:CURRENT_USER.can_masuk,can_view_pricing:CURRENT_USER.can_view_pricing,ts:Date.now()}));
+  localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,can_ambil:CURRENT_USER.can_ambil,can_masuk:CURRENT_USER.can_masuk,can_view_pricing:CURRENT_USER.can_view_pricing,perms:CURRENT_USER.perms||null,ts:Date.now()}));
   var btn=document.getElementById('hdr-user-btn');
   if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
   showWarehouseSelect(null);
@@ -643,19 +643,27 @@ function whTitleBanner(wid){
   '</div>';
 }
 
-// 每人可獨立設定的 Ambil/Masuk 權限（super admin 在員工列表用 📤/📥 切換）。
-// 欄位未設定(舊資料/尚未跑 migration)時沿用舊行為：人人可 Ambil、admin 才可 Masuk。
+// 權限「按倉庫」各自設定：people.perms(jsonb) = {"SJA":{"ambil":true,"masuk":false},...}
+// 該倉庫沒設定時退回全域欄位(can_ambil/can_masuk)，再沒有就退回舊預設
+// （人人可 Ambil、admin 才可 Masuk）。super admin 永遠全開。
+function pWhPerm(p,w,kind){
+  var wp=p&&p.perms&&w?p.perms[w]:null;
+  if(wp&&typeof wp[kind]==='boolean')return wp[kind];
+  if(!p)return false;
+  if(kind==='ambil')return p.can_ambil!==false;
+  if(p.can_masuk===true)return true;
+  if(p.can_masuk===false)return false;
+  return !!p.is_admin;
+}
 function canAmbil(){
   if(IS_SUPER)return true;
   if(!CURRENT_USER)return false;
-  return CURRENT_USER.can_ambil!==false;
+  return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'ambil');
 }
 function canMasuk(){
   if(IS_SUPER)return true;
   if(!CURRENT_USER)return false;
-  if(CURRENT_USER.can_masuk===true)return true;
-  if(CURRENT_USER.can_masuk===false)return false;
-  return !!CURRENT_USER.is_admin;
+  return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'masuk');
 }
 // 員工進倉庫後的預設分頁：可 Ambil → Ambil；只可 Masuk → Masuk；都不行 → Home
 function goDefaultStaffTab(){
@@ -691,7 +699,7 @@ window.addEventListener('DOMContentLoaded',function(){
   }else if(staffS&&staffS.ts&&(Date.now()-staffS.ts)<86400000){
     // 還原 session 時權限欄位(can_ambil/can_masuk/can_view_pricing)一定要帶回來，
     // 少帶的話 reload 後會退回舊預設 → 被關掉的人重新拿到 Ambil、被開通的人 Masuk 分頁消失
-    autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false,warehouses:staffS.warehouses||[],is_admin:staffS.is_admin||false,can_ambil:staffS.can_ambil,can_masuk:staffS.can_masuk,can_view_pricing:staffS.can_view_pricing});
+    autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false,warehouses:staffS.warehouses||[],is_admin:staffS.is_admin||false,can_ambil:staffS.can_ambil,can_masuk:staffS.can_masuk,can_view_pricing:staffS.can_view_pricing,perms:staffS.perms||null});
   }else{
     clearSessions();renderLoginScreen();
   }
@@ -856,13 +864,13 @@ async function loadAll(afterCb,fromCache){
     var q5;
     if(CURRENT_WAREHOUSE){
       q1=sb.from('item_variants').select('*, items(*)').eq('warehouse_id',CURRENT_WAREHOUSE).order('items(name)');
-      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk').order('name');
+      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk,perms').order('name');
       q3=sb.from('requests').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('expiry_date',{ascending:true});
       q5=sb.from('categories').select('name').eq('warehouse_id',CURRENT_WAREHOUSE).order('name');
     }else{
       q1=sb.from('item_variants').select('*, items(*)').order('items(name)');
-      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk').order('name');
+      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk,perms').order('name');
       q3=sb.from('requests').select('*').order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').order('expiry_date',{ascending:true});
       q5=sb.from('categories').select('name').order('name');
@@ -894,7 +902,10 @@ async function loadAll(afterCb,fromCache){
         warehouse_id:v.warehouse_id
       };
     });
-    // 容錯：can_ambil/can_masuk 欄位還沒加(migration 未跑)時退回舊欄位清單
+    // 容錯：perms / can_ambil / can_masuk 欄位還沒加(migration 未跑)時逐步退回舊欄位清單
+    if(p&&p.error){
+      p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk').order('name');
+    }
     if(p&&p.error){
       p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
     }
@@ -908,11 +919,12 @@ async function loadAll(afterCb,fromCache){
         CURRENT_USER.can_masuk=me.can_masuk;
         CURRENT_USER.can_view_pricing=me.can_view_pricing;
         CURRENT_USER.is_admin=!!me.is_admin;
+        CURRENT_USER.perms=me.perms||null;
         if(me.warehouses)CURRENT_USER.warehouses=me.warehouses;
         IS_ADMIN=!!me.is_admin;
         try{
           var ss=JSON.parse(localStorage.getItem('staff_sess')||'null');
-          if(ss){ss.can_ambil=me.can_ambil;ss.can_masuk=me.can_masuk;ss.can_view_pricing=me.can_view_pricing;ss.is_admin=!!me.is_admin;if(me.warehouses)ss.warehouses=me.warehouses;localStorage.setItem('staff_sess',JSON.stringify(ss));}
+          if(ss){ss.can_ambil=me.can_ambil;ss.can_masuk=me.can_masuk;ss.can_view_pricing=me.can_view_pricing;ss.is_admin=!!me.is_admin;ss.perms=me.perms||null;if(me.warehouses)ss.warehouses=me.warehouses;localStorage.setItem('staff_sess',JSON.stringify(ss));}
         }catch(e){}
       }
     }
@@ -2105,26 +2117,32 @@ function peActBtn(icon,label,onclick,danger){
     icon+' '+label+'</button>';
 }
 function peListHTML(){
-  var head='<div style="grid-column:1/-1;font-size:.8rem;color:#64748B;padding:.15rem .2rem .35rem">💡 Klik tombol izin: <b style="color:#059669">berwarna ✓ = aktif</b> · <span style="color:#94A3B8">abu-abu ✗ = nonaktif</span></div>';
+  var head='<div style="grid-column:1/-1;font-size:.8rem;color:#64748B;padding:.15rem .2rem .35rem">💡 Izin diatur <b>per gudang</b> — klik tombol: <b style="color:#059669">berwarna ✓ = aktif</b> · <span style="color:#94A3B8">abu-abu ✗ = nonaktif</span></div>';
   return head+DATA.people.map(function(p){
-    var whs=p.warehouses||[];
-    var whBadges=whs.length?whs.map(function(w){return'<span style="background:'+(WH_COLORS[w]||'#E2E8F0')+';border-radius:6px;padding:.15rem .5rem;font-size:.72rem;font-weight:700;color:'+(WH_TEXT[w]||'#334155')+'">'+(WH_SHORT[w]||w)+'</span>';}).join(' '):'<span style="color:#F59E0B;font-size:.75rem;font-weight:700">⚠ belum ada gudang</span>';
-    // 未設定(null/undefined)時沿用預設：Ambil 人人可、Masuk 只有 admin
-    var pAmbil=p.can_ambil!==false;
-    var pMasuk=p.can_masuk===true||(p.can_masuk==null&&p.is_admin);
+    // gudang admin(is_admin) 可進所有倉庫（與 showWarehouseSelect 一致），一般員工看被指派的
+    var pwhs=p.is_admin?WAREHOUSES:(p.warehouses||[]);
     var id=esc(p.id);
+    var permRows=pwhs.length?pwhs.map(function(w){
+      var wcol=WH_TEXT[w]||'#334155';var wbg=WH_COLORS[w]||'#E2E8F0';
+      var a=pWhPerm(p,w,'ambil'),m=pWhPerm(p,w,'masuk');
+      return '<div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.4rem">'+
+        '<span style="flex-shrink:0;width:82px;text-align:center;background:'+wbg+';border:1.5px solid '+wcol+';border-radius:8px;padding:.35rem .3rem;font-size:.78rem;font-weight:800;color:'+wcol+'">'+(WH_SHORT[w]||w)+'</span>'+
+        peToggleBtn(a,'#DC2626','📤','Ambil',"toggleWhPerm('"+id+"','"+esc(w)+"','ambil')")+
+        peToggleBtn(m,'#059669','📥','Masuk',"toggleWhPerm('"+id+"','"+esc(w)+"','masuk')")+
+      '</div>';
+    }).join(''):'<div style="font-size:.82rem;color:#D97706;font-weight:700;padding:.3rem 0 .5rem">⚠ Belum ada akses gudang — klik 🏭 Gudang dulu</div>';
     return '<div style="background:#fff;padding:.75rem .85rem;border-radius:12px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
       '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.55rem">'+
         '<div class="av" style="flex-shrink:0;margin:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
         '<div style="flex:1;min-width:0">'+
           '<div style="font-weight:800;font-size:1.02rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'+
-          '<div style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap;margin-top:.2rem">'+whBadges+'</div>'+
+          (p.is_admin?'<div style="font-size:.72rem;font-weight:700;color:#B45309;margin-top:.1rem">👑 Admin Gudang (semua gudang)</div>':'')+
         '</div>'+
       '</div>'+
-      '<div style="font-size:.72rem;font-weight:700;color:#94A3B8;margin-bottom:.3rem;letter-spacing:.03em">IZIN (klik untuk ubah)</div>'+
+      '<div style="font-size:.72rem;font-weight:700;color:#94A3B8;margin-bottom:.3rem;letter-spacing:.03em">IZIN PER GUDANG (klik untuk ubah)</div>'+
+      permRows+
+      '<div style="font-size:.72rem;font-weight:700;color:#94A3B8;margin:.15rem 0 .3rem;letter-spacing:.03em">UMUM</div>'+
       '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.55rem">'+
-        peToggleBtn(pAmbil,'#DC2626','📤','Ambil',"toggleAmbilPerm('"+id+"')")+
-        peToggleBtn(pMasuk,'#059669','📥','Masuk',"toggleMasukPerm('"+id+"')")+
         peToggleBtn(!!p.is_admin,'#D97706','👑','Admin',"toggleAdmin('"+id+"')")+
         peToggleBtn(!!p.can_view_pricing,'#4F46E5','💰','Harga',"togglePricing('"+id+"')")+
       '</div>'+
@@ -2161,25 +2179,23 @@ async function toggleAdmin(id){
     else toast('⚠ '+e.message);
   }
 }
-async function toggleAmbilPerm(id){
+// 切換某人「在某倉庫」的 Ambil/Masuk 權限（寫進 people.perms jsonb）
+async function toggleWhPerm(id,w,kind){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
-  var cur=p.can_ambil!==false;var nv=!cur;
-  if(!confirm(nv?('Izinkan "'+p.name+'" 📤 Ambil (keluar barang)?'):('Matikan akses 📤 Ambil "'+p.name+'"?')))return;
-  try{await managePeople('update',{id:id,patch:{can_ambil:nv}});toast(nv?'✓ '+p.name+' 📤 boleh Ambil':'✓ Akses Ambil dimatikan');await loadAll();}
-  catch(e){
-    if(/can_ambil/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMISSIONS.sql dulu');
-    else toast('⚠ '+e.message);
-  }
-}
-async function toggleMasukPerm(id){
-  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
-  var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
-  var cur=p.can_masuk===true||(p.can_masuk==null&&p.is_admin);var nv=!cur;
-  if(!confirm(nv?('Izinkan "'+p.name+'" 📥 Masuk (terima barang)?'):('Matikan akses 📥 Masuk "'+p.name+'"?')))return;
-  try{await managePeople('update',{id:id,patch:{can_masuk:nv}});toast(nv?'✓ '+p.name+' 📥 boleh Masuk':'✓ Akses Masuk dimatikan');await loadAll();}
-  catch(e){
-    if(/can_masuk/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMISSIONS.sql dulu');
+  var cur=pWhPerm(p,w,kind);var nv=!cur;
+  var label=(kind==='ambil'?'📤 Ambil (keluar barang)':'📥 Masuk (terima barang)');
+  var whName=WH_SHORT[w]||w;
+  if(!confirm((nv?'Izinkan':'Matikan')+' '+label+'\n"'+p.name+'" di gudang '+whName+'?'))return;
+  var perms={};try{perms=JSON.parse(JSON.stringify(p.perms||{}));}catch(e){}
+  if(!perms[w])perms[w]={};
+  perms[w][kind]=nv;
+  try{
+    await managePeople('update',{id:id,patch:{perms:perms}});
+    toast('✓ '+p.name+' · '+whName+' · '+(kind==='ambil'?'📤 Ambil':'📥 Masuk')+' '+(nv?'AKTIF':'nonaktif'));
+    await loadAll();
+  }catch(e){
+    if(/perms/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMS_PER_GUDANG.sql dulu');
     else toast('⚠ '+e.message);
   }
 }
