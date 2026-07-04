@@ -7,11 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="GudangPro">
+<meta name="apple-mobile-web-app-title" content="Gudang One">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
 <link rel="manifest" href="/manifest.json">
-<title>GudangPro</title>
+<title>Gudang One</title>
 <script>
 function loadScript(src,cb,errCb){var s=document.createElement('script');s.src=src;s.onload=cb||function(){};s.onerror=errCb||function(){if(cb)cb();};document.head.appendChild(s);}
 var _sbReady=false,_sbErr=false,_sbCbs=[],_sbTout=null;
@@ -230,7 +230,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   body.has-chips .content{padding-top:104px}
   .content{margin-left:180px;padding-top:60px;padding-bottom:2rem;padding-left:1.5rem;padding-right:1.5rem;min-height:100vh;font-size:1rem;line-height:1.6}
   .tabs{position:fixed;left:0;top:0;bottom:0;width:180px;flex-direction:column;border-top:none;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;transform:none;max-width:180px;padding:0;background:#fff;justify-content:flex-start;align-items:stretch;box-shadow:2px 0 12px rgba(0,0,0,.06)}
-  .tabs::before{content:'📦 GudangPro';display:block;padding:1rem 1rem .6rem;font-weight:800;font-size:.95rem;color:var(--p);border-bottom:1px solid var(--border);letter-spacing:.01em}
+  .tabs::before{content:'📦 Gudang One';display:block;padding:1rem 1rem .6rem;font-weight:800;font-size:.95rem;color:var(--p);border-bottom:1px solid var(--border);letter-spacing:.01em}
   .tb{min-width:unset;flex-direction:row;gap:.5rem;justify-content:flex-start;padding:.75rem 1rem;font-size:.92rem;font-weight:600;border-bottom:1px solid #F1F5F9;text-align:left;color:#64748B;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tb-icon{font-size:1.3rem;flex-shrink:0}
   .tb.active{background:#F0FDFA;border-left:3px solid var(--p);padding-left:calc(1rem - 3px)}
@@ -249,7 +249,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 <div id="app">
   <div class="hdr">
     <div class="hdr-title">
-      <div class="hdr-title-main">GudangPro</div>
+      <div class="hdr-title-main">Gudang One</div>
       <div class="hdr-title-sub" id="hdr-sub">Manajemen Stok Barang</div>
     </div>
     <div class="hdr-right">
@@ -362,7 +362,7 @@ async function managePeople(action,opts){
 
 var LANG = 'id';  // Indonesian only
 var T = {
-  id:{title:'GudangPro',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
+  id:{title:'Gudang One',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
     selItem:'Pilih Barang',selPerson:'Pilih Orang',summary:'Ringkasan',item:'Barang',person:'Orang',qty:'Jumlah',
