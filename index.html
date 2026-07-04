@@ -135,6 +135,10 @@ textarea{resize:vertical;min-height:75px}
 .txt{font-size:.75rem;color:#94A3B8;margin-top:.15rem}
 .st{font-size:1rem;font-weight:700;padding:.75rem .8rem .3rem;color:var(--dark)}
 .ai-list{display:flex;flex-direction:column;gap:.4rem;margin:.4rem .7rem}
+.ai-cat-hd{padding:.4rem .65rem;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:10px;font-size:.78rem;font-weight:800;color:#0F766E;margin-top:.3rem}
+.ai-cat-hd:first-child{margin-top:0}
+.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ai-stat{display:inline-flex;align-items:center;gap:.25rem;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:.14rem .45rem;font-size:.74rem;color:var(--ink2);font-weight:600;white-space:nowrap}
 /* 員工卡片列表：電腦版空間大，改雙欄填滿 */
 @media(min-width:900px){#pe-list{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;align-items:start}}
 .ai-list.grid{display:grid;grid-template-columns:1fr;gap:.6rem}
@@ -240,7 +244,15 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .tb.active::before{display:none}
   .modal-ov{align-items:center;padding:1.5rem}
   .modal{border-radius:16px;max-width:640px;margin:auto;max-height:90vh}
-  .ai-list.grid{grid-template-columns:1fr 1fr;gap:.9rem;margin:.6rem 0}
+  /* 桌面：Admin 商品清單改多欄卡片，不再一條佔整行 */
+  .ai-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:.7rem;align-items:start}
+  .ai-list .ai-cat-hd,.ai-list #ait-more{grid-column:1/-1}
+  .ai-list.grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.7rem;margin:.4rem .7rem}
+  .ai-list#pe-list{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))}
+  /* 桌面：Ambil 清單改雙欄卡片 */
+  #amb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:.5rem .7rem;padding:.5rem .7rem;background:transparent!important}
+  #amb-list .amb-row{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm)}
+  #amb-list>#amb-more,#amb-list>div[style*="text-align:center"]{grid-column:1/-1}
   .toast{left:calc(180px + (100% - 180px)/2);transform:translateX(-50%)}
   .low-ov{padding-left:180px}
   /* 桌面：兩個區塊並排，間距清楚 */
@@ -1073,6 +1085,26 @@ function renderAll(){
 }
 
 // HOME
+// 首頁庫存列：名稱＋編號、規格/包裝說明、供應商，右側 現量/低標 單位
+function homeStockRowHTML(i){
+  var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
+  var dot=ratio<=0?'❌':ratio<=1?'🟠':'🟢';
+  var meta=[];
+  if(i.description)meta.push(esc(i.description));           // 規格/包裝（每包幾公斤等）
+  if(i.supplier_name)meta.push('🏢 '+esc(i.supplier_name));
+  return '<div class="srch-stock" data-name="'+esc((i.name||'').toLowerCase()+' '+(i.code||'').toLowerCase())+'" style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.4rem">'+
+    '<span style="font-size:1rem;flex-shrink:0">'+dot+'</span>'+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.3rem">'+esc(i.name)+
+        (i.code?'<span style="font-size:.66rem;font-weight:800;color:#0F766E;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:5px;padding:0 .3rem;flex-shrink:0">'+esc(i.code)+'</span>':'')+
+        (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0" title="Tempat Simpan">📍</button>':'')+'</div>'+
+      (meta.length?'<div style="font-size:.72rem;color:#94A3B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem">'+meta.join(' · ')+'</div>':'')+
+      (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
+    '</div>'+
+    '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:#000;font-weight:700;font-size:.92rem">'+i.qty+'</span><span style="color:#999;font-size:.7rem">/'+i.critical_qty+'</span><br><span style="color:#64748B;font-size:.72rem">'+esc(i.unit)+'</span></span>'+
+    (i.supplier_url&&ratio<=1?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
+  '</div>';
+}
 function renderHome(){
   var h='';
   var homeEl=document.getElementById('home');
@@ -1177,18 +1209,7 @@ function renderHome(){
     var renderStockItems=function(startIdx,endIdx,cb){
       var frag='';
       for(var k=startIdx;k<endIdx&&k<sorted.length;k++){
-        var i=sorted[k];
-        var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
-        var dot=ratio<=0?'❌':ratio<=1?'🟠':'🟢';
-        frag+='<div class="srch-stock" data-name="'+esc((i.name||'').toLowerCase())+'" style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.4rem">'+
-          '<span style="font-size:1rem;flex-shrink:0">'+dot+'</span>'+
-          '<div style="flex:1;min-width:0">'+
-            '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.3rem">'+esc(i.name)+(i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0" title="'+('Tempat Simpan')+'">📍</button>':'')+'</div>'+
-            (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
-          '</div>'+
-          '<span style="white-space:nowrap;flex-shrink:0"><span style="color:#000;font-weight:600;font-size:.88rem">'+i.qty+'</span><span style="color:#999;font-size:.7rem">/</span><span style="color:#EF4444;font-size:.72rem">'+i.critical_qty+'</span><span style="color:#999;font-size:.76rem"> '+esc(i.unit)+'</span></span>'+
-          (i.supplier_url&&ratio<=1?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
-        '</div>';
+        frag+=homeStockRowHTML(sorted[k]);
       }
       if(cb)document.getElementById('stock-list').innerHTML+=frag;
       else h+=frag;
@@ -1214,20 +1235,7 @@ function renderHome(){
       var el=document.getElementById('stock-list');
       if(el){
         var remaining='';
-        for(var k=20;k<sorted.length;k++){
-          var i=sorted[k];
-          var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
-          var dot=ratio<=0?'❌':ratio<=1?'🟠':'🟢';
-          remaining+='<div class="srch-stock" data-name="'+esc((i.name||'').toLowerCase())+'" style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.4rem">'+
-            '<span style="font-size:1rem;flex-shrink:0">'+dot+'</span>'+
-            '<div style="flex:1;min-width:0">'+
-              '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.3rem">'+esc(i.name)+(i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0" title="'+('Tempat Simpan')+'">📍</button>':'')+'</div>'+
-              (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
-            '</div>'+
-            '<span style="white-space:nowrap;flex-shrink:0"><span style="color:#000;font-weight:600;font-size:.88rem">'+i.qty+'</span><span style="color:#999;font-size:.7rem">/</span><span style="color:#EF4444;font-size:.72rem">'+i.critical_qty+'</span><span style="color:#999;font-size:.76rem"> '+esc(i.unit)+'</span></span>'+
-            (i.supplier_url&&ratio<=1?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
-          '</div>';
-        }
+        for(var k=20;k<sorted.length;k++)remaining+=homeStockRowHTML(sorted[k]);
         var loadEl=document.getElementById('stock-load');
         if(loadEl)loadEl.outerHTML=remaining;
         // 若使用者已在搜尋，新載入的項目也要套用過濾
@@ -1474,6 +1482,7 @@ function ambRowHTML(i){
     '<div class="amb-info">'+th+'<div style="min-width:0">'+
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem">📍</button>':'')+'</div>'+
     (i.code?'<div style="font-size:.7rem;color:#0F766E;font-weight:700;margin-top:.05rem">🏷️ '+esc(i.code)+'</div>':'')+
+    (i.description?'<div style="font-size:.7rem;color:#94A3B8;margin-top:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.description)+'</div>':'')+
     (tagHtml?'<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">'+tagHtml+'</div>':'')+
     '<div style="font-size:.75rem;color:'+(empty?'var(--danger)':'#6B7280')+';margin-top:.1rem">'+i.qty+' '+esc(i.unit)+(empty?' — Stok habis':'')+'</div>'+
     (iBats.length>1?'<div style="font-size:.7rem;color:#9CA3AF;margin-top:.05rem">📦 '+iBats.length+' batch</div>':'')+
@@ -2093,6 +2102,7 @@ function renderAdminFull(){
       '<div style="padding:.5rem .7rem;background:#FFFBEB;border-top:1px solid #FDE68A;border-bottom:1px solid #FDE68A">'+
         '<input id="ai-search-inp" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.65rem .8rem;border:2px solid #D97706;border-radius:8px;font-size:1rem;box-sizing:border-box;background:#fff" oninput="aiSearchItems()">'+
       '</div>'+
+      '<div id="ai-catg-chips" style="display:flex;gap:.4rem;padding:.5rem .7rem;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch">'+aiCatgChipsHTML()+'</div>'+
       (IS_ADMIN?'':(CURRENT_USER&&!CURRENT_USER.isGuest?'<div style="padding:.5rem .7rem;background:#FEF2F2;border-radius:8px;color:#64748B;font-size:.85rem;margin:.5rem .7rem">⚠ Anda adalah '+('Staf')+'. Hanya admin yang bisa menambah/edit/hapus barang.</div>':''))+
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
     '</div>'+
@@ -2111,29 +2121,41 @@ function renderAdminFull(){
     '</div>';
 }
 function aiItemHTML(i){
-    var ph=i.image_url?'<img loading="lazy" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
-      :'<div class="ai-img">📦</div>';
+    var ph=i.image_url?'<img loading="lazy" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
+      :'<div class="ai-img" style="width:56px;height:56px">📦</div>';
     // 用快取索引，O(1) 而非 O(n) filter
     var iBats=(IDX.batchesByItem[i.id]||[]).filter(function(b){return b.warehouse_id==CURRENT_WAREHOUSE;});
     var nearExp=(iBats.length&&iBats[0].expiry_date)?iBats[0]:null;
     var nowT=Date.now();var t30=nowT+30*86400000;
     var expColor=nearExp?(nearExp._expT<nowT?'#DC2626':nearExp._expT<t30?'#D97706':'#059669'):'#9CA3AF';
     var stcEmoji={Ambient:'🌡️',Chilled:'❄️',Frozen:'🧊'}[i.storage_condition]||'🌡️';
+    var low=i.critical_qty>0&&i.qty<=i.critical_qty;
+    // 第一行：名稱＋編號；第二行：數字統計 chips；第三行：供應商/儲存/描述；最後：標籤＋連結
     return '<div class="ai" id="ai-'+esc(i.variant_id)+'">'+ph+
       '<div class="ai-info">'+
-        '<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem">'+(i.remark&&i.remark.includes('#noalert')?'<span style="font-size:.7rem;background:#E0F2FE;color:#0369A1;padding:.1rem .3rem;border-radius:6px;font-weight:700">🔕 Skip</span>':'')+
+        '<div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap">'+
+          '<span class="ai-name" style="font-size:.97rem">'+esc(i.name)+'</span>'+
+          (i.code?'<span style="font-size:.7rem;font-weight:800;color:#0F766E;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:6px;padding:.05rem .35rem;letter-spacing:.03em">'+esc(i.code)+'</span>':'')+
+          (i.remark&&i.remark.includes('#noalert')?'<span style="font-size:.68rem;background:#E0F2FE;color:#0369A1;padding:.05rem .3rem;border-radius:6px;font-weight:700">🔕</span>':'')+
         '</div>'+
-        (i.code?'<div style="font-size:.72rem;font-weight:800;color:#0F766E;letter-spacing:.04em;margin-bottom:.1rem">🏷️ '+esc(i.code)+'</div>':'')+
-        '<div class="ai-name">'+esc(i.name)+'</div>'+
-        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
-        '<div style="font-size:.73rem;color:#6B7280;margin-top:.15rem">'+(i.supplier_name?'🏢 '+esc(i.supplier_name)+' · ':'')+(i.storage_condition?stcEmoji+' '+esc(i.storage_condition):'')+'</div>'+
-        '<div style="font-size:.75rem;color:#64748B;margin-top:.05rem">📦 '+iBats.length+' lot aktif'+(nearExp?' | <span style="color:'+expColor+'">⏰ Exp: '+nearExp.expiry_date+'</span>':'')+'</div>'+
-        (i.description?'<div style="font-size:.8rem;color:#6B7280;margin-top:.25rem;font-style:italic;line-height:1.4">'+esc(i.description)+'</div>':'')+
-        '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.15rem">'+(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag(\''+esc(i.id)+'\')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+'<button onclick="quickAssignTag(\''+esc(i.id)+'\')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:.05rem .4rem">+ tag</button></div>'+
-        '<div style="display:flex;align-items:center;gap:.3rem;margin-top:.2rem;flex-wrap:wrap">'+
-        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+('Link Beli')+'</a>':'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+('Tambah link')+'</button>')+
-        (i.supplier_url?'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:0">✏️</button>':'')+
-        (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;padding:.1rem .3rem;color:#0D9488" title="'+('Tempat Simpan')+'">📍</button>':'')+
+        '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem">'+
+          '<span class="ai-stat" style="'+(low?'background:#FEF2F2;border-color:#FECACA;color:#DC2626;':'')+'font-weight:800">'+(low?'🟠 ':'')+i.qty+' '+esc(i.unit)+'</span>'+
+          '<span class="ai-stat">min '+i.critical_qty+'</span>'+
+          '<span class="ai-stat">📦 '+iBats.length+' lot</span>'+
+          (nearExp?'<span class="ai-stat" style="color:'+expColor+'">⏰ '+nearExp.expiry_date+'</span>':'')+
+        '</div>'+
+        ((i.supplier_name||i.storage_condition||i.description)?
+        '<div class="clamp2" style="font-size:.76rem;color:#6B7280;margin-top:.35rem;line-height:1.45">'+
+          (i.supplier_name?'🏢 '+esc(i.supplier_name)+'  ':'')+
+          (i.storage_condition?stcEmoji+' '+esc(i.storage_condition)+'  ':'')+
+          (i.description?'<span style="font-style:italic">'+esc(i.description)+'</span>':'')+
+        '</div>':'')+
+        '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:.25rem;margin-top:.35rem">'+
+          (i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag(\''+esc(i.id)+'\')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+
+          '<button onclick="quickAssignTag(\''+esc(i.id)+'\')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.7rem;color:#94A3B8;padding:.05rem .4rem">+ tag</button>'+
+          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link" style="margin-left:.2rem">🔗 Beli</a><button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.7rem;color:#94A3B8;padding:0">✏️</button>'
+            :'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:.05rem 0">＋link</button>')+
+          (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;padding:0 .2rem;color:#0D9488" title="Tempat Simpan">📍</button>':'')+
         '</div>'+
         '</div>'+
       '<div class="ai-actions">'+
@@ -2158,24 +2180,57 @@ function updateAIViewBtns(){
   if(gbtn)gbtn.style.opacity=VIEW_AI==='grid'?'1':'.5';
 }
 var AI_SEARCH_FILTER='';
+var AI_CATG=''; // Kelola Barang 的分類篩選（''=全部、'__none__'=無分類）
+function aiCatgChipsHTML(){
+  var cats=getCategories();
+  if(!cats.length)return'';
+  return '<button class="catg-chip'+(AI_CATG===''?' act':'')+'" style="padding:.3rem .75rem;font-size:.78rem" onclick="aiSetCatg(\'\')">'+t('allCatg')+'</button>'+
+    cats.map(function(c){return'<button class="catg-chip'+(AI_CATG===c?' act':'')+'" style="padding:.3rem .75rem;font-size:.78rem" onclick="aiSetCatg(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join('')+
+    '<button class="catg-chip'+(AI_CATG==='__none__'?' act':'')+'" style="padding:.3rem .75rem;font-size:.78rem" onclick="aiSetCatg(\'__none__\')">📭 Tanpa</button>';
+}
+function aiSetCatg(c){
+  AI_CATG=c;
+  var chips=document.getElementById('ai-catg-chips');
+  if(chips)chips.innerHTML=aiCatgChipsHTML();
+  var tc=document.getElementById('ait-content');
+  if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
+}
 function aiListHTML(){
   var items=DATA.items;
   if(CURRENT_WAREHOUSE&&IS_ADMIN){
     items=items.filter(function(i){return i.warehouse_id===CURRENT_WAREHOUSE||i.warehouse_id==='HARDWARE';});
   }
+  if(AI_CATG==='__none__')items=items.filter(function(i){return!(i.tags&&i.tags.length);});
+  else if(AI_CATG)items=items.filter(function(i){return(i.tags||[]).includes(AI_CATG);});
   if(AI_SEARCH_FILTER){
     var q=AI_SEARCH_FILTER.toLowerCase();
     items=items.filter(function(i){return i.name.toLowerCase().includes(q)||(i.code&&i.code.toLowerCase().includes(q));});
   }
-  if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER?'Tidak ada yang cocok 🚫':'-')+'</div>';
-  // 先渲染前 50 筆，其餘異步載入
-  var first=items.slice(0,50).map(aiItemHTML).join('');
-  if(items.length>50){
+  if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER||AI_CATG?'Tidak ada yang cocok 🚫':'-')+'</div>';
+  // 依分類分組（每個商品只歸到第一個標籤，跟首頁一致）；選了單一分類或搜尋時不顯示組標題
+  var blocks=[];
+  if(!AI_CATG&&!AI_SEARCH_FILTER){
+    var grp={},noCat=[];
+    items.forEach(function(i){var tt=i.tags||[];if(tt.length){(grp[tt[0]]=grp[tt[0]]||[]).push(i);}else noCat.push(i);});
+    Object.keys(grp).sort().forEach(function(cat){
+      blocks.push('<div class="ai-cat-hd">🏷️ '+esc(cat)+' <span style="font-weight:600;opacity:.65">('+grp[cat].length+')</span></div>');
+      grp[cat].forEach(function(i){blocks.push(aiItemHTML(i));});
+    });
+    if(noCat.length){
+      blocks.push('<div class="ai-cat-hd" style="background:#F8FAFC;border-color:var(--border);color:#94A3B8">📭 Tanpa Kategori ('+noCat.length+')</div>');
+      noCat.forEach(function(i){blocks.push(aiItemHTML(i));});
+    }
+  }else{
+    items.forEach(function(i){blocks.push(aiItemHTML(i));});
+  }
+  // 先渲染前 60 塊，其餘異步載入
+  var first=blocks.slice(0,60).join('');
+  if(blocks.length>60){
     setTimeout(function(){
       var el=document.getElementById('ait-more');
-      if(el)el.outerHTML=items.slice(50).map(aiItemHTML).join('');
+      if(el)el.outerHTML=blocks.slice(60).join('');
     },80);
-    return first+'<div id="ait-more" style="padding:.8rem;text-align:center;color:#9CA3AF;font-size:.82rem">⏳ Memuat… (+'+(items.length-50)+' lagi)</div>';
+    return first+'<div id="ait-more" style="padding:.8rem;text-align:center;color:#9CA3AF;font-size:.82rem">⏳ Memuat… (+'+(blocks.length-60)+' lagi)</div>';
   }
   return first;
 }
