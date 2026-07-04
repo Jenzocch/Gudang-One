@@ -1,6 +1,6 @@
 {
-  "name": "Sistem Gudang Inventory",
-  "short_name": "Gudang",
+  "name": "Gudang One",
+  "short_name": "Gudang One",
   "description": "倉庫物料進出管理系統",
   "start_url": "/",
   "display": "standalone",
