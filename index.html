@@ -1665,7 +1665,7 @@ function cAdj(variantId,d){
 // 直接在數量框打字（不用按 25 次 +）
 function cSet(variantId,inp){
   var item=DATA.items.find(function(i){return i.variant_id==variantId;});if(!item||item.qty<=0){inp.value='';return;}
-  var nv=parseInt(inp.value)||0;
+  var nv=parseFloat(inp.value)||0; // 支援小數量（批次允許 2.5 之類）
   nv=Math.max(0,Math.min(item.qty,nv));
   if(nv===0)delete CART[variantId];else CART[variantId]=nv;
   refreshAmbCartUI(variantId,nv);
@@ -1981,7 +1981,7 @@ function cAdjM(variantId,d){
 }
 function cSetM(variantId,inp){
   var cur=CART_M[variantId]?CART_M[variantId].qty:0;
-  var nv=Math.max(0,parseInt(inp.value)||0);
+  var nv=Math.max(0,parseFloat(inp.value)||0);
   applyCartM(variantId,nv,cur===0&&nv>0);
 }
 function onMskPersonChange(){
@@ -2004,9 +2004,13 @@ async function doMasukCart(){
     for(var ki=0;ki<keys.length;ki++){
       var variantId=keys[ki];var ci=CART_M[variantId];var item=DATA.items.find(function(i){return i.variant_id==variantId;});var qty=ci.qty;
       // Update item_variants (per-warehouse) instead of items
-      await sb.from('item_variants').update({qty:item.qty+qty}).eq('id',variantId);
-      await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
-      await sb.from('item_batches').insert({item_id:item.id,warehouse_id:CURRENT_WAREHOUSE||null,lot_no:ci.lot_no||null,code_produksi:ci.code_produksi||null,po_no:ci.po_no||null,do_no:ci.do_no||null,production_date:ci.production_date||null,expiry_date:ci.expiry_date||null,shelf_life:ci.shelf_life||null,unit_price:ci.unit_price||null,supplier:ci.supplier||null,qty_initial:qty,qty_remaining:qty,received_date:new Date().toISOString().slice(0,10)});
+      var r1=await sb.from('item_variants').update({qty:item.qty+qty}).eq('id',variantId);
+      if(r1.error)throw r1.error;
+      var r2=await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
+      if(r2.error)throw r2.error;
+      // 批次記錄失敗不能靜默吞掉（否則庫存加了、批號/效期/FIFO 卻沒建），用 safe insert 容錯缺欄位
+      var r3=await sbInsertSafe('item_batches',{item_id:item.id,warehouse_id:CURRENT_WAREHOUSE||null,lot_no:ci.lot_no||null,code_produksi:ci.code_produksi||null,po_no:ci.po_no||null,do_no:ci.do_no||null,production_date:ci.production_date||null,expiry_date:ci.expiry_date||null,shelf_life:ci.shelf_life||null,unit_price:ci.unit_price||null,supplier:ci.supplier||null,qty_initial:qty,qty_remaining:qty,received_date:today()});
+      if(r3.error)throw r3.error;
     }
     // 留在 Masuk 頁（常常還要繼續收下一批），loadAll 會重繪當前分頁
     toast(t('rcvOk')+' ✓');CART_M={};await loadAll();
@@ -3941,7 +3945,8 @@ function downloadCSV(csv,filename){
 }
 function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString('id-ID',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function fmtC(n){if(!n)return'-';return('Rp ')+Math.round(n).toLocaleString();}
-function today(){return new Date().toISOString().slice(0,10);}
+// 用「當地」日期，不能用 toISOString()（=UTC）：印尼 UTC+7，早上 7 點前會差一天/跨月
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2800);}
 // Tappable toast with an action (dipakai pemberitahuan update Service Worker)
@@ -4599,9 +4604,15 @@ function dinFillDeliv(){
 function dinDelivCalc(){
   var p=dinProd(document.getElementById('dd-code').value);if(!p)return;
   var bags=Number(document.getElementById('dd-bags').value)||0;
+  var kgEl=document.getElementById('dd-kg'),ctnEl=document.getElementById('dd-ctn');
   if(bags>0){
-    document.getElementById('dd-kg').value=bags*(p.kg_per_bag||0)||'';
-    document.getElementById('dd-ctn').value=p.pack_ctn?Math.ceil(bags/p.pack_ctn):'';
+    kgEl.value=bags*(p.kg_per_bag||0)||'';
+    ctnEl.value=p.pack_ctn?Math.ceil(bags/p.pack_ctn):'';
+    kgEl.dataset.auto='1';ctnEl.dataset.auto='1';
+  }else{
+    // 清掉 bags 時，連同「自動帶出的」kg/ctn 一起清，避免存到殘留值；手動輸入的不動
+    if(kgEl.dataset.auto==='1'){kgEl.value='';delete kgEl.dataset.auto;}
+    if(ctnEl.dataset.auto==='1'){ctnEl.value='';delete ctnEl.dataset.auto;}
   }
 }
 async function dinSaveDelivery(){
@@ -4610,8 +4621,11 @@ async function dinSaveDelivery(){
   var bags=Number(document.getElementById('dd-bags').value)||0;
   var kg=Number(document.getElementById('dd-kg').value)||0;
   if(bags<=0&&kg<=0){toast('⚠ Isi jumlah kirim');return;}
+  // 沒有庫存記錄 = 庫存 0，也要警告；只填 bags 沒 kg 時改比對 bags
   var s=dinStockOf(code);
-  if(s&&kg>(s.stock_kg||0)&&!confirm('⚠ Stok hanya '+fmtN(s.stock_kg)+' kg, kirim '+fmtN(kg)+' kg?\nLanjut simpan?'))return;
+  var stKg=s?(s.stock_kg||0):0,stBags=s?(s.stock_bags||0):0;
+  var over=(kg>0&&kg>stKg)||(kg<=0&&bags>0&&bags>stBags);
+  if(over&&!confirm('⚠ Stok hanya '+fmtN(stKg)+' kg / '+fmtN(stBags)+' bags, kirim '+(kg>0?fmtN(kg)+' kg':fmtN(bags)+' bags')+'?\nLanjut simpan?'))return;
   var btn=document.getElementById('dd-save');btn.disabled=true;
   var r=await sb.from('din_delivery').insert({
     date:document.getElementById('dd-date').value||today(),
@@ -4625,6 +4639,7 @@ async function dinSaveDelivery(){
   btn.disabled=false;
   if(r.error){toast('⚠ '+r.error.message);return;}
   toast('✓ Pengiriman tersimpan');
+  ANA.loadedFor=0; // 新出貨 → 分析頁快取失效
   dinReload(function(){renderShipment();});
 }
 async function dinDel(table,id){
@@ -4632,6 +4647,7 @@ async function dinDel(table,id){
   var r=await sb.from(table).delete().eq('id',id);
   if(r.error){toast('⚠ '+r.error.message);return;}
   toast('✓ Terhapus');
+  ANA.loadedFor=0;
   dinReload(function(){if(ACTIVE_TAB==='shipment')renderShipment();else dinBody();});
 }
 
@@ -4731,7 +4747,8 @@ async function sjaSaveDelivery(){
   var cust=SJA.customers.find(function(x){return x.id==custId;});
   if(!cust){toast('⚠ Pilih customer dulu');return;}
   var s=sjaStockOf(code);
-  if(s&&totalQty>(s.stock_qty||0)&&!confirm('⚠ Stok hanya '+fmtN(s.stock_qty)+', kirim '+fmtN(totalQty)+'?\nLanjut simpan?'))return;
+  var stok=s?(s.stock_qty||0):0; // 沒有庫存記錄 = 0，一樣要警告
+  if(totalQty>stok&&!confirm('⚠ Stok hanya '+fmtN(stok)+', kirim '+fmtN(totalQty)+'?\nLanjut simpan?'))return;
   var btn=document.getElementById('sd-save');btn.disabled=true;
   var r=await sb.from('sja_delivery').insert({
     date:document.getElementById('sd-date').value||today(),
@@ -4745,6 +4762,7 @@ async function sjaSaveDelivery(){
   btn.disabled=false;
   if(r.error){toast('⚠ '+r.error.message);return;}
   toast('✓ Pengiriman tersimpan');
+  ANA.loadedFor=0; // 新出貨 → 分析頁快取失效
   sjaReload(function(){renderShipment();});
 }
 async function sjaDel(table,id){
@@ -4752,6 +4770,7 @@ async function sjaDel(table,id){
   var r=await sb.from(table).delete().eq('id',id);
   if(r.error){toast('⚠ '+r.error.message);return;}
   toast('✓ Terhapus');
+  ANA.loadedFor=0;
   sjaReload(function(){if(ACTIVE_TAB==='shipment')renderShipment();else sjaBody();});
 }
 
