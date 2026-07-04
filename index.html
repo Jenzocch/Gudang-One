@@ -656,6 +656,7 @@ function pWhPerm(p,w,kind){
   if(!p)return false;
   if(kind==='ambil')return p.can_ambil!==false;
   if(kind==='opname')return !!p.is_admin; // 盤點預設只有 admin，其他人要另外開
+  if(kind==='produksi'||kind==='kirim')return !!p.is_admin; // 生產/出貨預設只有 admin，其他人要另外開
   if(p.can_masuk===true)return true;
   if(p.can_masuk===false)return false;
   return !!p.is_admin;
@@ -674,6 +675,16 @@ function canOpname(){
   if(IS_SUPER)return true;
   if(!CURRENT_USER)return false;
   return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'opname');
+}
+function canProduksi(){
+  if(IS_SUPER)return true;
+  if(!CURRENT_USER)return false;
+  return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'produksi');
+}
+function canKirim(){
+  if(IS_SUPER)return true;
+  if(!CURRENT_USER)return false;
+  return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'kirim');
 }
 // 員工進倉庫後的預設分頁：可 Ambil → Ambil；只可 Masuk → Masuk；都不行 → Home
 function goDefaultStaffTab(){
@@ -978,9 +989,9 @@ function renderAll(){
   var tabAdmin=tbBtn('admin');
   var tabProduksi=tbBtn('produksi');
   var tabShipment=tbBtn('shipment');
-  // 生產/出貨模組目前僅 DIN 上線
-  if(tabProduksi)tabProduksi.style.display=(CURRENT_WAREHOUSE==='DENIKIN')?'':'none';
-  if(tabShipment)tabShipment.style.display=(CURRENT_WAREHOUSE==='DENIKIN')?'':'none';
+  // 生產/出貨模組目前僅 DIN 上線；且要有 Produksi/Kirim 權限（預設只有 admin，super admin 可在員工列表開給別人）
+  if(tabProduksi)tabProduksi.style.display=(CURRENT_WAREHOUSE==='DENIKIN'&&canProduksi())?'':'none';
+  if(tabShipment)tabShipment.style.display=(CURRENT_WAREHOUSE==='DENIKIN'&&canKirim())?'':'none';
   // 分頁依「每人權限」顯示：Ambil/Masuk 由 super admin 在員工列表設定
   if(tabAmbil)tabAmbil.style.display=canAmbil()?'':'none';
   if(tabMasuk)tabMasuk.style.display=canMasuk()?'':'none';
@@ -992,6 +1003,8 @@ function renderAll(){
   if(SEC_IDS.indexOf(ACTIVE_TAB)<0)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='ambil'&&!canAmbil())ACTIVE_TAB='home';
   if(ACTIVE_TAB==='masuk'&&!canMasuk())ACTIVE_TAB='home';
+  if(ACTIVE_TAB==='produksi'&&!canProduksi())ACTIVE_TAB='home';
+  if(ACTIVE_TAB==='shipment'&&!canKirim())ACTIVE_TAB='home';
   if(!IS_ADMIN&&(ACTIVE_TAB==='riwayat'||ACTIVE_TAB==='admin'))ACTIVE_TAB='home';
   document.getElementById('mc').innerHTML=SEC_IDS.map(function(s){
     return '<div id="'+s+'" class="sec'+(s===ACTIVE_TAB?' active':'')+'"></div>';
@@ -2146,11 +2159,19 @@ function peListHTML(){
     var permRows=pwhs.length?pwhs.map(function(w){
       var wcol=WH_TEXT[w]||'#334155';var wbg=WH_COLORS[w]||'#E2E8F0';
       var a=pWhPerm(p,w,'ambil'),m=pWhPerm(p,w,'masuk'),o=pWhPerm(p,w,'opname');
+      // 生產/出貨權限開關：只有有生產模組的倉庫才顯示（目前 DIN）
+      var prodBtns='';
+      if(w==='DENIKIN'){
+        var pr=pWhPerm(p,w,'produksi'),ki=pWhPerm(p,w,'kirim');
+        prodBtns=peToggleBtn(pr,'#7C3AED','🏭','Produksi',"toggleWhPerm('"+id+"','"+esc(w)+"','produksi')")+
+          peToggleBtn(ki,'#2563EB','🚚','Kirim',"toggleWhPerm('"+id+"','"+esc(w)+"','kirim')");
+      }
       return '<div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.4rem;flex-wrap:wrap">'+
         '<span style="flex-shrink:0;width:82px;text-align:center;background:'+wbg+';border:1.5px solid '+wcol+';border-radius:8px;padding:.35rem .3rem;font-size:.78rem;font-weight:800;color:'+wcol+'">'+(WH_SHORT[w]||w)+'</span>'+
         peToggleBtn(a,'#DC2626','📤','Ambil',"toggleWhPerm('"+id+"','"+esc(w)+"','ambil')")+
         peToggleBtn(m,'#059669','📥','Masuk',"toggleWhPerm('"+id+"','"+esc(w)+"','masuk')")+
         peToggleBtn(o,'#0D9488','🔢','Opname',"toggleWhPerm('"+id+"','"+esc(w)+"','opname')")+
+        prodBtns+
       '</div>';
     }).join(''):'<div style="font-size:.82rem;color:#D97706;font-weight:700;padding:.3rem 0 .5rem">⚠ Belum ada akses gudang — klik 🏭 Gudang dulu</div>';
     return '<div style="background:#fff;padding:.75rem .85rem;border-radius:12px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
@@ -2206,8 +2227,8 @@ async function toggleWhPerm(id,w,kind){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var cur=pWhPerm(p,w,kind);var nv=!cur;
-  var LBL={ambil:'📤 Ambil (keluar barang)',masuk:'📥 Masuk (terima barang)',opname:'🔢 Opname (stock check)'};
-  var SHORT={ambil:'📤 Ambil',masuk:'📥 Masuk',opname:'🔢 Opname'};
+  var LBL={ambil:'📤 Ambil (keluar barang)',masuk:'📥 Masuk (terima barang)',opname:'🔢 Opname (stock check)',produksi:'🏭 Produksi (catat produksi)',kirim:'🚚 Kirim (pengiriman ke customer)'};
+  var SHORT={ambil:'📤 Ambil',masuk:'📥 Masuk',opname:'🔢 Opname',produksi:'🏭 Produksi',kirim:'🚚 Kirim'};
   var whName=WH_SHORT[w]||w;
   if(!confirm((nv?'Izinkan':'Matikan')+' '+(LBL[kind]||kind)+'\n"'+p.name+'" di gudang '+whName+'?'))return;
   var perms={};try{perms=JSON.parse(JSON.stringify(p.perms||{}));}catch(e){}
@@ -3739,6 +3760,7 @@ function fmtN(n){if(n==null||n==='')return'-';var v=Number(n);return(v%1?v.toFix
 function renderProduksi(){
   if(!CURRENT_WAREHOUSE){whPickMsg('produksi');return;}
   if(CURRENT_WAREHOUSE!=='DENIKIN'){comingSoon('produksi','🏭 Produksi');return;}
+  if(!canProduksi()){document.getElementById('produksi').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses Produksi</div>';return;}
   document.getElementById('produksi').innerHTML='<div style="padding:2rem;text-align:center"><div class="spin" style="width:36px;height:36px;margin:0 auto"></div></div>';
   dinEnsure(function(){
     var el=document.getElementById('produksi');
@@ -3994,6 +4016,7 @@ function dinLaporanHTML(){
 function renderShipment(){
   if(!CURRENT_WAREHOUSE){whPickMsg('shipment');return;}
   if(CURRENT_WAREHOUSE!=='DENIKIN'){comingSoon('shipment','🚚 Pengiriman');return;}
+  if(!canKirim()){document.getElementById('shipment').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses Kirim</div>';return;}
   document.getElementById('shipment').innerHTML='<div style="padding:2rem;text-align:center"><div class="spin" style="width:36px;height:36px;margin:0 auto"></div></div>';
   dinEnsure(function(){
     var el=document.getElementById('shipment');
