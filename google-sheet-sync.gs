@@ -53,7 +53,7 @@ function writeTab(tabName, header, rows) {
     sheet.getRange(1, 1, all.length, all[0].length).setValues(all);
   }
   // 標題列粗體 + 凍結
-  sheet.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#0D9488').setFontColor('#ffffff');
+  sheet.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#4F46E5').setFontColor('#ffffff');
   sheet.setFrozenRows(1);
 }
 
