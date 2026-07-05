@@ -30,14 +30,18 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
   try {
-    const expected = Deno.env.get("ADMIN_PIN");
-    if (!expected) {
+    const superPin = Deno.env.get("ADMIN_PIN");   // Super Admin（全部權限）
+    const officePin = Deno.env.get("OFFICE_PIN");  // Admin Office（權限較少），可不設
+    if (!superPin) {
       return json({ ok: false, error: "ADMIN_PIN belum di-set" }, 500);
     }
     const body = await req.json().catch(() => ({}));
     const pin = (body && body.pin ? String(body.pin) : "").trim();
     if (!pin) return json({ ok: false, error: "pin kosong" }, 400);
-    return json({ ok: safeEqual(pin, expected) });
+    // 回傳 role 讓前端分辨兩種管理員；先比對 super，再比對 office
+    if (safeEqual(pin, superPin)) return json({ ok: true, role: "super" });
+    if (officePin && safeEqual(pin, officePin)) return json({ ok: true, role: "office" });
+    return json({ ok: false });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
