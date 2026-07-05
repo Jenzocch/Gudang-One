@@ -4310,6 +4310,7 @@ function sjaBoxTotal(prefix){
       document.getElementById(prefix+'-total-unit').textContent=p?(p.unit||'pcs'):'pcs';
     }
   }
+  if(prefix==='sd'&&SJA_FIFO.code)renderSjaFifo(); // 出貨數量變 → 更新 FIFO 分配預覽
   return totalQty;
 }
 
@@ -5091,7 +5092,8 @@ function renderSjaShipment(){
     '<div class="ig"><label>Produk</label>'+
     sjaCatChipsHTML('sd')+
     '<select id="sd-code" onchange="sjaFillDeliv()">'+sjaProdOptions('',SJA_CAT.sd)+'</select>'+
-    '<div id="sd-stok" style="font-size:.78rem;margin-top:.3rem"></div></div>'+
+    '<div id="sd-stok" style="font-size:.78rem;margin-top:.3rem"></div>'+
+    '<div id="sd-fifo" style="margin-top:.3rem"></div></div>'+
     '<div class="fr"><div class="ig"><label>Box (kotak) <span id="sd-ctn-label" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sd-boxes" min="0" step="1" placeholder="0" oninput="sjaBoxTotal(\'sd\')"></div>'+
     '<div class="ig"><label>Eceran <span id="sd-unit" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sd-units" min="0" step="0.1" placeholder="0" oninput="sjaBoxTotal(\'sd\')"></div></div>'+
     '<div id="sd-total" style="font-size:.82rem;margin-top:.3rem;padding:.5rem;background:#EEF2FF;border-radius:6px;border-left:3px solid var(--p);display:none"><strong>Total:</strong> <span id="sd-total-val">0</span> <span id="sd-total-unit"></span></div>'+
@@ -5130,7 +5132,61 @@ function sjaFillDeliv(){
     var neg=(s.stock_qty||0)<=0;
     el.innerHTML='Stok saat ini: <b style="color:'+(neg?'#DC2626':'#059669')+'">'+fmtN(s.stock_qty)+' '+esc(p.unit||'')+'</b>';
   }else el.innerHTML='<span style="color:var(--muted)">Belum ada produksi untuk produk ini</span>';
+  sjaLoadFifo(code); // 讀該產品的生產批次算 FIFO
   sjaBoxTotal('sd');
+}
+// ── SJA 出貨 FIFO（先進先出）──
+// 動態算：某產品所有生產批次（依日期排序）依序扣掉已出貨總量，得每批剩餘。
+// 不改資料結構，永遠和「生產−出貨」一致；出貨自動從最早批次扣、帶出批號。
+var SJA_FIFO={code:null,batches:[]};
+function sjaFifoCompute(prods,dels){
+  var delivered=(dels||[]).reduce(function(s,d){return s+(Number(d.qty)||0);},0);
+  var rem=delivered,out=[];
+  (prods||[]).forEach(function(p){
+    var q=Number(p.qty)||0;var consumed=Math.min(q,rem);rem-=consumed;
+    var remaining=q-consumed;
+    if(remaining>0.0001)out.push({lot:p.batch_lot_no||('['+String(p.date||'').slice(5)+']'),date:p.date,remaining:remaining});
+  });
+  return out; // FIFO 順序，只列還有剩的批次
+}
+function sjaFifoAllocate(batches,need){
+  var alloc=[],rem=need;
+  for(var i=0;i<batches.length&&rem>0.0001;i++){
+    var take=Math.min(batches[i].remaining,rem);
+    alloc.push({lot:batches[i].lot,take:take});rem-=take;
+  }
+  return {alloc:alloc,short:rem>0.0001?rem:0};
+}
+async function sjaLoadFifo(code){
+  var box=document.getElementById('sd-fifo');
+  if(!code){if(box)box.innerHTML='';SJA_FIFO={code:null,batches:[]};return;}
+  SJA_FIFO={code:code,batches:[]};
+  if(box)box.innerHTML='<span style="color:var(--muted);font-size:.74rem">⏳ Cek batch…</span>';
+  try{
+    var pr=await sb.from('sja_production').select('date,qty,batch_lot_no,created_at').eq('product_code',code).order('date').order('created_at');
+    var dl=await sb.from('sja_delivery').select('qty').eq('product_code',code);
+    if(SJA_FIFO.code!==code)return; // 使用者已切別的產品
+    SJA_FIFO.batches=sjaFifoCompute(pr.data||[],dl.data||[]);
+    renderSjaFifo();
+  }catch(e){if(box)box.innerHTML='';}
+}
+function renderSjaFifo(){
+  var box=document.getElementById('sd-fifo');if(!box)return;
+  var batches=SJA_FIFO.batches,p=sjaProd(SJA_FIFO.code),u=p?(p.unit||''):'';
+  if(!batches||!batches.length){box.innerHTML='';return;}
+  var boxes=Number((document.getElementById('sd-boxes')||{}).value)||0;
+  var units=Number((document.getElementById('sd-units')||{}).value)||0;
+  var need=boxes*((p&&p.pcs_per_ctn)||0)+units;
+  var al=sjaFifoAllocate(batches,need);
+  var rows=batches.map(function(b){
+    var a=need>0?al.alloc.find(function(x){return x.lot===b.lot;}):null;
+    return '<div style="display:flex;justify-content:space-between;font-size:.74rem;padding:.1rem 0">'+
+      '<span>'+esc(b.lot)+'</span>'+
+      '<span style="color:var(--muted)">sisa '+fmtN(b.remaining)+' '+esc(u)+(a?' <b style="color:#DC2626">−'+fmtN(a.take)+'</b>':'')+'</span></div>';
+  }).join('');
+  box.innerHTML='<div style="background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:.4rem .6rem">'+
+    '<div style="font-size:.72rem;font-weight:700;color:var(--ink2);margin-bottom:.15rem">📦 Batch FIFO (keluar dari lama dulu)</div>'+rows+
+    (need>0&&al.short>0?'<div style="font-size:.72rem;color:#DC2626;margin-top:.15rem">⚠ Kurang '+fmtN(al.short)+' '+esc(u)+' dari batch</div>':'')+'</div>';
 }
 async function sjaSaveDelivery(){
   var code=document.getElementById('sd-code').value;
@@ -5147,12 +5203,18 @@ async function sjaSaveDelivery(){
   var s=sjaStockOf(code);
   var stok=s?(s.stock_qty||0):0; // 沒有庫存記錄 = 0，一樣要警告
   if(totalQty>stok&&!confirm('⚠ Stok hanya '+fmtN(stok)+', kirim '+fmtN(totalQty)+'?\nLanjut simpan?'))return;
+  // 批號：手填優先；沒填就自動帶 FIFO 分配到的批次（最早批次先出）
+  var manualBatch=document.getElementById('sd-batch').value.trim();
+  var autoBatch='';
+  if(!manualBatch&&SJA_FIFO.code===code&&SJA_FIFO.batches.length){
+    autoBatch=sjaFifoAllocate(SJA_FIFO.batches,totalQty).alloc.map(function(x){return x.lot;}).join(', ');
+  }
   var btn=document.getElementById('sd-save');btn.disabled=true;
   var r=await sb.from('sja_delivery').insert({
     date:document.getElementById('sd-date').value||today(),
     customer_code:cust.code,customer_name:cust.name,
     product_code:code,qty:totalQty,
-    batch_lot_no:document.getElementById('sd-batch').value.trim()||null,
+    batch_lot_no:manualBatch||autoBatch||null,
     driver:document.getElementById('sd-driver').value.trim()||null,
     vehicle_no:document.getElementById('sd-vehicle').value.trim()||null,
     note:document.getElementById('sd-note').value.trim()||null
