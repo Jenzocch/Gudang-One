@@ -398,11 +398,13 @@ var ADMIN_PIN_LEN = 6; // 只是 UI 顯示位數，非機密
 // GUEST_PIN 是刻意公開的臨時碼（畫面上會直接顯示給新使用者），非機密
 var GUEST_PIN = '0000';  // Guest PIN (sengaja publik)
 // 呼叫後端驗證 admin PIN，回傳 Promise<boolean>
+// 回傳角色字串 'super' / 'office'，失敗回 false。
+// 舊版 verify-admin 只回 {ok:true} 沒有 role → 當成 super（向後兼容）
 function verifyAdminPin(pin){
   return new Promise(function(resolve){
     initSupabase(function(){
       sb.functions.invoke('verify-admin',{body:{pin:String(pin||'')}})
-        .then(function(r){resolve(!!(r&&r.data&&r.data.ok));})
+        .then(function(r){var d=r&&r.data;resolve(d&&d.ok?(d.role||'super'):false);})
         .catch(function(){resolve(false);});
     },function(){resolve(false);});
   });
@@ -574,7 +576,11 @@ function renderLoginScreen(){
       }).join('')+
     '</div></div>'+
     '<div id="ls-status" style="min-height:1.4rem;margin-top:.5rem;text-align:center"><span style="font-size:.75rem;color:var(--muted)">'+'Memuat data...'+'</span></div>'+
-    '<button class="btn btn-s" style="margin-top:1rem" onclick="adminLogin()">🔐 '+('Login Admin')+'</button>'+
+    // Admin Office：權限較少，幫忙設定員工權限＋填產品資料
+    '<button class="btn btn-s" style="margin-top:1rem" onclick="officeLogin()">🏢 Admin Office</button>'+
+    // Super Admin：最高權限，獨立放最下方（分隔線＋紅框，跟 office 分開）
+    '<div style="width:100%;max-width:320px;border-top:1px solid var(--border);margin:1.4rem 0 .8rem"></div>'+
+    '<button onclick="adminLogin()" style="background:none;border:1.5px solid var(--danger);color:var(--danger);border-radius:10px;padding:.55rem 1.1rem;font-weight:700;font-size:.85rem;cursor:pointer">🔐 Super Admin</button>'+
     '</div>';
   try{var cp=JSON.parse(localStorage.getItem('cached_people')||'[]');if(cp.length)DATA.people=cp;}catch(e){}
   renderLoginPeopleList();
@@ -624,25 +630,37 @@ function selectLoginPerson(pid,name){
   }
   document.getElementById('ls-pin-area').style.display='block';
 }
-function adminLogin(){
+function adminLogin(){ // Super Admin 入口：只接受 super PIN
   showAdminPinPad(async function(pin){
-    var ok=await verifyAdminPin(pin);
-    if(!ok){apinFail('❌ '+t('wrongPin'));return;} // 留在 PIN 盤上重試
+    var role=await verifyAdminPin(pin);
+    if(role!=='super'){apinFail('❌ '+t('wrongPin'));return;}
     closeModal();
     ADMIN_PIN_MEM=String(pin); // 記住供 people 寫入授權用
-    localStorage.setItem('admin_sess',JSON.stringify({ts:Date.now()}));
-    CURRENT_USER={id:0,name:'Admin',initials:'AD'};
-    IS_ADMIN=true;IS_SUPER=true;
-    CURRENT_WAREHOUSE=null;
-    var btn=document.getElementById('hdr-user-btn');
-    if(btn){btn.textContent='▶ Admin';btn.style.display='inline';}
-    document.getElementById('tabs').style.display='flex';
-    document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat...')+'</p></div>';
-    initSupabase(function(){
-      loadAll(function(){goTab('admin',tbBtn('admin'));});
-    },function(e){
-      document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'</div>';
-    });
+    finishAdminLogin('super');
+  });
+}
+function officeLogin(){ // Admin Office 入口：只接受 office PIN
+  showAdminPinPad(async function(pin){
+    var role=await verifyAdminPin(pin);
+    if(role!=='office'){apinFail('❌ '+t('wrongPin'));return;}
+    closeModal();
+    ADMIN_PIN_MEM=String(pin); // office 也用這組 PIN 授權 manage-people（後端限制不能設 admin）
+    finishAdminLogin('office');
+  });
+}
+function finishAdminLogin(role){
+  localStorage.setItem('admin_sess',JSON.stringify({ts:Date.now(),role:role}));
+  CURRENT_USER={id:0,name:role==='office'?'Admin Office':'Admin',initials:role==='office'?'AO':'AD'};
+  IS_SUPER=(role==='super');IS_OFFICE=(role==='office');IS_ADMIN=true;
+  CURRENT_WAREHOUSE=null;
+  var btn=document.getElementById('hdr-user-btn');
+  if(btn){btn.textContent='▶ '+CURRENT_USER.name;btn.style.display='inline';}
+  document.getElementById('tabs').style.display='flex';
+  document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat...')+'</p></div>';
+  initSupabase(function(){
+    loadAll(function(){goTab('admin',tbBtn('admin'));});
+  },function(e){
+    document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'</div>';
   });
 }
 function onLoginSel(){
@@ -772,8 +790,10 @@ function itemById(id){
   if(IDX.itemsById&&IDX.itemsById[id])return IDX.itemsById[id];
   return null;
 }
-var IS_ADMIN=false; // bisa kelola barang (tambah/edit/hapus) — admin gudang & super admin
-var IS_SUPER=false; // super admin (PIN master): kelola orang, semua gudang, ganti gudang
+var IS_ADMIN=false; // bisa kelola barang (tambah/edit/hapus) — admin gudang & super admin & office
+var IS_SUPER=false; // super admin (PIN master): 全部權限
+var IS_OFFICE=false; // admin office：可管人員權限＋填產品，但看不到出貨/分析，不能設別人為 admin
+var OFFICE_VIEW_DELIVERY=false; // super 臨時開放 office 看出貨數據的旗標（存 app_config）
 var PIN_ENT='';
 var EDIT_ITEM=null;
 var LOW_ITEM=null;
@@ -853,14 +873,18 @@ function canOpname(){
 }
 function canProduksi(){
   if(IS_SUPER)return true;
+  if(IS_OFFICE)return false; // office 看不到生產記錄（營運數據）
   if(!CURRENT_USER)return false;
   return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'produksi');
 }
 function canKirim(){
   if(IS_SUPER)return true;
+  if(IS_OFFICE)return OFFICE_VIEW_DELIVERY; // office 預設看不到出貨，除非 super 臨時開放
   if(!CURRENT_USER)return false;
   return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'kirim');
 }
+// office 能否看營運數據（出貨/月報/庫存明細）：預設否，super 臨時開放才可
+function officeCanData(){return !IS_OFFICE||OFFICE_VIEW_DELIVERY;}
 // 員工進倉庫後的預設分頁：可 Ambil → Ambil；只可 Masuk → Masuk；都不行 → Home
 function goDefaultStaffTab(){
   if(canAmbil())goTab('ambil',tbBtn('ambil'));
@@ -868,7 +892,9 @@ function goDefaultStaffTab(){
   else goTab('home',tbBtn('home'));
 }
 function autoLogin(type,data){
-  IS_SUPER=(type==='admin');
+  var role=(data&&data.role)||'super'; // admin session 帶 role（super/office）
+  IS_SUPER=(type==='admin'&&role==='super');
+  IS_OFFICE=(type==='admin'&&role==='office');
   IS_ADMIN=(type==='admin')||!!(data&&data.is_admin);
   CURRENT_USER=data;
   var btn=document.getElementById('hdr-user-btn');
@@ -891,7 +917,8 @@ window.addEventListener('DOMContentLoaded',function(){
   try{adminS=JSON.parse(localStorage.getItem('admin_sess')||'null');}catch(e){}
   try{staffS=JSON.parse(localStorage.getItem('staff_sess')||'null');}catch(e){}
   if(adminS&&adminS.ts&&(Date.now()-adminS.ts)<7*86400000){
-    autoLogin('admin',{id:0,name:'Admin'});
+    var arole=adminS.role||'super';
+    autoLogin('admin',{id:0,name:arole==='office'?'Admin Office':'Admin',role:arole});
   }else if(staffS&&staffS.ts&&(Date.now()-staffS.ts)<86400000){
     // 還原 session 時權限欄位(can_ambil/can_masuk/can_view_pricing)一定要帶回來，
     // 少帶的話 reload 後會退回舊預設 → 被關掉的人重新拿到 Ambil、被開通的人 Masuk 分頁消失
@@ -1239,8 +1266,7 @@ function renderHome(){
   }
   var h='';
 
-  // Judul besar gudang (warna per gudang) — tampil saat berada di dalam gudang
-  h+=whTitleBanner(CURRENT_WAREHOUSE);
+  // 倉庫名頂部已置中顯示，首頁不再重複大橫幅（省空間）
 
   // Admin 無倉庫時：顯示倉庫選擇卡片
   if(IS_SUPER&&!CURRENT_WAREHOUSE){
@@ -2272,8 +2298,9 @@ function pk(k){
   if(PIN_ENT.length===ADMIN_PIN_LEN){
     var entered=PIN_ENT;PIN_ENT='';
     var errEl=document.getElementById('perr');if(errEl)errEl.textContent='...';
-    verifyAdminPin(entered).then(function(ok){
-      if(ok){ADMIN_PIN_MEM=entered;IS_ADMIN=true;IS_SUPER=true;renderAdminFull();return;}
+    verifyAdminPin(entered).then(function(role){
+      // 此後備入口只接受 super（office 從登入畫面的 Admin Office 鈕進）
+      if(role==='super'){ADMIN_PIN_MEM=entered;IS_ADMIN=true;IS_SUPER=true;IS_OFFICE=false;renderAdminFull();return;}
       var e=document.getElementById('perr');if(e)e.textContent=t('wrongPin');
       document.querySelectorAll('.pin-dot').forEach(function(d){d.className='pin-dot'});
       setTimeout(function(){
@@ -2284,16 +2311,17 @@ function pk(k){
 }
 var ADMIN_SUBTAB='ait'; // 目前所在的 admin 子分頁（Kelola Barang/Orang/Tag），重繪時還原
 function renderAdminFull(){
-  var sub=(ADMIN_SUBTAB==='ape'&&!IS_SUPER)?'ait':(ADMIN_SUBTAB||'ait');
+  var canPeople=IS_SUPER||IS_OFFICE; // Kelola Orang：super 與 office 都能設定員工權限
+  var sub=(ADMIN_SUBTAB==='ape'&&!canPeople)?'ait':(ADMIN_SUBTAB||'ait');
   var whShort=CURRENT_WAREHOUSE?(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE):'Semua Gudang';
   var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||WH_FB_TEXT):'var(--s)';
   var bg=CURRENT_WAREHOUSE?(WH_COLORS[CURRENT_WAREHOUSE]||WH_FB_BG):'#EEF2FF';
   document.getElementById('admin').innerHTML=
     // 精簡成一行：倉庫名頂部已置中顯示，這裡不再重複大字，只留 Admin 身份提示
-    '<div style="margin:.5rem .7rem;padding:.4rem .7rem;border-left:4px solid '+col+';background:'+bg+';border-radius:0 8px 8px 0;font-size:.82rem;font-weight:700;color:'+col+'">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+(!CURRENT_WAREHOUSE?' · Semua Gudang':'')+'</div>'+
+    '<div style="margin:.5rem .7rem;padding:.4rem .7rem;border-left:4px solid '+col+';background:'+bg+';border-radius:0 8px 8px 0;font-size:.82rem;font-weight:700;color:'+col+'">⚙️ Admin Panel'+(IS_SUPER?'':(IS_OFFICE?' · 🏢 Admin Office':' · 👑 Admin Gudang'))+(!CURRENT_WAREHOUSE?' · Semua Gudang':'')+'</div>'+
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw'+(sub==='ait'?' act':'')+'" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
-      (IS_SUPER?'<button class="tsw'+(sub==='ape'?' act':'')+'" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>':'')+
+      (canPeople?'<button class="tsw'+(sub==='ape'?' act':'')+'" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>':'')+
       '<button class="tsw'+(sub==='acg'?' act':'')+'" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
     '</div>'+
     '<div id="ait" class="tc'+(sub==='ait'?' active':'')+'">'+
@@ -2311,10 +2339,11 @@ function renderAdminFull(){
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
     '</div>'+
     '<div id="ape" class="tc'+(sub==='ape'?' active':'')+'">'+
-      (IS_SUPER?'<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
+      (canPeople?'<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
       '<div class="ig"><label>'+t('pName')+'</label><input id="npn" type="text" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addPerson()}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"></div>'+
       '<div class="ig"><label>🏭 Akses Gudang</label><div style="display:flex;gap:.5rem;flex-wrap:wrap">'+WAREHOUSES.map(function(w){return'<label style="display:flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.88rem;background:#fff"><input type="checkbox" id="np-wh-'+w+'"> '+WH_EMOJI[w]+' '+w+'</label>';}).join('')+'</div></div>'+
-      '<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.9rem;background:#FFFBEB;margin-bottom:.5rem"><input type="checkbox" id="np-admin" style="width:18px;height:18px"> 👑 <b>Admin Gudang</b> (boleh tambah/edit/hapus barang)</label>'+
+      // 只有 super 能把新員工設成 Admin Gudang；office 只能建一般員工
+      (IS_SUPER?'<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.9rem;background:#FFFBEB;margin-bottom:.5rem"><input type="checkbox" id="np-admin" style="width:18px;height:18px"> 👑 <b>Admin Gudang</b> (boleh tambah/edit/hapus barang)</label>':'')+
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>':'')+
     '</div>'+
@@ -2525,7 +2554,7 @@ function showPermMatrix(id){
 }
 // 點權限格子：直接寫入 DB + 就地更新表格（不整頁重載、不跳確認框）
 async function togglePermCell(id,w,kind){
-  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
+  if(!IS_SUPER&&!IS_OFFICE){toast('⚠ Tidak ada akses');return;} // office 也能設員工權限
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var nv=!pWhPerm(p,w,kind);
   var perms={};try{perms=JSON.parse(JSON.stringify(p.perms||{}));}catch(e){}
@@ -2546,11 +2575,12 @@ function showPersonSettings(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var eid=esc(id);
   showModal('⚙️ '+esc(p.name),
-    '<div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem;letter-spacing:.03em">UMUM</div>'+
+    // 「設 Admin / 看價格」只有 super 能設；office 只能改名/倉庫/PIN/刪除、設一般權限
+    (IS_SUPER?'<div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:.3rem;letter-spacing:.03em">UMUM</div>'+
     '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.7rem">'+
       peToggleBtn(!!p.is_admin,'#D97706','👑','Admin',"closeModal();toggleAdmin('"+eid+"')")+
       peToggleBtn(!!p.can_view_pricing,'var(--p)','💰','Harga',"closeModal();togglePricing('"+eid+"')")+
-    '</div>'+
+    '</div>':'')+
     '<div style="display:flex;gap:.45rem;flex-wrap:wrap">'+
       peActBtn('✏️','Nama',"showEditPersonName('"+eid+"')")+
       peActBtn('🏭','Gudang',"showSetWarehouses('"+eid+"')")+
@@ -2584,7 +2614,7 @@ async function toggleAdmin(id){
 }
 // 切換某人「在某倉庫」的 Ambil/Masuk 權限（寫進 people.perms jsonb）
 async function toggleWhPerm(id,w,kind){
-  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
+  if(!IS_SUPER&&!IS_OFFICE){toast('⚠ Tidak ada akses');return;} // office 也能設員工權限
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var cur=pWhPerm(p,w,kind);var nv=!cur;
   var LBL={ambil:'📤 Ambil (keluar barang)',masuk:'📥 Masuk (terima barang)',opname:'🔢 Opname (stock check)',produksi:'🏭 Produksi (catat produksi)',kirim:'🚚 Kirim (pengiriman ke customer)'};
@@ -3408,7 +3438,7 @@ async function addPerson(){
   var name=(document.getElementById('npn').value||'').trim();
   if(!name){toast('⚠ '+t('pName'));return;}
   var whs=WAREHOUSES.filter(function(w){var el=document.getElementById('np-wh-'+w);return el&&el.checked;});
-  var isAdm=!!(document.getElementById('np-admin')&&document.getElementById('np-admin').checked);
+  var isAdm=IS_SUPER&&!!(document.getElementById('np-admin')&&document.getElementById('np-admin').checked); // 只有 super 能建 admin
   try{
     var row={name:name,pin:'1234',warehouses:whs,is_admin:isAdm};
     await managePeople('insert',{row:row});

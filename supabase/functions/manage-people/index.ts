@@ -45,7 +45,8 @@ serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const adminPin = Deno.env.get("ADMIN_PIN");
+    const adminPin = Deno.env.get("ADMIN_PIN");    // Super Admin
+    const officePin = Deno.env.get("OFFICE_PIN");  // Admin Office（可選）
     if (!url || !serviceKey) {
       return json({ ok: false, error: "server not configured" }, 500);
     }
@@ -55,15 +56,21 @@ serve(async (req) => {
     const pin = (body && body.admin_pin ? String(body.admin_pin) : "").trim();
     const action = body && body.action;
 
-    // 授權閘門：PIN 錯 → 回 200 但 ok:false + unauthorized，讓前端清掉記憶中的 PIN
-    if (!pin || !safeEqual(pin, adminPin)) {
+    // 授權閘門：分辨 super / office；PIN 錯 → unauthorized
+    let role: "super" | "office" | null = null;
+    if (pin && safeEqual(pin, adminPin)) role = "super";
+    else if (officePin && pin && safeEqual(pin, officePin)) role = "office";
+    if (!role) {
       return json({ ok: false, error: "unauthorized" });
     }
+    // Admin Office 不能把任何人設成/取消 Admin（提權防護，後端強制）
+    const blocksAdmin = role === "office";
 
     const admin = createClient(url, serviceKey);
 
     if (action === "insert") {
       const row = pick((body && body.row) || {});
+      if (blocksAdmin) row.is_admin = false; // office 只能建一般員工
       if (!row.name || String(row.name).trim() === "") {
         return json({ ok: false, error: "name kosong" }, 400);
       }
@@ -81,6 +88,9 @@ serve(async (req) => {
         return json({ ok: false, error: "id kosong" }, 400);
       }
       const patch = pick((body && body.patch) || {});
+      if (blocksAdmin && "is_admin" in patch) {
+        return json({ ok: false, error: "office tidak boleh ubah status admin" }, 403);
+      }
       if (Object.keys(patch).length === 0) {
         return json({ ok: false, error: "tidak ada perubahan" }, 400);
       }
