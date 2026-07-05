@@ -4331,6 +4331,7 @@ function renderProduksi(){
         '<button class="tsw'+(DIN_SUBTAB==='rh'?' act':'')+'" onclick="dinSub(this,\'rh\')">💧 Rehidrasi</button>'+
         '<button class="tsw'+(DIN_SUBTAB==='stok'?' act':'')+'" onclick="dinSub(this,\'stok\')">📦 Stok</button>'+
         '<button class="tsw'+(DIN_SUBTAB==='prod'?' act':'')+'" onclick="dinSub(this,\'prod\')">🏷️ Produk</button>'+
+        '<button class="tsw'+(DIN_SUBTAB==='cust'?' act':'')+'" onclick="dinSub(this,\'cust\')">👥 Pelanggan</button>'+
         '<button class="tsw'+(DIN_SUBTAB==='rpt'?' act':'')+'" onclick="dinSub(this,\'rpt\')">📈 Laporan</button>'+
         '</div><div id="din-body"></div>';
       dinBody();
@@ -4367,7 +4368,42 @@ function dinBody(){
   else if(DIN_SUBTAB==='rh')b.innerHTML=dinRehidrasiHTML();
   else if(DIN_SUBTAB==='stok')b.innerHTML=dinStokHTML();
   else if(DIN_SUBTAB==='prod')b.innerHTML=dinProdukHTML();
+  else if(DIN_SUBTAB==='cust')b.innerHTML=dinCustomerHTML();
   else if(DIN_SUBTAB==='rpt')b.innerHTML=dinLaporanHTML();
+}
+// DIN 客戶＝產品的 customer_name（無獨立客戶表）。這裡從產品彙總客戶清單，
+// 可重新命名（批量改該客戶所有產品的 customer_name）。
+function dinCustomerHTML(){
+  var byCust={};
+  DIN.products.forEach(function(p){var c=p.customer_name||'-';byCust[c]=(byCust[c]||0)+1;});
+  var names=Object.keys(byCust).sort();
+  var h='<div class="card"><div class="card-title">👥 Pelanggan ('+names.length+')</div>'+
+    '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem">Pelanggan diambil dari produk. Ubah nama di sini akan mengganti nama di semua produk pelanggan tersebut.</div>';
+  if(!names.length)h+='<div style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Belum ada pelanggan</div>';
+  else names.forEach(function(c){
+    var cc=esc(c).replace(/'/g,"\\'");
+    h+='<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .2rem;border-bottom:1px solid #F1F5F9">'+
+      '<div style="flex:1;min-width:0"><span style="font-weight:700;font-size:.9rem">'+esc(c)+'</span> <span style="color:var(--muted);font-size:.75rem">· '+byCust[c]+' produk</span></div>'+
+      (IS_ADMIN?'<button class="tedit" onclick="dinRenameCustomer(\''+cc+'\')">✏️</button>':'')+
+    '</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function dinRenameCustomer(oldName){
+  showModal('✏️ Ubah Nama Pelanggan',
+    '<div style="font-size:.8rem;color:var(--ink2);margin-bottom:.6rem">Ganti "<b>'+esc(oldName)+'</b>" di semua produknya.</div>'+
+    '<div class="ig"><label>Nama Baru</label><input id="dcn-name" value="'+esc(oldName)+'"></div>'+
+    '<button class="btn btn-p btn-full" onclick="dinSaveCustomerName(\''+esc(oldName).replace(/'/g,"\\'")+'\')">💾 Simpan</button>');
+}
+async function dinSaveCustomerName(oldName){
+  var nn=(document.getElementById('dcn-name').value||'').trim();
+  if(!nn){toast('⚠ Isi nama');return;}
+  if(nn===oldName){closeModal();return;}
+  var r=await sb.from('din_products').update({customer_name:nn}).eq('customer_name',oldName);
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Nama pelanggan diperbarui');closeModal();
+  dinReload(dinBody);
 }
 function sjaSub(el,id){
   SJA_SUBTAB=id;
@@ -4558,10 +4594,22 @@ function dinProdukHTML(){
     '<div class="ig"><label>Press ×</label><input type="number" id="dpr-pf" value="7" step="0.1"></div></div>'+
     '<button class="btn btn-p btn-full" id="dpr-save" onclick="dinSaveProduct()">💾 Simpan Produk</button></div>';
   }
-  var byCust={};
-  DIN.products.forEach(function(p){(byCust[p.customer_name]=byCust[p.customer_name]||[]).push(p);});
-  h+='<div class="card"><div class="card-title">🏷️ Daftar Produk ('+DIN.products.length+')</div>';
-  Object.keys(byCust).forEach(function(c){
+  h+='<div class="card"><div class="card-title">🏷️ Daftar Produk ('+DIN.products.length+')</div>'+
+    '<div class="ig"><input id="dpd-q" placeholder="🔍 Cari kode / item / pelanggan..." oninput="dinProdukFilter()"></div>'+
+    '<div id="dpd-body">'+dinProdukListHTML('')+'</div></div>';
+  return h;
+}
+function dinProdukListHTML(q){
+  q=(q||'').toLowerCase();
+  var items=DIN.products.filter(function(p){
+    if(!q)return true;
+    return (p.code||'').toLowerCase().indexOf(q)>=0||(p.item_name||'').toLowerCase().indexOf(q)>=0||(p.customer_name||'').toLowerCase().indexOf(q)>=0;
+  });
+  if(!items.length)return'<div style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Tidak ada data</div>';
+  var byCust={},order=[];
+  items.forEach(function(p){var c=p.customer_name||'-';if(!byCust[c]){byCust[c]=[];order.push(c);}byCust[c].push(p);});
+  var h='';
+  order.forEach(function(c){
     h+='<div style="font-weight:800;font-size:.82rem;color:'+WH_TEXT.DENIKIN+';margin:.6rem 0 .25rem">'+esc(c)+'</div>';
     byCust[c].forEach(function(p){
       var dc=esc(p.code).replace(/'/g,"\\'");
@@ -4575,9 +4623,9 @@ function dinProdukHTML(){
       '</div>';
     });
   });
-  h+='</div>';
   return h;
 }
+function dinProdukFilter(){var b=document.getElementById('dpd-body');if(b)b.innerHTML=dinProdukListHTML(document.getElementById('dpd-q').value);}
 async function dinSaveProduct(){
   var code=document.getElementById('dpr-code').value.trim();
   var cname=document.getElementById('dpr-cname').value.trim();
