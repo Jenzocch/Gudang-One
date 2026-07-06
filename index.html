@@ -1149,8 +1149,8 @@ async function loadAll(afterCb,fromCache){
     setTimeout(function(){
       try{
         var canProd=(typeof canProduksi==='function'&&canProduksi())||IS_OFFICE;
-        if(canProd&&CURRENT_WAREHOUSE==='DENIKIN'&&typeof dinEnsure==='function'&&!DIN_LOADED)dinEnsure(function(){});
-        else if(canProd&&CURRENT_WAREHOUSE==='SJA'&&typeof sjaEnsure==='function'&&!SJA_LOADED)sjaEnsure(function(){});
+        if(canProd&&CURRENT_WAREHOUSE==='DENIKIN'&&typeof dinEnsure==='function'&&!DIN_LOADED)dinEnsure(function(){},true);
+        else if(canProd&&CURRENT_WAREHOUSE==='SJA'&&typeof sjaEnsure==='function'&&!SJA_LOADED)sjaEnsure(function(){},true);
       }catch(_){}
     },1200);
     // Preload gudang lain di background untuk switch cepat（函數內部自帶節流/新鮮度判斷）
@@ -2323,7 +2323,7 @@ function qcPeriksaHTML(){
     var chk=qcCheckFor(r.type,r.id);
     return '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .2rem;border-bottom:1px solid #F1F5F9">'+
       '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem">'+esc(r.label)+'</div><div style="font-size:.72rem;color:var(--muted)">'+esc(typeof fmtD==='function'?fmtD(r.date):(r.date||''))+' · '+qcBadge(chk)+'</div></div>'+
-      '<button class="btn btn-s" style="padding:.35rem .7rem;font-size:.8rem;min-height:36px" onclick="qcOpen(\''+r.type+'\',\''+esc(String(r.id))+'\',\'product\')">'+(chk?'Lihat':'✅ QC')+'</button>'+
+      '<button class="btn btn-s" style="padding:.5rem .8rem;font-size:.85rem;min-height:44px" onclick="qcOpen(\''+r.type+'\',\''+esc(String(r.id))+'\',\'product\')">'+(chk?'Lihat':'✅ QC')+'</button>'+
     '</div>';
   }).join('');
   h+='</div>';
@@ -2335,7 +2335,7 @@ function qcPeriksaHTML(){
     var label=(it?it.name:'?')+(b.lot_no?' · Lot '+b.lot_no:'');
     return '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .2rem;border-bottom:1px solid #F1F5F9">'+
       '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem">'+esc(label)+'</div><div style="font-size:.72rem;color:var(--muted)">'+qcBadge(chk)+'</div></div>'+
-      '<button class="btn btn-s" style="padding:.35rem .7rem;font-size:.8rem;min-height:36px" onclick="qcOpen(\'item_batch\',\''+esc(String(b.id))+'\',\'raw\')">'+(chk?'Lihat':'✅ QC')+'</button>'+
+      '<button class="btn btn-s" style="padding:.5rem .8rem;font-size:.85rem;min-height:44px" onclick="qcOpen(\'item_batch\',\''+esc(String(b.id))+'\',\'raw\')">'+(chk?'Lihat':'✅ QC')+'</button>'+
     '</div>';
   }).join('');
   h+='</div>';
@@ -2365,7 +2365,7 @@ function qcRenderForm(tplId){
     var pv=prev[it.label]||{};var iid='qci-'+ix;var field='';
     if(it.input_type==='bool'){
       if(pv.pass===true)QC_FORM.bools[ix]=true;else if(pv.pass===false)QC_FORM.bools[ix]=false;
-      field='<div style="display:flex;gap:.4rem"><button type="button" id="'+iid+'-ok" onclick="qcTgl('+ix+',1)" style="flex:1;padding:.55rem;border:1.5px solid #059669;border-radius:8px;font-weight:700;cursor:pointer;background:'+(pv.pass===true?'#059669':'#fff')+';color:'+(pv.pass===true?'#fff':'#059669')+'">✓ OK</button><button type="button" id="'+iid+'-no" onclick="qcTgl('+ix+',0)" style="flex:1;padding:.55rem;border:1.5px solid #DC2626;border-radius:8px;font-weight:700;cursor:pointer;background:'+(pv.pass===false?'#DC2626':'#fff')+';color:'+(pv.pass===false?'#fff':'#DC2626')+'">✗ Tidak</button></div>';
+      field='<div style="display:flex;gap:.4rem"><button type="button" id="'+iid+'-ok" onclick="qcTgl('+ix+',1)" style="flex:1;padding:.7rem;border:1.5px solid #059669;border-radius:8px;font-weight:700;cursor:pointer;background:'+(pv.pass===true?'#059669':'#fff')+';color:'+(pv.pass===true?'#fff':'#059669')+'">✓ OK</button><button type="button" id="'+iid+'-no" onclick="qcTgl('+ix+',0)" style="flex:1;padding:.7rem;border:1.5px solid #DC2626;border-radius:8px;font-weight:700;cursor:pointer;background:'+(pv.pass===false?'#DC2626':'#fff')+';color:'+(pv.pass===false?'#fff':'#DC2626')+'">✗ Tidak</button></div>';
     } else if(it.input_type==='number'){
       field='<input id="'+iid+'" type="number" step="any" value="'+(pv.value!=null&&pv.value!==''?esc(String(pv.value)):'')+'" placeholder="'+(it.unit?esc(it.unit):'angka')+'" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">';
     } else if(it.input_type==='date'){
@@ -2380,6 +2380,7 @@ function qcRenderForm(tplId){
     '<div class="ig"><label>Tindakan Koreksi <span style="font-size:.7rem;color:var(--muted)">(wajib bila CCP gagal)</span></label><textarea id="qc-corr" style="width:100%;min-height:48px;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box;font-family:inherit">'+(existing&&existing.corrective_action?esc(existing.corrective_action):'')+'</textarea></div>'+
     '<div class="ig"><label>📝 Catatan <span style="font-size:.7rem;color:var(--muted)">(untuk arsip / diperiksa kemudian)</span></label><textarea id="qc-note" style="width:100%;min-height:48px;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box;font-family:inherit">'+(existing&&existing.note?esc(existing.note):'')+'</textarea></div>'+
     '<div class="ig"><label>Hasil</label><select id="qc-result" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">'+
+      '<option value=""'+(existing&&existing.result?'':' selected')+' disabled>-- Pilih hasil --</option>'+
       [['pass','🟢 Lulus'],['conditional','🟡 Bersyarat'],['rework','🟡 Rework'],['fail','🔴 Gagal']].map(function(kv){return '<option value="'+kv[0]+'"'+(existing&&existing.result===kv[0]?' selected':'')+'>'+kv[1]+'</option>';}).join('')+
     '</select></div>'+
     '<button class="btn btn-p btn-full" onclick="qcSave()">💾 Simpan QC</button>';
@@ -2394,21 +2395,23 @@ function qcTgl(ix,v){
 function qcSave(){
   var ctx=QC_CTX;if(!ctx)return;
   var tplId=document.getElementById('qc-tplid').value;
-  var items=qcTplItems(tplId);var data=[];var ccpFail=false;
+  var items=qcTplItems(tplId);var data=[];var ccpFail=false,ccpUnverified=false;
   for(var ix=0;ix<items.length;ix++){
     var it=items[ix];var val=null,pass=null;
     if(it.input_type==='bool'){pass=(QC_FORM.bools[ix]===true)?true:((QC_FORM.bools[ix]===false)?false:null);}
     else{var el=document.getElementById('qci-'+ix);val=el?el.value:'';if(it.input_type==='number'&&val!=='')val=Number(val);}
     if(it.required&&it.input_type==='bool'&&pass===null){toast('⚠ Isi: '+it.label);return;}
     if(it.required&&it.input_type!=='bool'&&(val===''||val==null)){toast('⚠ Isi: '+it.label);return;}
-    if(it.is_ccp&&it.input_type==='bool'&&pass===false)ccpFail=true;
+    // CCP 閘門：bool CCP 未通過(=false) → 失敗；未作答(null) → 未驗證，兩者都不能判 Lulus
+    if(it.is_ccp&&it.input_type==='bool'){if(pass===false)ccpFail=true;if(pass!==true)ccpUnverified=true;}
     data.push({label:it.label,input_type:it.input_type,value:val,pass:pass,is_ccp:!!it.is_ccp,critical_limit:it.critical_limit||null});
   }
   var result=document.getElementById('qc-result').value;
   var corr=(document.getElementById('qc-corr').value||'').trim();
   var note=(document.getElementById('qc-note').value||'').trim();
+  if(!result){toast('⚠ Pilih hasil pemeriksaan');return;}
   if(ccpFail&&!corr){toast('⚠ CCP gagal — wajib isi Tindakan Koreksi');return;}
-  if(ccpFail&&result==='pass'){toast('⚠ CCP gagal, tidak boleh Lulus. Pilih Gagal/Rework.');return;}
+  if(result==='pass'&&(ccpFail||ccpUnverified)){toast('⚠ CCP belum semua lolos, tidak boleh Lulus');return;}
   var row={warehouse_id:CURRENT_WAREHOUSE,scope:ctx.scope,ref_type:ctx.refType,ref_id:String(ctx.refId),ref_label:ctx.label,template_id:tplId,inspector_name:CURRENT_USER?CURRENT_USER.name:null,result:result,ccp_fail:ccpFail,data:data,corrective_action:corr||null,note:note||null,checked_at:new Date().toISOString(),updated_at:new Date().toISOString()};
   var op=ctx.existingId?sb.from('qc_checks').update(row).eq('id',ctx.existingId):sb.from('qc_checks').insert(row);
   op.then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}toast('✓ QC tersimpan');closeModal();qcReload(qcBody);});
@@ -2434,7 +2437,7 @@ function qcAturHTML(){
   if(!tpls.length)h+='<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">Belum ada template — buat satu di atas</div>';
   tpls.forEach(function(t){
     var items=qcTplItems(t.id);
-    h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem"><div class="card-title" style="margin:0;min-width:0">'+esc(t.name)+' <span style="font-size:.7rem;color:var(--muted);font-weight:400">('+(t.scope==='raw'?'原料':'成品')+')</span></div><button class="tedit" onclick="qcDelTemplate(\''+t.id+'\')">🗑</button></div>';
+    h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem"><div class="card-title" style="margin:0;min-width:0">'+esc(t.name)+' <span style="font-size:.7rem;color:var(--muted);font-weight:400">('+(t.scope==='raw'?'Bahan Baku 原料':'Produk 成品')+')</span></div><button class="tedit" onclick="qcDelTemplate(\''+t.id+'\')">🗑</button></div>';
     if(!items.length)h+='<div style="color:var(--muted);font-size:.8rem;padding:.3rem 0">Belum ada item</div>';
     items.forEach(function(it){
       h+='<div style="display:flex;align-items:center;gap:.4rem;padding:.4rem 0;border-bottom:1px solid #F1F5F9;font-size:.82rem"><div style="flex:1;min-width:0">'+(it.is_ccp?'🔴 ':'')+esc(it.label)+' <span style="color:var(--muted);font-size:.7rem">['+esc(it.input_type)+(it.unit?' '+esc(it.unit):'')+']'+(it.critical_limit?' · '+esc(it.critical_limit):'')+'</span></div>'+
@@ -4320,8 +4323,8 @@ function whPickMsg(id){
 function comingSoon(id,label){
   document.getElementById(id).innerHTML='<div style="padding:2.5rem 1.5rem;text-align:center"><div style="font-size:2.2rem;margin-bottom:.6rem">🏗️</div><div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">'+label+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div><div style="color:var(--ink2);font-size:.88rem">Modul untuk gudang ini segera hadir.<br>Saat ini tersedia untuk: DIN, SJA</div></div>';
 }
-async function dinEnsure(cb){
-  if(DIN_LOADED){cb();return;}
+async function dinEnsure(cb,silent){
+  if(DIN_LOADED){cb&&cb();return;}
   try{
     var r=await Promise.all([
       sb.from('din_products').select('*').order('customer_name').order('code'),
@@ -4333,8 +4336,9 @@ async function dinEnsure(cb){
     ]);
     for(var i=0;i<r.length;i++){if(r[i].error)throw new Error(r[i].error.message);}
     DIN={products:r[0].data||[],rehidrasi:r[1].data||[],production:r[2].data||[],delivery:r[3].data||[],stock:r[4].data||[],monthly:r[5].data||[]};
-    DIN_LOADED=true;cb();
+    DIN_LOADED=true;cb&&cb();
   }catch(e){
+    if(silent)return; // 背景預熱失敗時不要覆蓋使用者目前的畫面
     var el=document.getElementById(ACTIVE_TAB);
     if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan MIGRATION_DIN_PRODUCTION.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="DIN_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
   }
@@ -4342,21 +4346,23 @@ async function dinEnsure(cb){
 function dinReload(cb){DIN_LOADED=false;dinEnsure(cb||function(){});}
 function dinProd(code){for(var i=0;i<DIN.products.length;i++)if(DIN.products[i].code===code)return DIN.products[i];return null;}
 function dinStockOf(code){for(var i=0;i<DIN.stock.length;i++)if(DIN.stock[i].product_code===code)return DIN.stock[i];return null;}
+// 產品排序比較：先看手動 sort_order（後台可調），沒設定就退回 code
+function prodCmp(a,b){return ((a.sort_order||0)-(b.sort_order||0))||String(a.code||'').localeCompare(String(b.code||''));}
 function dinProdOptions(sel){
   var byCust={};
   DIN.products.forEach(function(p){if(p.is_active===false)return;(byCust[p.customer_name]=byCust[p.customer_name]||[]).push(p);});
   var h='<option value="">-- Pilih Produk --</option>';
   Object.keys(byCust).forEach(function(c){
     h+='<optgroup label="'+esc(c)+'">';
-    byCust[c].forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.item_name)+'</option>';});
+    byCust[c].slice().sort(prodCmp).forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.item_name)+'</option>';});
     h+='</optgroup>';
   });
   return h;
 }
 
 // ── SJA（產品目錄 + 客戶 + 生產/出貨數量記錄）──
-async function sjaEnsure(cb){
-  if(SJA_LOADED){cb();return;}
+async function sjaEnsure(cb,silent){
+  if(SJA_LOADED){cb&&cb();return;}
   try{
     var r=await Promise.all([
       sb.from('sja_products').select('*').order('category').order('product_name'),
@@ -4368,8 +4374,9 @@ async function sjaEnsure(cb){
     ]);
     for(var i=0;i<r.length;i++){if(r[i].error)throw new Error(r[i].error.message);}
     SJA={products:r[0].data||[],customers:r[1].data||[],production:r[2].data||[],delivery:r[3].data||[],stock:r[4].data||[],monthly:r[5].data||[]};
-    SJA_LOADED=true;cb();
+    SJA_LOADED=true;cb&&cb();
   }catch(e){
+    if(silent)return; // 背景預熱失敗時不要覆蓋使用者目前的畫面
     var el=document.getElementById(ACTIVE_TAB);
     if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan MIGRATION_SJA_PRODUCTION.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="SJA_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
   }
@@ -4388,7 +4395,7 @@ function sjaProdOptions(sel,cat){
   var h='<option value="">-- Pilih Produk --</option>';
   order.forEach(function(c){
     h+='<optgroup label="'+esc(c)+'">';
-    byCat[c].forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.product_name)+'</option>';});
+    byCat[c].slice().sort(prodCmp).forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.product_name)+'</option>';});
     h+='</optgroup>';
   });
   return h;
@@ -4747,9 +4754,15 @@ function dinProdukListHTML(q){
   var h='';
   order.forEach(function(c){
     h+='<div style="font-weight:800;font-size:.82rem;color:'+WH_TEXT.DENIKIN+';margin:.6rem 0 .25rem">'+esc(c)+'</div>';
-    byCust[c].forEach(function(p){
+    var arr=byCust[c].slice().sort(prodCmp);
+    arr.forEach(function(p,gi){
       var dc=esc(p.code).replace(/'/g,"\\'");
+      var move=(IS_ADMIN&&!q)?'<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">'+
+        '<button onclick="dinMoveProduct(\''+dc+'\',-1)" '+(gi===0?'disabled':'')+' style="border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:.7rem;line-height:1;padding:.15rem .35rem;opacity:'+(gi===0?'.3':'1')+'">▲</button>'+
+        '<button onclick="dinMoveProduct(\''+dc+'\',1)" '+(gi===arr.length-1?'disabled':'')+' style="border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:.7rem;line-height:1;padding:.15rem .35rem;opacity:'+(gi===arr.length-1?'.3':'1')+'">▼</button>'+
+      '</div>':'';
       h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;padding:.4rem 0;border-bottom:1px solid #F1F5F9;font-size:.82rem'+(p.is_active===false?';opacity:.45':'')+'">'+
+      move+
       '<div style="flex:1;min-width:0"><b>'+esc(p.code)+'</b> · '+esc(p.item_name)+'<br><span style="color:var(--muted);font-size:.72rem">'+esc(p.label_item||'')+' · '+p.pack_ctn+' bag/ctn · '+fmtN(p.kg_per_bag)+'kg/bag · P'+fmtN(p.press_factor)+'</span></div>'+
       (IS_ADMIN?'<div style="display:flex;align-items:center;gap:.2rem;flex-shrink:0">'+
         '<button onclick="dinToggleProduct(\''+dc+'\','+(p.is_active===false)+')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.25rem .5rem;cursor:pointer;font-size:.7rem">'+(p.is_active===false?'🔴':'🟢')+'</button>'+
@@ -4760,6 +4773,16 @@ function dinProdukListHTML(q){
     });
   });
   return h;
+}
+// 產品排序：把某產品在同一「群組」內上移/下移，寫回 sort_order（整群重編號，穩定）
+async function dinMoveProduct(code,dir){
+  var p=dinProd(code);if(!p)return;
+  var grp=DIN.products.filter(function(x){return (x.customer_name||'-')===(p.customer_name||'-');}).sort(prodCmp);
+  var i=grp.findIndex(function(x){return x.code===code;});var j=i+dir;
+  if(i<0||j<0||j>=grp.length)return;
+  var t=grp[i];grp[i]=grp[j];grp[j]=t;
+  for(var k=0;k<grp.length;k++){if((grp[k].sort_order||0)!==k+1){var e=await sb.from('din_products').update({sort_order:k+1}).eq('code',grp[k].code);if(e.error){toast('⚠ '+friendlyErr(e.error));return;}grp[k].sort_order=k+1;}}
+  dinReload(dinBody);
 }
 function dinProdukFilter(){var b=document.getElementById('dpd-body');if(b)b.innerHTML=dinProdukListHTML(document.getElementById('dpd-q').value);}
 async function dinSaveProduct(){
@@ -4941,16 +4964,34 @@ function sjaProdukRows(q){
     return (p.code||'').toLowerCase().indexOf(q)>=0||(p.product_name||'').toLowerCase().indexOf(q)>=0||(p.category||'').toLowerCase().indexOf(q)>=0;
   });
   if(!rows.length)return'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Tidak ada data</td></tr>';
-  return rows.map(function(p){
-    var c=esc(p.code).replace(/'/g,"\\'");
-    return'<tr style="border-top:1px solid #F1F5F9'+(p.is_active===false?';opacity:.45':'')+'">'+
-    '<td style="padding:.35rem .4rem"><b>'+esc(p.code)+'</b></td>'+
-    '<td>'+esc(p.product_name)+'<br><span style="color:var(--muted);font-size:.7rem">'+esc(p.category||'-')+'</span></td>'+
-    '<td>'+esc(p.unit||'')+'</td>'+
-    '<td style="text-align:right">'+(p.pcs_per_ctn||'-')+'</td>'+
-    '<td>'+(IS_ADMIN?'<button onclick="sjaToggleProduct(\''+c+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem" title="aktif/nonaktif">'+(p.is_active===false?'🔴':'🟢')+'</button>':'')+'</td>'+
-    '<td style="white-space:nowrap">'+(IS_ADMIN?'<button class="tedit" onclick="sjaEditProduct(\''+c+'\')">✏️</button><button class="tdel" onclick="sjaDeleteProduct(\''+c+'\')">🗑</button>':'')+'</td></tr>';
-  }).join('');
+  // 依分類分組、組內照 sort_order（後台可調），組序維持原順序
+  var byCat={},order=[];
+  rows.forEach(function(p){var c=p.category||'-';if(!byCat[c]){byCat[c]=[];order.push(c);}byCat[c].push(p);});
+  var out='';
+  order.forEach(function(cat){
+    var arr=byCat[cat].slice().sort(prodCmp);
+    arr.forEach(function(p,gi){
+      var c=esc(p.code).replace(/'/g,"\\'");
+      var move=(IS_ADMIN&&!q)?'<button onclick="sjaMoveProduct(\''+c+'\',-1)" '+(gi===0?'disabled':'')+' style="border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:.72rem;padding:.1rem .3rem;opacity:'+(gi===0?'.3':'1')+'">▲</button><button onclick="sjaMoveProduct(\''+c+'\',1)" '+(gi===arr.length-1?'disabled':'')+' style="border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:.72rem;padding:.1rem .3rem;opacity:'+(gi===arr.length-1?'.3':'1')+'">▼</button> ':'';
+      out+='<tr style="border-top:1px solid #F1F5F9'+(p.is_active===false?';opacity:.45':'')+'">'+
+      '<td style="padding:.35rem .4rem"><b>'+esc(p.code)+'</b></td>'+
+      '<td>'+esc(p.product_name)+'<br><span style="color:var(--muted);font-size:.7rem">'+esc(p.category||'-')+'</span></td>'+
+      '<td>'+esc(p.unit||'')+'</td>'+
+      '<td style="text-align:right">'+(p.pcs_per_ctn||'-')+'</td>'+
+      '<td>'+(IS_ADMIN?'<button onclick="sjaToggleProduct(\''+c+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem" title="aktif/nonaktif">'+(p.is_active===false?'🔴':'🟢')+'</button>':'')+'</td>'+
+      '<td style="white-space:nowrap">'+move+(IS_ADMIN?'<button class="tedit" onclick="sjaEditProduct(\''+c+'\')">✏️</button><button class="tdel" onclick="sjaDeleteProduct(\''+c+'\')">🗑</button>':'')+'</td></tr>';
+    });
+  });
+  return out;
+}
+async function sjaMoveProduct(code,dir){
+  var p=sjaProd(code);if(!p)return;
+  var grp=SJA.products.filter(function(x){return (x.category||'-')===(p.category||'-');}).sort(prodCmp);
+  var i=grp.findIndex(function(x){return x.code===code;});var j=i+dir;
+  if(i<0||j<0||j>=grp.length)return;
+  var t=grp[i];grp[i]=grp[j];grp[j]=t;
+  for(var k=0;k<grp.length;k++){if((grp[k].sort_order||0)!==k+1){var e=await sb.from('sja_products').update({sort_order:k+1}).eq('code',grp[k].code);if(e.error){toast('⚠ '+friendlyErr(e.error));return;}grp[k].sort_order=k+1;}}
+  sjaReload(sjaBody);
 }
 function sjaProdukFilter(){var b=document.getElementById('pd-body');if(b)b.innerHTML=sjaProdukRows(document.getElementById('pd-q').value);}
 function sjaProdukHTML(){
