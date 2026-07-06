@@ -1865,7 +1865,7 @@ async function undoLastTake(btn){
     toast('✓ Dibatalkan — stok dikembalikan');
     closeModal();
     await loadAll();renderAmbil();
-  }catch(e){toast('⚠ '+e.message);btn.disabled=false;btn.textContent='↩ Salah ambil? Batalkan';}
+  }catch(e){toast('⚠ '+friendlyErr(e));btn.disabled=false;btn.textContent='↩ Salah ambil? Batalkan';}
 }
 function getAmbilBatches(itemId,qty){
   var result=[];
@@ -1965,7 +1965,7 @@ async function executeAmbilCart(){
     renderAmbil();
   }catch(e){
     // 部分成功：已落帳的不在購物車了，剩下的保留，重按只會送失敗的那些
-    toast('⚠ '+e.message+(taken.length?' — '+taken.length+' item tersimpan, sisanya masih di keranjang':''));
+    toast('⚠ '+friendlyErr(e)+(taken.length?' — '+taken.length+' item tersimpan, sisanya masih di keranjang':''));
     var keep=Object.assign({},CART);
     await loadAll(); // 同步已扣的庫存（會重繪並清空 CART）
     CART=keep;       // 還原未送出的項目
@@ -2177,7 +2177,7 @@ async function doMasukCart(){
     // 留在 Masuk 頁（常常還要繼續收下一批），loadAll 會重繪當前分頁
     toast(t('rcvOk')+' ✓');CART_M={};await loadAll();
   }catch(e){
-    toast('⚠ '+e.message+(done?' — '+done+' item tersimpan, sisanya masih di keranjang':''));
+    toast('⚠ '+friendlyErr(e)+(done?' — '+done+' item tersimpan, sisanya masih di keranjang':''));
     var keep=Object.assign({},CART_M);
     await loadAll(); // 同步庫存（重繪會清空 CART_M）
     CART_M=keep;
@@ -2572,7 +2572,7 @@ async function togglePermCell(id,w,kind){
     if(mx)mx.innerHTML=permMatrixHTML(p);
   }catch(e){
     if(/perms/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMS_PER_GUDANG.sql dulu');
-    else toast('⚠ '+e.message);
+    else toast('⚠ '+friendlyErr(e));
   }
 }
 // 個人設定：Admin/Harga 開關 + 改名/倉庫/PIN/刪除
@@ -2594,7 +2594,7 @@ async function toggleOfficeDelivery(btn){
     OFFICE_VIEW_DELIVERY=nv;
     toast(nv?'✓ Office bisa lihat pengiriman':'✓ Office tidak bisa lihat pengiriman');
     renderAdminFull();
-  }catch(e){toast('⚠ '+e.message);if(btn)btn.disabled=false;}
+  }catch(e){toast('⚠ '+friendlyErr(e));if(btn)btn.disabled=false;}
 }
 function showPersonSettings(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
@@ -2624,7 +2624,7 @@ async function savePersonName(id){
   var nm=(document.getElementById('pen').value||'').trim();
   if(!nm){toast('⚠ '+('Nama harus diisi'));return;}
   try{await managePeople('update',{id:id,patch:{name:nm}});toast('✓ '+('Disimpan'));closeModal();await loadAll();}
-  catch(e){toast('⚠ '+e.message);}
+  catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function toggleAdmin(id){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
@@ -2634,7 +2634,7 @@ async function toggleAdmin(id){
   try{await managePeople('update',{id:id,patch:{is_admin:nv}});toast(nv?'✓ '+p.name+' 👑 Admin':'✓ Admin dicabut');await loadAll();}
   catch(e){
     if(/is_admin/i.test(e.message||''))toast('⚠ Kolom is_admin belum ada di DB. Jalankan SQL dulu.');
-    else toast('⚠ '+e.message);
+    else toast('⚠ '+friendlyErr(e));
   }
 }
 // 切換某人「在某倉庫」的 Ambil/Masuk 權限（寫進 people.perms jsonb）
@@ -2655,7 +2655,7 @@ async function toggleWhPerm(id,w,kind){
     await loadAll();
   }catch(e){
     if(/perms/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMS_PER_GUDANG.sql dulu');
-    else toast('⚠ '+e.message);
+    else toast('⚠ '+friendlyErr(e));
   }
 }
 async function togglePricing(id){
@@ -2666,7 +2666,7 @@ async function togglePricing(id){
   try{await managePeople('update',{id:id,patch:{can_view_pricing:nv}});toast(nv?'✓ '+p.name+' 💰 boleh lihat harga':'✓ Akses harga dimatikan');await loadAll();}
   catch(e){
     if(/can_view_pricing/i.test(e.message||''))toast('⚠ Tambah kolom can_view_pricing di Supabase: ALTER TABLE people ADD COLUMN can_view_pricing BOOLEAN DEFAULT FALSE;');
-    else toast('⚠ '+e.message);
+    else toast('⚠ '+friendlyErr(e));
   }
 }
 // Kategori bawaan Bahan Baku (BB): selalu tersedia untuk filter & tagging
@@ -2741,7 +2741,7 @@ async function addCatg(){
     document.getElementById('acg').innerHTML=catgPanelHTML();
     setTimeout(function(){var ni=document.getElementById('ncg');if(ni)ni.focus();},100);
     toast('✓ '+v);
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function delCatg(cat){
   if(!confirm('Hapus tag "'+cat+'"? Barang tetap ada, tag hanya dihapus.'))return;
@@ -2757,7 +2757,7 @@ async function delCatg(cat){
     DATA.categories=(DATA.categories||[]).filter(function(c){return c!==cat;});
     document.getElementById('acg').innerHTML=catgPanelHTML();
     toast(t('delOk'));
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function renameCatg(cat){
   var newName=prompt('Nama baru untuk "'+cat+'":',cat);
@@ -2775,7 +2775,7 @@ async function renameCatg(cat){
     DATA.categories=(DATA.categories||[]).map(function(c){return c===cat?newName:c;});
     document.getElementById('acg').innerHTML=catgPanelHTML();
     toast(t('saveOk'));
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function addFormTag(){
   var inp=document.getElementById('ftag-inp');if(!inp)return;
@@ -2854,7 +2854,7 @@ async function saveQuickTag(id){
     toast('✓');closeModal();
     var tc=document.getElementById('ait-content');
     if(tc){tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';updateAIViewBtns();}
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 
 function showCatgItems(cat){
@@ -2921,7 +2921,7 @@ async function saveCatgItems(){
     toast('✓ '+('Tersimpan'));closeModal();
     document.getElementById('acg').innerHTML=catgPanelHTML();
     var tc=document.getElementById('ait-content');tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';updateAIViewBtns();
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 // 盤點入口：admin 從 Kelola Barang 進（渲染在 ait-content），
 // 有 🔢 Opname 權限的員工從首頁進（渲染在 home 區塊）
@@ -3057,7 +3057,7 @@ async function saveStocktake(){
     var n=keys.length;STOCKTAKE={};
     toast('✓ '+('Selesai, '+n+' item diubah'));
     renderStocktake(STK_CATG);
-  }catch(e){toast('⚠ '+e.message);btn.disabled=false;}
+  }catch(e){toast('⚠ '+friendlyErr(e));btn.disabled=false;}
 }
 function exitStocktake(){
   STOCKTAKE={};
@@ -3077,7 +3077,7 @@ async function savePin(id){
   var pin=String(document.getElementById('sp-pin').value||'').trim();
   if(!/^\d{4}$/.test(pin)){toast('⚠ Masukkan 4 digit');return;}
   try{await managePeople('update',{id:id,patch:{pin:pin}});toast(t('saveOk'));closeModal();await loadAll();}
-  catch(e){toast('⚠ '+e.message);}
+  catch(e){toast('⚠ '+friendlyErr(e));}
 }
 
 // MODALS
@@ -3203,7 +3203,7 @@ async function addExistingToWarehouse(itemId){
     closeModal();await loadAll();
   }catch(e){
     if(/duplicate|unique/i.test(e.message||''))toast('⚠ '+('Barang sudah ada di gudang ini'));
-    else toast('⚠ '+e.message);
+    else toast('⚠ '+friendlyErr(e));
   }
 }
 function proceedNewItem(){
@@ -3320,7 +3320,7 @@ async function saveItem(forceNew){
       if(vins.error)throw vins.error;
     }
     toast(t('saveOk'));closeModal();await loadAll();
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function editSupUrl(id){
   var item=DATA.items.find(function(i){return i.id==id;});if(!item)return;
@@ -3343,7 +3343,7 @@ async function saveSupUrl(id,clear){
     toast(t('saveOk'));closeModal();
     var tc=document.getElementById('ait-content');
     if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function delItem(variantId){
   if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa menghapus'));return;}
@@ -3372,7 +3372,7 @@ async function delItem(variantId){
       else{await loadAll();}
     }
   }
-  catch(e){toast('⚠ '+e.message);}
+  catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function showEditTx(id){
   var tx=DATA.transactions.find(function(t){return t.id==id;});
@@ -3404,7 +3404,7 @@ async function saveTxEdit(id){
     var editEntry={transaction_id:id,edited_by:CURRENT_USER?CURRENT_USER.name:'Admin',old_values:oldVals,new_values:newVals,edited_at:new Date().toISOString()};
     try{await sb.from('transaction_edits').insert(editEntry);}catch(e){}
     toast(t('saveOk'));closeModal();await loadAll();
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function confirmDeleteTx(id,itemName){
   showModal('🗑️ Hapus Riwayat Transaksi',
@@ -3428,7 +3428,7 @@ async function deleteTx(id){
     closeModal();
     await loadAll();
   }catch(e){
-    toast('⚠ Gagal hapus: '+e.message);
+    toast('⚠ Gagal hapus: '+friendlyErr(e));
   }
 }
 function printQR(id){
@@ -3470,7 +3470,7 @@ async function addPerson(){
     toast('✓ '+name+' (PIN:1234)'+(isAdm?' 👑':''));
     document.getElementById('npn').value='';WAREHOUSES.forEach(function(w){var el=document.getElementById('np-wh-'+w);if(el)el.checked=false;});var ad=document.getElementById('np-admin');if(ad)ad.checked=false;await loadAll();
   }
-  catch(e){toast('⚠ '+e.message);}
+  catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function showSetWarehouses(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
@@ -3485,7 +3485,7 @@ function showSetWarehouses(id){
 async function saveWarehouses(id){
   var whs=WAREHOUSES.filter(function(w){var el=document.getElementById('pw-'+w);return el&&el.checked;});
   try{await managePeople('update',{id:id,patch:{warehouses:whs}});toast('✓ Disimpan');closeModal();await loadAll();}
-  catch(e){toast('⚠ '+e.message);}
+  catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function switchWarehouse(wid){
   if(wid===CURRENT_WAREHOUSE)return; // 已在該倉庫，免重載
@@ -3551,7 +3551,7 @@ async function delPerson(id){
     await managePeople('delete',{id:id});
     toast(t('delOk'));
     await loadAll();
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function logoutAdmin(){
   // Admin gudang (staff) keluar penuh ke layar login; super admin kembali ke layar PIN
@@ -3571,7 +3571,7 @@ async function doAmbil(){
     await sb.from('item_variants').update({qty:sIA.qty-q}).eq('id',sIA.variant_id);
     await sb.from('transactions').insert({type:'ambil',item_id:sIA.id,item_name:sIA.name,person_id:sPA.id,person_name:sPA.name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
     toast(t('takeOk'));await loadAll();goTab('home',document.querySelector('.tb'));
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
   btn.disabled=false;btn.textContent=t('doTake');
 }
 async function doMasuk(){
@@ -3584,7 +3584,7 @@ async function doMasuk(){
     await sb.from('item_variants').update({qty:sIM.qty+q}).eq('id',sIM.variant_id);
     await sb.from('transactions').insert({type:'masuk',item_id:sIM.id,item_name:sIM.name,person_id:sPM.id,person_name:sPM.name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
     toast(t('rcvOk'));await loadAll();goTab('home',document.querySelector('.tb'));
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
   btn.disabled=false;btn.textContent=t('doRcv');
 }
 function onReqNameSel(){
@@ -3626,12 +3626,12 @@ async function doReq(){
     document.getElementById('rno').value='';
     document.getElementById('req-photo-prev').innerHTML='';REQ_PHOTO='';
     await loadAll();
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function updReq(id,status){
   if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa setujui/tolak'));return;}
   try{await sb.from('requests').update({status:status}).eq('id',id);toast('✓');await loadAll();}
-  catch(e){toast('⚠ '+e.message);}
+  catch(e){toast('⚠ '+friendlyErr(e));}
 }
 // 已購買 → 開窗選擇對應商品與數量，記為進貨(Masuk)並加庫存
 function approveReqBuy(id){
@@ -3682,7 +3682,7 @@ async function confirmApproveReqBuy(id){
     toast('✓ '+item.name+' +'+q+' '+('masuk stok'));
     closeModal();
     await loadAll();
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 
 // LOW STOCK
@@ -3971,7 +3971,7 @@ async function saveBatch(itemId,batchId){
     }
     toast('✓ Disimpan');closeModal();await loadAll();
     setTimeout(function(){showItemBatches(itemId);},300);
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function deleteBatch(batchId,itemId){
   if(!confirm('Hapus batch ini?'))return;
@@ -3980,7 +3980,7 @@ async function deleteBatch(batchId,itemId){
     if(error)throw error;
     toast('✓ Dihapus');closeModal();await loadAll();
     if(itemId)setTimeout(function(){showItemBatches(itemId);},300);
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function showWarehouseSelect(savedWh){
   var whs=IS_ADMIN?WAREHOUSES:(CURRENT_USER&&CURRENT_USER.warehouses?CURRENT_USER.warehouses:[]);
@@ -4132,9 +4132,9 @@ function exportToCSV(){
         toast('⚠ '+res.error);
       }
     }).catch(function(e){
-      toast('⚠ '+e.message);
+      toast('⚠ '+friendlyErr(e));
     });
-  }catch(e){toast('⚠ '+e.message);}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function escapeCSV(val){
   if(!val)return'';
@@ -4160,6 +4160,19 @@ function fmtC(n){if(!n)return'-';return('Rp ')+Math.round(n).toLocaleString();}
 // 用「當地」日期，不能用 toISOString()（=UTC）：印尼 UTC+7，早上 7 點前會差一天/跨月
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// Ubah error mentah (JWT expired / Failed to fetch / duplicate key…) jadi pesan
+// ramah bahasa Indonesia untuk pekerja. Error asli tetap ke console buat debug.
+function friendlyErr(e){
+  var m=(e&&e.message)||String(e||'');
+  try{if(m)console.error('[err]',m);}catch(_){}
+  if(/failed to fetch|network|timeout|koneksi|fetch/i.test(m))return 'Koneksi bermasalah, coba lagi';
+  if(/jwt|expired|token|unauthorized|auth/i.test(m))return 'Sesi habis, silakan masuk ulang';
+  if(/duplicate|unique|already exists|sudah ada/i.test(m))return 'Data sudah ada';
+  if(/permission|denied|not allowed|\brls\b|policy|row-level/i.test(m))return 'Tidak ada izin untuk aksi ini';
+  if(/violates|constraint|null value|invalid|not-null/i.test(m))return 'Data tidak lengkap / tidak valid';
+  if(/payload|too large|size/i.test(m))return 'File terlalu besar';
+  return m?'Gagal, coba lagi':'Terjadi kesalahan';
+}
 function toast(msg,dur){
   var isErr=/^\s*[⚠❌]/.test(msg)||/gagal/i.test(msg);
   var isOk=/^\s*[✓✅]/.test(msg);
@@ -4406,7 +4419,7 @@ async function dinSaveCustomerName(oldName){
   if(!nn){toast('⚠ Isi nama');return;}
   if(nn===oldName){closeModal();return;}
   var r=await sb.from('din_products').update({customer_name:nn}).eq('customer_name',oldName);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Nama pelanggan diperbarui');closeModal();
   dinReload(dinBody);
 }
@@ -4500,7 +4513,7 @@ async function dinSaveProduction(){
   };
   var r=await sb.from('din_production').insert(row);
   btn.disabled=false;
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Produksi tersimpan');
   // 連續打同產品/同槽很常見：重繪後帶回剛才的選擇
   var keepCode=row.product_code,keepTank=document.getElementById('dp-tank').value;
@@ -4559,7 +4572,7 @@ async function dinSaveRehidrasi(){
     staff:CURRENT_USER?CURRENT_USER.name:null
   });
   btn.disabled=false;
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Rehidrasi tersimpan');
   dinReload(dinBody);
 }
@@ -4647,13 +4660,13 @@ async function dinSaveProduct(){
     press_factor:Number(document.getElementById('dpr-pf').value)||1
   });
   btn.disabled=false;
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Produk tersimpan');
   dinReload(dinBody);
 }
 async function dinToggleProduct(code,activate){
   var r=await sb.from('din_products').update({is_active:activate}).eq('code',code);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   dinReload(dinBody);
 }
 function dinEditProduct(code){
@@ -4683,7 +4696,7 @@ async function dinSaveProductEdit(code){
     press_factor:Number(document.getElementById('dep-pf').value)||1,
     updated_at:new Date().toISOString()
   }).eq('code',code);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Produk diperbarui');closeModal();
   dinReload(dinBody);
 }
@@ -4768,7 +4781,7 @@ async function sjaSaveProduction(){
     note:(document.getElementById('sp-note').value||'').trim()||null
   });
   btn.disabled=false;
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Produksi tersimpan');
   // 連續打同產品：重繪後帶回剛才的選擇
   var keepCode=document.getElementById('sp-code').value;
@@ -4854,7 +4867,7 @@ async function sjaAddProduct(){
     category:(document.getElementById('np-cat').value||'').trim()||null,
     pcs_per_ctn:Number(document.getElementById('np-ctn').value)||null
   });
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Produk ditambah');
   sjaReload(sjaBody);
 }
@@ -4862,7 +4875,7 @@ async function sjaToggleProduct(code){
   var p=sjaProd(code);if(!p)return;
   var nv=p.is_active===false;
   var r=await sb.from('sja_products').update({is_active:nv,updated_at:new Date().toISOString()}).eq('code',code);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   p.is_active=nv;
   sjaProdukFilter();
   toast('✓ '+code+' '+(nv?'aktif':'nonaktif'));
@@ -4888,7 +4901,7 @@ async function sjaSaveProductEdit(code){
     pcs_per_ctn:Number(document.getElementById('ep-ctn').value)||null,
     updated_at:new Date().toISOString()
   }).eq('code',code);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Produk diperbarui');closeModal();
   sjaReload(sjaBody);
 }
@@ -4927,7 +4940,7 @@ async function sjaAddCustomer(){
   var name=(document.getElementById('nc-name').value||'').trim();
   if(!name){toast('⚠ Isi nama customer');return;}
   var r=await sb.from('sja_customers').insert({code:name,name:name});
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Customer ditambah');
   sjaReload(sjaBody);
 }
@@ -4941,7 +4954,7 @@ async function sjaSaveCustomer(id){
   var name=(document.getElementById('ec-name').value||'').trim();
   if(!name){toast('⚠ Nama harus diisi');return;}
   var r=await sb.from('sja_customers').update({name:name,code:name,updated_at:new Date().toISOString()}).eq('id',id);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Disimpan');closeModal();
   sjaReload(sjaBody);
 }
@@ -4949,7 +4962,7 @@ async function sjaDelCustomer(id){
   var c=SJA.customers.find(function(x){return x.id==id;});if(!c)return;
   if(!confirm('Hapus customer "'+c.name+'"?\nRiwayat pengiriman lama tetap tersimpan.'))return;
   var r=await sb.from('sja_customers').delete().eq('id',id);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Terhapus');
   sjaReload(sjaBody);
 }
@@ -5066,7 +5079,7 @@ async function dinSaveDelivery(){
     note:document.getElementById('dd-note').value.trim()||null
   });
   btn.disabled=false;
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Pengiriman tersimpan');
   ANA.loadedFor=0; // 新出貨 → 分析頁快取失效
   dinReload(function(){renderShipment();});
@@ -5074,7 +5087,7 @@ async function dinSaveDelivery(){
 async function dinDel(table,id){
   if(!confirm('Hapus data ini?'))return;
   var r=await sb.from(table).delete().eq('id',id);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Terhapus');
   ANA.loadedFor=0;
   dinReload(function(){if(ACTIVE_TAB==='shipment')renderShipment();else dinBody();});
@@ -5225,7 +5238,7 @@ async function sjaSaveDelivery(){
     note:document.getElementById('sd-note').value.trim()||null
   });
   btn.disabled=false;
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Pengiriman tersimpan');
   ANA.loadedFor=0; // 新出貨 → 分析頁快取失效
   // 同一車常出多筆同客戶：重繪後帶回客戶選擇
@@ -5238,7 +5251,7 @@ async function sjaSaveDelivery(){
 async function sjaDel(table,id){
   if(!confirm('Hapus data ini?'))return;
   var r=await sb.from(table).delete().eq('id',id);
-  if(r.error){toast('⚠ '+r.error.message);return;}
+  if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   toast('✓ Terhapus');
   ANA.loadedFor=0;
   sjaReload(function(){if(ACTIVE_TAB==='shipment')renderShipment();else sjaBody();});
