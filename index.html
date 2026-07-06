@@ -354,6 +354,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
     <button class="tb" onclick="goTab('permintaan',this)"><span class="tb-icon">📋</span><span id="tl-r">Minta</span></button>
     <button class="tb" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi">Riwayat</span></button>
     <button class="tb" onclick="goTab('analisa',this)" style="display:none"><span class="tb-icon">📈</span><span id="tl-ana">Analisa</span></button>
+    <button class="tb" onclick="goTab('qc',this)" style="display:none"><span class="tb-icon">✅</span><span id="tl-qc">QC</span></button>
     <button class="tb" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm">Admin</span></button>
   </div>
 </div>
@@ -1184,9 +1185,11 @@ function renderAll(){
   if(tabAdmin)tabAdmin.style.display=IS_ADMIN?'':'none';
   var tabAnalisa=tbBtn('analisa');
   if(tabAnalisa)tabAnalisa.style.display=IS_SUPER?'':'none';
+  var tabQc=tbBtn('qc');
+  if(tabQc)tabQc.style.display=IS_ADMIN?'':'none'; // QC: admin/office/admin-gudang 可用
   // 只重繪「目前所在的分頁」，其他分頁等切過去時才建（lazy）。
   // 之前每次 loadAll 都整頁砍掉+固定重繪 home，切分頁就得從零重蓋 → 卡頓主因之一
-  var SEC_IDS=['home','ambil','masuk','produksi','shipment','permintaan','riwayat','analisa','admin'];
+  var SEC_IDS=['home','ambil','masuk','produksi','shipment','permintaan','riwayat','analisa','qc','admin'];
   if(SEC_IDS.indexOf(ACTIVE_TAB)<0)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='ambil'&&!canAmbil())ACTIVE_TAB='home';
   if(ACTIVE_TAB==='masuk'&&!canMasuk())ACTIVE_TAB='home';
@@ -1194,6 +1197,7 @@ function renderAll(){
   if(ACTIVE_TAB==='shipment'&&!canKirim())ACTIVE_TAB='home';
   if(!IS_ADMIN&&(ACTIVE_TAB==='riwayat'||ACTIVE_TAB==='admin'))ACTIVE_TAB='home';
   if(!IS_SUPER&&ACTIVE_TAB==='analisa')ACTIVE_TAB='home';
+  if(!IS_ADMIN&&ACTIVE_TAB==='qc')ACTIVE_TAB='home';
   document.getElementById('mc').innerHTML=SEC_IDS.map(function(s){
     return '<div id="'+s+'" class="sec'+(s===ACTIVE_TAB?' active':'')+'"></div>';
   }).join('');
@@ -1208,6 +1212,7 @@ function renderAll(){
   else if(ACTIVE_TAB==='permintaan')renderPermintaan();
   else if(ACTIVE_TAB==='riwayat')renderRiwayat();
   else if(ACTIVE_TAB==='analisa')renderAnalisa();
+  else if(ACTIVE_TAB==='qc')renderQC();
   else if(ACTIVE_TAB==='admin')renderAdmin();
   updateCartBar();
   var hsb=document.getElementById('hdr-search-btn');
@@ -2238,6 +2243,235 @@ function renderRiwayat(){
     var more=document.getElementById('rw-more');
     if(more)more.outerHTML=all.slice(40).map(txRow).join('');
   },60);
+}
+
+// ═══════════════════════════════════════════════════════════
+// QC / HACCP 模組（彈性：檢查項後台可編輯 · 備註欄 · CCP 放行閘門）
+// 資料表見 MIGRATION_QC_SYSTEM.sql
+// ═══════════════════════════════════════════════════════════
+var QC={templates:[],items:[],checks:[]},QC_LOADED=false,QC_SUBTAB='periksa';
+var QC_CTX=null,QC_FORM={bools:{}};
+function qcEnsure(cb){
+  if(QC_LOADED){cb&&cb();return;}
+  Promise.all([
+    sb.from('qc_templates').select('*').order('created_at'),
+    sb.from('qc_template_items').select('*').order('order_index'),
+    sb.from('qc_checks').select('*').order('checked_at',{ascending:false}).limit(300)
+  ]).then(function(r){
+    for(var i=0;i<r.length;i++){if(r[i].error)throw r[i].error;}
+    QC={templates:r[0].data||[],items:r[1].data||[],checks:r[2].data||[]};
+    QC_LOADED=true;cb&&cb();
+  }).catch(function(e){
+    var el=document.getElementById('qc');
+    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(friendlyErr(e))+'<br><br><span style="font-size:.8rem;color:var(--muted)">Jika tabel belum ada, jalankan MIGRATION_QC_SYSTEM.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="QC_LOADED=false;renderQC()">🔄 Coba lagi</button></div>';
+  });
+}
+function qcReload(cb){QC_LOADED=false;qcEnsure(cb);}
+function qcTplItems(tplId){return QC.items.filter(function(x){return x.template_id===tplId;}).sort(function(a,b){return (a.order_index||0)-(b.order_index||0);});}
+function qcTemplatesFor(scope){return QC.templates.filter(function(t){return t.warehouse_id===CURRENT_WAREHOUSE&&t.scope===scope&&t.is_active!==false;});}
+function qcCheckFor(refType,refId){var c=QC.checks.filter(function(x){return x.ref_type===refType&&String(x.ref_id)===String(refId);});return c.length?c[0]:null;}
+function qcBadge(check){
+  var map={pass:['#059669','🟢 Lulus'],fail:['#DC2626','🔴 Gagal'],conditional:['#D97706','🟡 Bersyarat'],rework:['#D97706','🟡 Rework'],pending:['#94A3B8','⚪ Menunggu']};
+  var k=check?check.result:null;var m=map[k]||['#94A3B8','⚪ Belum QC'];
+  return '<span style="font-size:.7rem;font-weight:800;color:'+m[0]+'">'+m[1]+(check&&check.ccp_fail?' ⚠CCP':'')+'</span>';
+}
+function renderQC(){
+  if(!IS_ADMIN){document.getElementById('qc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses</div>';return;}
+  if(!CURRENT_WAREHOUSE){whPickMsg('qc');return;}
+  document.getElementById('qc').innerHTML='<div style="padding:2rem;text-align:center"><div class="spin" style="width:36px;height:36px;margin:0 auto"></div></div>';
+  qcEnsure(function(){
+    var after=function(){
+      var el=document.getElementById('qc');if(!el)return;
+      el.innerHTML='<div style="position:sticky;top:0;z-index:6;background:#ECFDF5;padding:.55rem .7rem .45rem"><div style="font-weight:800;font-size:.95rem;color:#065F46">✅ QC / Kualiti — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div></div>'+
+        '<div class="tab-nav" id="qc-nav">'+
+        '<button class="tsw'+(QC_SUBTAB==='periksa'?' act':'')+'" onclick="qcSub(this,\'periksa\')">🔍 Periksa</button>'+
+        '<button class="tsw'+(QC_SUBTAB==='riwayat'?' act':'')+'" onclick="qcSub(this,\'riwayat\')">📊 Riwayat</button>'+
+        '<button class="tsw'+(QC_SUBTAB==='atur'?' act':'')+'" onclick="qcSub(this,\'atur\')">⚙️ Atur Item</button>'+
+        '</div><div id="qc-body"></div>';
+      qcBody();
+    };
+    if(CURRENT_WAREHOUSE==='DENIKIN'&&typeof dinEnsure==='function')dinEnsure(after);
+    else if(CURRENT_WAREHOUSE==='SJA'&&typeof sjaEnsure==='function')sjaEnsure(after);
+    else after();
+  });
+}
+function qcSub(el,id){QC_SUBTAB=id;var nav=document.getElementById('qc-nav');if(nav)nav.querySelectorAll('.tsw').forEach(function(b){b.classList.remove('act')});if(el)el.classList.add('act');qcBody();}
+function qcBody(){
+  var b=document.getElementById('qc-body');if(!b)return;
+  if(QC_SUBTAB==='periksa')b.innerHTML=qcPeriksaHTML();
+  else if(QC_SUBTAB==='riwayat')b.innerHTML=qcRiwayatHTML();
+  else if(QC_SUBTAB==='atur')b.innerHTML=qcAturHTML();
+}
+function qcProdRecords(){
+  if(CURRENT_WAREHOUSE==='DENIKIN'&&typeof DIN!=='undefined')return (DIN.production||[]).map(function(r){return {id:r.id,type:'din_production',label:(r.product_code||'')+' · '+(r.batch_no||r.lot_no||''),date:r.date};});
+  if(CURRENT_WAREHOUSE==='SJA'&&typeof SJA!=='undefined')return (SJA.production||[]).map(function(r){return {id:r.id,type:'sja_production',label:(r.product_code||'')+' · '+(r.batch_lot_no||''),date:r.date};});
+  return [];
+}
+function qcPeriksaHTML(){
+  var recs=qcProdRecords();
+  var h='<div class="card"><div class="card-title">🏭 Produk — Periksa QC</div>';
+  if(!recs.length)h+='<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">Belum ada produksi</div>';
+  else h+=recs.slice(0,60).map(function(r){
+    var chk=qcCheckFor(r.type,r.id);
+    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .2rem;border-bottom:1px solid #F1F5F9">'+
+      '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem">'+esc(r.label)+'</div><div style="font-size:.72rem;color:var(--muted)">'+esc(typeof fmtD==='function'?fmtD(r.date):(r.date||''))+' · '+qcBadge(chk)+'</div></div>'+
+      '<button class="btn btn-s" style="padding:.35rem .7rem;font-size:.8rem;min-height:36px" onclick="qcOpen(\''+r.type+'\',\''+esc(String(r.id))+'\',\'product\')">'+(chk?'Lihat':'✅ QC')+'</button>'+
+    '</div>';
+  }).join('');
+  h+='</div>';
+  var bats=(DATA.batches||[]).filter(function(b){return b.warehouse_id===CURRENT_WAREHOUSE;});
+  h+='<div class="card"><div class="card-title">📦 Bahan Baku — Periksa QC</div>';
+  if(!bats.length)h+='<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">Belum ada lot</div>';
+  else h+=bats.slice(0,60).map(function(b){
+    var it=itemById(b.item_id);var chk=qcCheckFor('item_batch',b.id);
+    var label=(it?it.name:'?')+(b.lot_no?' · Lot '+b.lot_no:'');
+    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .2rem;border-bottom:1px solid #F1F5F9">'+
+      '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem">'+esc(label)+'</div><div style="font-size:.72rem;color:var(--muted)">'+qcBadge(chk)+'</div></div>'+
+      '<button class="btn btn-s" style="padding:.35rem .7rem;font-size:.8rem;min-height:36px" onclick="qcOpen(\'item_batch\',\''+esc(String(b.id))+'\',\'raw\')">'+(chk?'Lihat':'✅ QC')+'</button>'+
+    '</div>';
+  }).join('');
+  h+='</div>';
+  return h;
+}
+function qcRefLabel(refType,refId){
+  if(refType==='item_batch'){var b=(DATA.batches||[]).find(function(x){return String(x.id)===String(refId);});if(b){var it=itemById(b.item_id);return (it?it.name:'?')+(b.lot_no?' · Lot '+b.lot_no:'');}}
+  var recs=qcProdRecords();var r=recs.find(function(x){return String(x.id)===String(refId)&&x.type===refType;});return r?r.label:String(refId);
+}
+function qcOpen(refType,refId,scope){
+  var tpls=qcTemplatesFor(scope);
+  if(!tpls.length){toast('⚠ Belum ada template QC. Buat di "⚙️ Atur Item" dulu');QC_SUBTAB='atur';qcBody();return;}
+  var existing=qcCheckFor(refType,refId);
+  QC_CTX={refType:refType,refId:String(refId),scope:scope,label:qcRefLabel(refType,refId),existingId:existing?existing.id:null};
+  qcRenderForm(existing&&existing.template_id?existing.template_id:tpls[0].id);
+}
+function qcSwitchTpl(tplId){qcRenderForm(tplId);}
+function qcRenderForm(tplId){
+  var ctx=QC_CTX;if(!ctx)return;
+  var tpls=qcTemplatesFor(ctx.scope);
+  var existing=ctx.existingId?QC.checks.find(function(c){return c.id===ctx.existingId;}):null;
+  var items=qcTplItems(tplId);
+  var prev={};if(existing&&existing.data){try{(existing.data||[]).forEach(function(d){prev[d.label]=d;});}catch(e){}}
+  QC_FORM={bools:{}};
+  var tplSel=tpls.length>1?'<div class="ig"><label>Template</label><select onchange="qcSwitchTpl(this.value)">'+tpls.map(function(t){return '<option value="'+t.id+'"'+(t.id===tplId?' selected':'')+'>'+esc(t.name)+'</option>';}).join('')+'</select></div>':'';
+  var body=tplSel+'<input type="hidden" id="qc-tplid" value="'+tplId+'"><div id="qc-items">'+items.map(function(it,ix){
+    var pv=prev[it.label]||{};var iid='qci-'+ix;var field='';
+    if(it.input_type==='bool'){
+      if(pv.pass===true)QC_FORM.bools[ix]=true;else if(pv.pass===false)QC_FORM.bools[ix]=false;
+      field='<div style="display:flex;gap:.4rem"><button type="button" id="'+iid+'-ok" onclick="qcTgl('+ix+',1)" style="flex:1;padding:.55rem;border:1.5px solid #059669;border-radius:8px;font-weight:700;cursor:pointer;background:'+(pv.pass===true?'#059669':'#fff')+';color:'+(pv.pass===true?'#fff':'#059669')+'">✓ OK</button><button type="button" id="'+iid+'-no" onclick="qcTgl('+ix+',0)" style="flex:1;padding:.55rem;border:1.5px solid #DC2626;border-radius:8px;font-weight:700;cursor:pointer;background:'+(pv.pass===false?'#DC2626':'#fff')+';color:'+(pv.pass===false?'#fff':'#DC2626')+'">✗ Tidak</button></div>';
+    } else if(it.input_type==='number'){
+      field='<input id="'+iid+'" type="number" step="any" value="'+(pv.value!=null&&pv.value!==''?esc(String(pv.value)):'')+'" placeholder="'+(it.unit?esc(it.unit):'angka')+'" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">';
+    } else if(it.input_type==='date'){
+      field='<input id="'+iid+'" type="date" value="'+(pv.value?esc(String(pv.value)):'')+'" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">';
+    } else if(it.input_type==='select'){
+      field='<select id="'+iid+'" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box"><option value="">--</option>'+((it.options||[]).map(function(o){return '<option'+(pv.value===o?' selected':'')+'>'+esc(o)+'</option>';}).join(''))+'</select>';
+    } else {
+      field='<input id="'+iid+'" type="text" value="'+(pv.value?esc(String(pv.value)):'')+'" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">';
+    }
+    return '<div class="ig"><label>'+(it.is_ccp?'<span style="color:#DC2626;font-weight:800">🔴 CCP</span> ':'')+esc(it.label)+(it.required?' <span style="color:#DC2626">*</span>':'')+(it.critical_limit?' <span style="font-size:.7rem;color:var(--muted)">('+esc(it.critical_limit)+')</span>':'')+'</label>'+field+'</div>';
+  }).join('')+'</div>'+
+    '<div class="ig"><label>Tindakan Koreksi <span style="font-size:.7rem;color:var(--muted)">(wajib bila CCP gagal)</span></label><textarea id="qc-corr" style="width:100%;min-height:48px;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box;font-family:inherit">'+(existing&&existing.corrective_action?esc(existing.corrective_action):'')+'</textarea></div>'+
+    '<div class="ig"><label>📝 Catatan <span style="font-size:.7rem;color:var(--muted)">(untuk arsip / diperiksa kemudian)</span></label><textarea id="qc-note" style="width:100%;min-height:48px;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box;font-family:inherit">'+(existing&&existing.note?esc(existing.note):'')+'</textarea></div>'+
+    '<div class="ig"><label>Hasil</label><select id="qc-result" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">'+
+      [['pass','🟢 Lulus'],['conditional','🟡 Bersyarat'],['rework','🟡 Rework'],['fail','🔴 Gagal']].map(function(kv){return '<option value="'+kv[0]+'"'+(existing&&existing.result===kv[0]?' selected':'')+'>'+kv[1]+'</option>';}).join('')+
+    '</select></div>'+
+    '<button class="btn btn-p btn-full" onclick="qcSave()">💾 Simpan QC</button>';
+  showModal('✅ QC — '+esc(ctx.label),body);
+}
+function qcTgl(ix,v){
+  QC_FORM.bools[ix]=(v===1);
+  var ok=document.getElementById('qci-'+ix+'-ok'),no=document.getElementById('qci-'+ix+'-no');
+  if(ok){ok.style.background=(v===1)?'#059669':'#fff';ok.style.color=(v===1)?'#fff':'#059669';}
+  if(no){no.style.background=(v===0)?'#DC2626':'#fff';no.style.color=(v===0)?'#fff':'#DC2626';}
+}
+function qcSave(){
+  var ctx=QC_CTX;if(!ctx)return;
+  var tplId=document.getElementById('qc-tplid').value;
+  var items=qcTplItems(tplId);var data=[];var ccpFail=false;
+  for(var ix=0;ix<items.length;ix++){
+    var it=items[ix];var val=null,pass=null;
+    if(it.input_type==='bool'){pass=(QC_FORM.bools[ix]===true)?true:((QC_FORM.bools[ix]===false)?false:null);}
+    else{var el=document.getElementById('qci-'+ix);val=el?el.value:'';if(it.input_type==='number'&&val!=='')val=Number(val);}
+    if(it.required&&it.input_type==='bool'&&pass===null){toast('⚠ Isi: '+it.label);return;}
+    if(it.required&&it.input_type!=='bool'&&(val===''||val==null)){toast('⚠ Isi: '+it.label);return;}
+    if(it.is_ccp&&it.input_type==='bool'&&pass===false)ccpFail=true;
+    data.push({label:it.label,input_type:it.input_type,value:val,pass:pass,is_ccp:!!it.is_ccp,critical_limit:it.critical_limit||null});
+  }
+  var result=document.getElementById('qc-result').value;
+  var corr=(document.getElementById('qc-corr').value||'').trim();
+  var note=(document.getElementById('qc-note').value||'').trim();
+  if(ccpFail&&!corr){toast('⚠ CCP gagal — wajib isi Tindakan Koreksi');return;}
+  if(ccpFail&&result==='pass'){toast('⚠ CCP gagal, tidak boleh Lulus. Pilih Gagal/Rework.');return;}
+  var row={warehouse_id:CURRENT_WAREHOUSE,scope:ctx.scope,ref_type:ctx.refType,ref_id:String(ctx.refId),ref_label:ctx.label,template_id:tplId,inspector_name:CURRENT_USER?CURRENT_USER.name:null,result:result,ccp_fail:ccpFail,data:data,corrective_action:corr||null,note:note||null,checked_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+  var op=ctx.existingId?sb.from('qc_checks').update(row).eq('id',ctx.existingId):sb.from('qc_checks').insert(row);
+  op.then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}toast('✓ QC tersimpan');closeModal();qcReload(qcBody);});
+}
+function qcRiwayatHTML(){
+  var cs=QC.checks.filter(function(c){return c.warehouse_id===CURRENT_WAREHOUSE;});
+  var h='<div class="card"><div class="card-title">📊 Riwayat QC ('+cs.length+')</div>';
+  if(!cs.length)h+='<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">Belum ada</div>';
+  else h+=cs.slice(0,120).map(function(c){
+    return '<div style="padding:.5rem .2rem;border-bottom:1px solid #F1F5F9">'+
+      '<div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center"><div style="font-weight:700;font-size:.86rem;min-width:0">'+esc(c.ref_label||c.ref_id)+'</div>'+qcBadge(c)+'</div>'+
+      '<div style="font-size:.72rem;color:var(--muted)">'+esc(typeof fmtDate==='function'?fmtDate(c.checked_at):(c.checked_at||''))+' · '+esc(c.inspector_name||'-')+(c.note?' · 📝 '+esc(c.note):'')+'</div>'+
+      (c.ccp_fail&&c.corrective_action?'<div style="font-size:.75rem;color:#DC2626;margin-top:.2rem">⚠ Koreksi: '+esc(c.corrective_action)+'</div>':'')+
+    '</div>';
+  }).join('');
+  h+='</div>';return h;
+}
+function qcAturHTML(){
+  var tpls=QC.templates.filter(function(t){return t.warehouse_id===CURRENT_WAREHOUSE;});
+  var h='<div class="card"><div class="card-title">⚙️ Template & Item Pemeriksaan</div>'+
+    '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.6rem;line-height:1.5">Semua item pemeriksaan bisa ditambah / diubah / dihapus di sini. Tandai <b style="color:#DC2626">🔴 CCP</b> untuk titik kritis HACCP — bila CCP gagal, batch wajib isi tindakan koreksi &amp; tidak boleh diluluskan.</div>'+
+    '<button class="btn btn-p btn-full" onclick="qcNewTemplate()">➕ Template Baru</button></div>';
+  if(!tpls.length)h+='<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">Belum ada template — buat satu di atas</div>';
+  tpls.forEach(function(t){
+    var items=qcTplItems(t.id);
+    h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem"><div class="card-title" style="margin:0;min-width:0">'+esc(t.name)+' <span style="font-size:.7rem;color:var(--muted);font-weight:400">('+(t.scope==='raw'?'原料':'成品')+')</span></div><button class="tedit" onclick="qcDelTemplate(\''+t.id+'\')">🗑</button></div>';
+    if(!items.length)h+='<div style="color:var(--muted);font-size:.8rem;padding:.3rem 0">Belum ada item</div>';
+    items.forEach(function(it){
+      h+='<div style="display:flex;align-items:center;gap:.4rem;padding:.4rem 0;border-bottom:1px solid #F1F5F9;font-size:.82rem"><div style="flex:1;min-width:0">'+(it.is_ccp?'🔴 ':'')+esc(it.label)+' <span style="color:var(--muted);font-size:.7rem">['+esc(it.input_type)+(it.unit?' '+esc(it.unit):'')+']'+(it.critical_limit?' · '+esc(it.critical_limit):'')+'</span></div>'+
+        '<button class="tedit" onclick="qcEditItem(\''+it.id+'\')">✏️</button><button class="tedit" onclick="qcDelItem(\''+it.id+'\')">🗑</button></div>';
+    });
+    h+='<button class="btn btn-s btn-full" style="margin-top:.5rem" onclick="qcNewItem(\''+t.id+'\')">➕ Tambah Item Periksa</button></div>';
+  });
+  return h;
+}
+function qcNewTemplate(){
+  showModal('➕ Template QC Baru',
+    '<div class="ig"><label>Nama Template</label><input id="qtn" placeholder="Nata 成品檢驗"></div>'+
+    '<div class="ig"><label>Jenis</label><select id="qts"><option value="product">成品 Produk</option><option value="raw">原料 Bahan Baku</option></select></div>'+
+    '<button class="btn btn-p btn-full" onclick="qcSaveTemplate()">💾 Simpan</button>');
+}
+function qcSaveTemplate(){
+  var name=(document.getElementById('qtn').value||'').trim();if(!name){toast('⚠ Isi nama');return;}
+  sb.from('qc_templates').insert({warehouse_id:CURRENT_WAREHOUSE,scope:document.getElementById('qts').value,name:name}).then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}toast('✓ Tersimpan');closeModal();qcReload(qcBody);});
+}
+function qcDelTemplate(id){
+  if(!confirm('Hapus template ini beserta semua item pemeriksaannya?'))return;
+  sb.from('qc_templates').delete().eq('id',id).then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}toast('✓ Dihapus');qcReload(qcBody);});
+}
+function qcNewItem(tplId){qcItemModal(tplId,null);}
+function qcEditItem(itemId){var it=QC.items.find(function(x){return x.id===itemId;});if(it)qcItemModal(it.template_id,it);}
+function qcItemModal(tplId,it){
+  showModal(it?'✏️ Ubah Item Periksa':'➕ Item Periksa Baru',
+    '<div class="ig"><label>Nama Item</label><input id="qin" value="'+(it?esc(it.label):'')+'" placeholder="pH / 無異物 / 溫度"></div>'+
+    '<div class="ig"><label>Jenis Input</label><select id="qit">'+[['bool','✓/✗ Ya/Tidak'],['number','Angka'],['text','Teks'],['date','Tanggal'],['select','Pilihan']].map(function(kv){return '<option value="'+kv[0]+'"'+(it&&it.input_type===kv[0]?' selected':'')+'>'+kv[1]+'</option>';}).join('')+'</select></div>'+
+    '<div class="ig"><label>Satuan <span style="font-size:.7rem;color:var(--muted)">(untuk angka, opsional)</span></label><input id="qiu" value="'+(it&&it.unit?esc(it.unit):'')+'" placeholder="°C / kg"></div>'+
+    '<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;margin-bottom:.5rem;background:#FEF2F2"><input type="checkbox" id="qicc" '+(it&&it.is_ccp?'checked':'')+' style="width:18px;height:18px"> 🔴 <b>CCP</b> (Titik Kritis HACCP)</label>'+
+    '<div class="ig"><label>Batas Kritis <span style="font-size:.7rem;color:var(--muted)">(untuk CCP)</span></label><input id="qicl" value="'+(it&&it.critical_limit?esc(it.critical_limit):'')+'" placeholder="≤ 4°C / pH 3.5-4.2"></div>'+
+    '<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;margin-bottom:.5rem"><input type="checkbox" id="qir" '+(it&&it.required?'checked':'')+' style="width:18px;height:18px"> Wajib diisi</label>'+
+    '<button class="btn btn-p btn-full" onclick="qcSaveItem(\''+tplId+'\','+(it?"'"+it.id+"'":'null')+')">💾 Simpan</button>');
+}
+function qcSaveItem(tplId,itemId){
+  var label=(document.getElementById('qin').value||'').trim();if(!label){toast('⚠ Isi nama item');return;}
+  var row={template_id:tplId,label:label,input_type:document.getElementById('qit').value,unit:(document.getElementById('qiu').value||'').trim()||null,is_ccp:document.getElementById('qicc').checked,critical_limit:(document.getElementById('qicl').value||'').trim()||null,required:document.getElementById('qir').checked};
+  if(!itemId)row.order_index=qcTplItems(tplId).length+1;
+  var op=itemId?sb.from('qc_template_items').update(row).eq('id',itemId):sb.from('qc_template_items').insert(row);
+  op.then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}toast('✓ Tersimpan');closeModal();qcReload(qcBody);});
+}
+function qcDelItem(id){
+  if(!confirm('Hapus item periksa ini?'))return;
+  sb.from('qc_template_items').delete().eq('id',id).then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}toast('✓ Dihapus');qcReload(qcBody);});
 }
 
 // ADMIN
@@ -3645,6 +3879,7 @@ function goTab(id,el){
     else if(id==='permintaan')renderPermintaan();
     else if(id==='riwayat')renderRiwayat();
     else if(id==='analisa')renderAnalisa();
+    else if(id==='qc')renderQC();
     else if(id==='admin')renderAdmin();
   }
   updateCartBar();
