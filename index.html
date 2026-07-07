@@ -1524,6 +1524,13 @@ function sendTelegram(msg){
   }catch(e){}
 }
 
+// ── 刪改留痕：誰在何時刪了什麼（快照留底）。audit_log 表刻意不給 UPDATE/DELETE 權限 → 記錄不可竄改 ──
+function auditLog(action,table,rowId,summary,snapshot){
+  try{
+    var actor=(CURRENT_USER&&CURRENT_USER.name)||(IS_SUPER?'Super Admin':(IS_OFFICE?'Admin Office':'?'));
+    sb.from('audit_log').insert({actor:actor,action:action,table_name:table,row_id:rowId==null?null:String(rowId),summary:summary||null,snapshot:snapshot||null}).then(function(){});
+  }catch(e){}
+}
 // Telegram low-stock throttle：同商品重複提醒間隔，30 天（原本 24h，避免一直轟炸）。
 var TG_INTERVAL=30*86400000;
 function tgGetNotified(){try{return JSON.parse(localStorage.getItem('tg_notified')||'{}');}catch(e){return {};}}
@@ -2456,7 +2463,17 @@ function qcSave(){
   if(result==='pass'&&(ccpFail||ccpUnverified)){toast('⚠ CCP belum semua lolos, tidak boleh Lulus');return;}
   var row={warehouse_id:CURRENT_WAREHOUSE,scope:ctx.scope,ref_type:ctx.refType,ref_id:String(ctx.refId),ref_label:ctx.label,template_id:tplId,inspector_name:CURRENT_USER?CURRENT_USER.name:null,result:result,ccp_fail:ccpFail,data:data,corrective_action:corr||null,note:note||null,checked_at:new Date().toISOString(),updated_at:new Date().toISOString()};
   var op=ctx.existingId?sb.from('qc_checks').update(row).eq('id',ctx.existingId):sb.from('qc_checks').insert(row);
-  op.then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}toast('✓ QC tersimpan');closeModal();qcRefresh(['checks'],qcBody);});
+  op.then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
+    // 食安事件主動推播：QC 不合格（尤其 CCP）立刻通知 Telegram 管理群，不等人打開 App
+    if(result==='fail'||ccpFail){
+      sendTelegram('🔴 <b>QC GAGAL'+(ccpFail?' — CCP!':'')+'</b> ('+esc(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+')\n'+
+        '📋 '+esc(ctx.label||String(ctx.refId))+'\n'+
+        '👤 '+esc(CURRENT_USER?CURRENT_USER.name:'-')+
+        (corr?'\n🛠 Koreksi: '+esc(corr):'')+
+        (note?'\n📝 '+esc(note):'')+
+        '\n🕐 '+new Date().toLocaleString('id-ID'));
+    }
+    toast('✓ QC tersimpan');closeModal();qcRefresh(['checks'],qcBody);});
 }
 function qcRiwayatHTML(){
   var cs=QC.checks.filter(function(c){return c.warehouse_id===CURRENT_WAREHOUSE;});
@@ -4012,7 +4029,27 @@ function arcPanelHTML(){
       '· Catatan QC = dokumen keamanan pangan — simpan file CSV baik-baik (untuk audit)<br>'+
       '· Foto barang di Storage tidak ikut terhapus<br>'+
       '· Data yang sudah dihapus <b>tidak bisa dikembalikan</b></div>'+
+  '</div>'+
+  '<div class="card">'+
+    '<div class="card-title">📜 Log Perubahan</div>'+
+    '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Catatan siapa menghapus apa &amp; kapan (dengan snapshot). Log ini tidak bisa diubah/dihapus siapa pun.</div>'+
+    '<button class="btn btn-s btn-full" onclick="arcAuditLoad()">🔍 Lihat 50 terakhir</button>'+
+    '<div id="arc-audit" style="margin-top:.5rem"></div>'+
   '</div>';
+}
+async function arcAuditLoad(){
+  var el=document.getElementById('arc-audit');
+  el.innerHTML='<div style="text-align:center;padding:.6rem;color:var(--muted)">⏳ ...</div>';
+  var r=await sb.from('audit_log').select('at,actor,action,table_name,summary').order('at',{ascending:false}).limit(50);
+  if(r.error){el.innerHTML='<div class="ab ab-d" style="font-size:.8rem">⚠ '+esc(friendlyErr(r.error))+'<br><span style="color:var(--muted)">Jika tabel belum ada, jalankan MIGRATION_AUDIT_LOG.sql di Supabase dulu.</span></div>';return;}
+  if(!r.data||!r.data.length){el.innerHTML='<div style="text-align:center;color:var(--muted);padding:.6rem;font-size:.85rem">Belum ada log</div>';return;}
+  el.innerHTML=r.data.map(function(a){
+    return '<div style="padding:.4rem .2rem;border-bottom:1px solid var(--border);font-size:.8rem">'+
+      '<span style="font-weight:700;color:'+(a.action==='purge'?'#D97706':'#DC2626')+'">'+(a.action==='purge'?'🗂 Arsip':'🗑 Hapus')+'</span> '+
+      '<b>'+esc(a.table_name)+'</b>'+(a.summary?' · '+esc(a.summary):'')+
+      '<div style="color:var(--muted);font-size:.72rem">'+esc(fmtDate(a.at))+' · 👤 '+esc(a.actor||'?')+'</div>'+
+    '</div>';
+  }).join('');
 }
 async function arcCount(){
   var cutoff=document.getElementById('arc-date').value;
@@ -4102,6 +4139,7 @@ async function arcDelete(){
   // 清掉所有快取，讓相關畫面重新載入
   TX_LOADED=false;DIN_LOADED=false;SJA_LOADED=false;QC_LOADED=false;
   if(typeof ANA!=='undefined')ANA.loadedFor=0;
+  auditLog('purge','arsip',null,'Hapus '+ok+' baris data lama sebelum '+ARC.cutoff,null);
   toast(fail.length?('⚠ Sebagian gagal: '+fail.join(', ')):('✓ '+ok+' data lama terhapus'));
   ADMIN_SUBTAB='adt';
   await loadAll();
@@ -5101,8 +5139,35 @@ async function dinDeleteProduct(code){
 }
 
 // ── 月報 (Monthly Report：復水/濕重/得率/生產/損耗) ──
+// 月報列印：正式版面＋簽核欄（Dibuat/Diperiksa/Disetujui），可直接印出給主管簽名歸檔
+function printLaporan(wh){
+  var title,body;
+  if(wh==='DENIKIN'){
+    title='Laporan Bulanan Produksi — DENIKIN';
+    body='<table><tr><th>Bulan</th><th class="r">Rehidrasi KG</th><th class="r">Basah KG</th><th class="r">Hasil %</th><th class="r">Produksi KG</th><th class="r">Susut KG</th></tr>'+
+      DIN.monthly.map(function(m){return '<tr><td>'+esc(m.bulan)+'</td><td class="r">'+fmtN(m.rehidrasi_kg)+'</td><td class="r">'+fmtN(m.basah_kg)+'</td><td class="r">'+fmtN(m.hasil_pct)+'</td><td class="r">'+fmtN(m.produksi_kg)+'</td><td class="r">'+fmtN(m.susut_kg)+'</td></tr>';}).join('')+
+      '</table>';
+  }else{
+    var sel=document.getElementById('rp-month');
+    var mon=(sel&&sel.value)||(SJA.monthly[0]&&SJA.monthly[0].bulan)||'';
+    title='Laporan Bulanan — SJA ('+mon+')';
+    body='<table><tr><th>Produk</th><th class="r">Produksi</th><th class="r">Kirim</th></tr>'+sjaRptRows(mon)+'</table>';
+  }
+  var w=window.open('','_blank');
+  if(!w){toast('⚠ Izinkan popup untuk mencetak');return;}
+  w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>'+
+    'body{font-family:-apple-system,"Segoe UI",sans-serif;padding:24px;color:#111}h1{font-size:18px;margin:0 0 2px}'+
+    '.sub{color:#555;font-size:12px;margin-bottom:14px}table{width:100%;border-collapse:collapse;font-size:12px}'+
+    'th,td{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left}th{border-bottom:2px solid #333}.r{text-align:right}'+
+    '.sign{display:flex;gap:24px;margin-top:48px}.sign>div{flex:1;text-align:center;font-size:12px}.line{border-top:1px solid #333;margin-top:56px;padding-top:6px}'+
+    '</style></head><body>'+
+    '<h1>'+esc(title)+'</h1><div class="sub">Dicetak: '+new Date().toLocaleString('id-ID')+'</div>'+body+
+    '<div class="sign"><div><div class="line">Dibuat oleh</div></div><div><div class="line">Diperiksa oleh</div></div><div><div class="line">Disetujui oleh</div></div></div>'+
+    '<script>window.onload=function(){window.print()}<\/script></body></html>');
+  w.document.close();
+}
 function dinLaporanHTML(){
-  var h='<div class="card"><div class="card-title">📈 Laporan Bulanan</div>';
+  var h='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center">📈 Laporan Bulanan'+(DIN.monthly.length?'<button class="btn btn-s" style="padding:.3rem .6rem;font-size:.78rem" onclick="printLaporan(\'DENIKIN\')">🖨 Cetak</button>':'')+'</div>';
   if(!DIN.monthly.length)h+='<div style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Belum ada data</div>';
   else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
     '<tr style="color:var(--ink2);text-align:left"><th style="padding:.3rem .4rem">Bulan</th><th style="text-align:right">Rehidrasi KG</th><th style="text-align:right">Basah KG</th><th style="text-align:right">Hasil %</th><th style="text-align:right">Produksi KG</th><th style="text-align:right">Susut KG</th></tr>'+
@@ -5392,7 +5457,7 @@ function sjaLaporanHTML(){
   var months=[];
   SJA.monthly.forEach(function(m){if(months.indexOf(m.bulan)<0)months.push(m.bulan);});
   if(!months.length)return'<div class="card"><div class="card-title">📈 Laporan Bulanan</div><div style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Belum ada data</div></div>';
-  return'<div class="card"><div class="card-title">📈 Laporan Bulanan</div>'+
+  return'<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center">📈 Laporan Bulanan<button class="btn btn-s" style="padding:.3rem .6rem;font-size:.78rem" onclick="printLaporan(\'SJA\')">🖨 Cetak</button></div>'+
     '<div class="ig"><label>Bulan</label><select id="rp-month" onchange="sjaRptFill()">'+months.map(function(m,i){return'<option value="'+esc(m)+'"'+(i===0?' selected':'')+'>'+esc(m)+'</option>';}).join('')+'</select></div>'+
     '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
     '<tr style="color:var(--ink2);text-align:left"><th style="padding:.3rem .4rem">Produk</th><th style="text-align:right">Produksi</th><th style="text-align:right">Kirim</th></tr>'+
@@ -5504,8 +5569,10 @@ async function dinSaveDelivery(){
 }
 async function dinDel(table,id){
   if(!confirm('Hapus data ini?'))return;
+  var snap=(DIN[dinPartsFor(table)[0]]||[]).find(function(x){return String(x.id)===String(id);})||null;
   var r=await sb.from(table).delete().eq('id',id);
   if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
+  auditLog('delete',table,id,snap?((snap.date||'')+' '+(snap.product_code||snap.code||'')).trim():'',snap);
   toast('✓ Terhapus');
   ANA.loadedFor=0;
   dinRefresh(dinPartsFor(table),function(){if(ACTIVE_TAB==='shipment')renderShipment();else dinBody();});
@@ -5674,8 +5741,10 @@ async function sjaSaveDelivery(){
 }
 async function sjaDel(table,id){
   if(!confirm('Hapus data ini?'))return;
+  var snap=(SJA[sjaPartsFor(table)[0]]||[]).find(function(x){return String(x.id)===String(id);})||null;
   var r=await sb.from(table).delete().eq('id',id);
   if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
+  auditLog('delete',table,id,snap?((snap.date||'')+' '+(snap.product_code||snap.code||'')).trim():'',snap);
   toast('✓ Terhapus');
   ANA.loadedFor=0;
   sjaRefresh(sjaPartsFor(table),function(){if(ACTIVE_TAB==='shipment')renderShipment();else sjaBody();});
