@@ -800,7 +800,7 @@ var IS_ADMIN=false; // bisa kelola barang (tambah/edit/hapus) — admin gudang &
 var IS_SUPER=false; // super admin (PIN master): 全部權限
 var IS_OFFICE=false; // admin office：可管人員權限＋填產品，但看不到出貨/分析，不能設別人為 admin
 var OFFICE_VIEW_DELIVERY=false; // super 臨時開放 office 看出貨數據的旗標（存 app_config）
-var ALERT_CFG={mode:'daily',scope:'zero'}; // 低庫存彈窗設定（後台可改）mode: daily=每天一次 / always=每次 / off=關閉; scope: zero=只有歸零 / low=低於最低
+var ALERT_CFG={mode:'daily',scope:'zero',days:1,snooze:''}; // 低庫存彈窗設定（後台可改）mode: daily=隔 days 天一次 / always=每次 / off=關閉; scope: zero=只有歸零 / low=低於最低; days=間隔天數; snooze=此日期前不提醒
 var PIN_ENT='';
 var EDIT_ITEM=null;
 var LOW_ITEM=null;
@@ -1108,8 +1108,8 @@ async function loadAll(afterCb,fromCache){
     OFFICE_VIEW_DELIVERY=!!(ovdRow&&ovdRow.value==='1');
     // 低庫存彈窗設定：JSON 存在 app_config.alert_config，解析失敗時用預設值
     var acRow=cfgRows.find(function(r2){return r2.key==='alert_config';});
-    ALERT_CFG={mode:'daily',scope:'zero'};
-    if(acRow&&acRow.value){try{var ac=JSON.parse(acRow.value);if(ac&&typeof ac==='object'){if(ac.mode)ALERT_CFG.mode=ac.mode;if(ac.scope)ALERT_CFG.scope=ac.scope;}}catch(e2){}}
+    ALERT_CFG={mode:'daily',scope:'zero',days:1,snooze:''};
+    if(acRow&&acRow.value){try{var ac=JSON.parse(acRow.value);if(ac&&typeof ac==='object'){if(ac.mode)ALERT_CFG.mode=ac.mode;if(ac.scope)ALERT_CFG.scope=ac.scope;if(ac.days)ALERT_CFG.days=Math.min(30,Math.max(1,parseInt(ac.days,10)||1));if(ac.snooze)ALERT_CFG.snooze=ac.snooze;}}catch(e2){}}
     // categories 表若尚未建立(migration 前)，cg.error 會有值，容錯成空陣列
     DATA.categories=(cg&&!cg.error&&cg.data)?cg.data.map(function(c){return c.name;}):[];
     if(iv.error)throw iv.error;
@@ -2847,22 +2847,29 @@ function alertCfgHTML(){
   return '<div class="card">'+
     '<div class="card-title">🔔 Peringatan Stok Rendah</div>'+
     '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.7rem">Pengaturan popup peringatan stok saat buka aplikasi. Berlaku untuk semua perangkat.</div>'+
-    '<div class="ig"><label>Frekuensi popup</label><select id="acfg-mode" style="'+selStyle+'">'+
-      opt('daily','1× sehari (disarankan)',ALERT_CFG.mode)+
+    '<div class="ig"><label>Frekuensi popup</label><select id="acfg-mode" style="'+selStyle+'" onchange="var d=document.getElementById(\'acfg-days-row\');if(d)d.style.display=this.value===\'daily\'?\'\':\'none\'">'+
+      opt('daily','Tiap beberapa hari (atur di bawah)',ALERT_CFG.mode)+
       opt('always','Setiap kali muat data',ALERT_CFG.mode)+
       opt('off','Mati (hanya angka di Home)',ALERT_CFG.mode)+
     '</select></div>'+
+    '<div class="ig" id="acfg-days-row"'+(ALERT_CFG.mode==='daily'?'':' style="display:none"')+'><label>Setiap berapa hari? (1 = tiap hari)</label>'+
+      '<input type="number" id="acfg-days" min="1" max="30" value="'+(parseInt(ALERT_CFG.days,10)||1)+'" style="'+selStyle+'"></div>'+
     '<div class="ig"><label>Barang yang diperingatkan</label><select id="acfg-scope" style="'+selStyle+'">'+
       opt('zero','Hanya stok habis (0)',ALERT_CFG.scope)+
       opt('low','Semua stok ≤ minimum',ALERT_CFG.scope)+
     '</select></div>'+
+    '<div class="ig"><label>🔇 Tunda sampai tanggal (opsional)</label>'+
+      '<input type="date" id="acfg-snooze" value="'+esc(ALERT_CFG.snooze||'')+'" style="'+selStyle+'">'+
+      '<div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">Tidak ada popup sebelum tanggal ini, lalu aktif lagi otomatis. Kosongkan = tidak ditunda.</div></div>'+
     '<button class="btn btn-p" onclick="saveAlertCfg()" style="width:100%">💾 Simpan</button>'+
   '</div>';
 }
 async function saveAlertCfg(){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var m=document.getElementById('acfg-mode'),s=document.getElementById('acfg-scope');
-  var cfg={mode:(m?m.value:'daily'),scope:(s?s.value:'zero')};
+  var d=document.getElementById('acfg-days'),z=document.getElementById('acfg-snooze');
+  var days=Math.min(30,Math.max(1,parseInt(d&&d.value,10)||1));
+  var cfg={mode:(m?m.value:'daily'),scope:(s?s.value:'zero'),days:days,snooze:(z&&z.value)||''};
   try{
     await managePeople('set_config',{key:'alert_config',value:JSON.stringify(cfg)});
     ALERT_CFG=cfg;
@@ -3909,6 +3916,8 @@ async function confirmApproveReqBuy(id){
 // LOW STOCK — 依 ALERT_CFG 決定要不要彈窗（off=不彈 / daily=每天一次 / always=每次）
 function checkLowStock(){
   if(ALERT_CFG.mode==='off')return;
+  // 暫停日期：該日期(不含)之前都安靜，到期自動恢復，不用再回來改設定
+  if(ALERT_CFG.snooze&&today()<ALERT_CFG.snooze)return;
   var pool=DATA.items.filter(function(i){
     if(!(i.critical_qty>0))return false;
     if(i.remark&&i.remark.includes('#noalert'))return false;
@@ -3916,10 +3925,12 @@ function checkLowStock(){
   });
   if(!pool.length)return;
   if(ALERT_CFG.mode!=='always'){
-    var k='lowseen_'+CURRENT_WAREHOUSE+'_'+today();
+    var gap=Math.max(1,parseInt(ALERT_CFG.days,10)||1);
+    var k='lowlast_'+CURRENT_WAREHOUSE;
     try{
-      if(localStorage.getItem(k))return;
-      localStorage.setItem(k,'1');
+      var last=localStorage.getItem(k);
+      if(last&&(new Date(today())-new Date(last))/86400000<gap)return;
+      localStorage.setItem(k,today());
     }catch(e){}
   }
   showLow(pool[0],1);
