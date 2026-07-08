@@ -24,3 +24,4 @@
 | `MIGRATION_QC_SYSTEM.sql` | QC / HACCP 系統資料表（可編輯範本、檢驗紀錄、CCP 監控） | ✅ 已執行（正式庫） |
 | `MIGRATION_QC_SJA.sql` | SJA 的 QC 檢驗範本種子資料（前置：MIGRATION_QC_SYSTEM.sql） | ✅ 已執行（正式庫） |
 | `MIGRATION_AUDIT_LOG.sql` | audit_log 刪改留痕表（只給 INSERT/SELECT，稽核不可竄改） | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（Arsip 稽核記錄功能依賴它） |
+| `MIGRATION_FAMMS_CALLBACK.sql` | requests 表加 source/source_ref/linked_batch_id，供 Gudang One → FAMMS 叫料狀態/qc_result 回饋用 | 🆕 2026-07 新增 — 需執行；另需部署 `famms-request-status` + 重新部署 `qc-status`，並設定 `FAMMS_CALLBACK_URL`/`FAMMS_CALLBACK_SECRET`（見 `docs/PLAN_3SYSTEM_INTEGRATION.md` §6.1） |

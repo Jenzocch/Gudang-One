@@ -2,6 +2,8 @@
 // FQMS（品管系統）→ Gudang One 的 QC 狀態回寫入口。
 // QC 判定後回寫 item_batches.qc_status（Pending/Pass/Hold/Fail）：
 // 前端批次徽章立即變色；Hold/Fail 推 Telegram 警告倉庫「不得領用」；寫 audit_log 留痕。
+// 若該批貨連過某筆 FAMMS 叫料（requests.linked_batch_id），也 best-effort 把
+// qc_result 回饋給 FAMMS（見 _shared/famms-notify.ts；多數叫料沒連批次，屬正常情況）。
 //
 // 部署：
 //   supabase secrets set QC_WEBHOOK_SECRET="一段長隨機字串"   （與 qc-lookup 共用同一把）
@@ -14,6 +16,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyFamms } from "../_shared/famms-notify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -131,6 +134,29 @@ serve(async (req) => {
         }
       } catch (_e) { /* 通知失敗不擋回寫 */ }
     }
+
+    // 若這批貨是某筆 FAMMS 叫料的到貨批次（requests.linked_batch_id 有連過）→
+    // 把 QC 結果也回饋給 FAMMS（best-effort；多數叫料是備品，本來就沒連過批次，
+    // 這裡查不到東西是正常情況，不是錯誤）
+    try {
+      const linked = await admin
+        .from("requests")
+        .select("id, source_ref")
+        .eq("linked_batch_id", b.id)
+        .eq("source", "famms");
+      for (const r of linked.data ?? []) {
+        const ref = (r.source_ref ?? {}) as Record<string, unknown>;
+        await notifyFamms({
+          event: "qc_result",
+          request_id: r.id,
+          work_order: ref.work_order ?? null,
+          machine_id: ref.machine_id ?? null,
+          batch_lot_no: b.lot_no,
+          qc_status: qcStatus,
+          inspection_no: inspectionNo,
+        });
+      }
+    } catch (_e) { /* best-effort */ }
 
     return json({ ok: true, batch_id: b.id, lot_no: b.lot_no, qc_status: qcStatus });
   } catch (e) {

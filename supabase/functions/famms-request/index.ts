@@ -101,6 +101,9 @@ serve(async (req) => {
       note: noteParts.join("\n"),
       status: "pending",
       warehouse_id: warehouse,
+      // source/source_ref：讓 famms-request-status / qc-status 知道這筆申請該不該回饋給 FAMMS
+      source: "famms",
+      source_ref: { work_order: workOrder, machine_id: machineId, machine_name: machineName, requester },
     }).select("id").single();
     if (ins.error) return json({ ok: false, error: ins.error.message }, 500);
 

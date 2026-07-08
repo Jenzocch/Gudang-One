@@ -44,9 +44,10 @@ Gudang One 是為四個倉庫（gudang）打造的一站式管理系統，涵蓋
 | `verify-staff` | 驗證員工 4 位數 PIN，回傳員工資料（不含 pin），前端不再下載整張 people 表 |
 | `manage-people` | people 表新增 / 修改 / 刪除的唯一入口（service_role + admin PIN 授權，防前端提權） |
 | `notify-telegram` | Telegram 推播代理：Bot Token 留在後端，前端只送訊息文字 |
-| `famms-request` | 接收 FAMMS 維修系統叫料的 webhook：驗共享密鑰 → 寫入 requests（出現在 Permintaan 分頁）→ 推 Telegram |
+| `famms-request` | 接收 FAMMS 維修系統叫料的 webhook：驗共享密鑰 → 寫入 requests（出現在 Permintaan 分頁，標記 source=famms）→ 推 Telegram |
+| `famms-request-status` | 叫料單狀態回寫給 FAMMS（線①的反向）：Gudang One 核准/駁回後 best-effort 通知 FAMMS |
 | `qc-lookup` | FQMS 品管系統的批號查詢入口（唯讀）：查單一批號或某倉最近批次 |
-| `qc-status` | FQMS 品管系統的 QC 狀態回寫：更新 `item_batches.qc_status`，Hold/Fail 推 Telegram 警告並寫 audit_log |
+| `qc-status` | FQMS 品管系統的 QC 狀態回寫：更新 `item_batches.qc_status`，Hold/Fail 推 Telegram 警告並寫 audit_log；若該批連過 FAMMS 叫料，一併回饋 qc_result 給 FAMMS |
 
 ## 資料夾結構
 
@@ -62,7 +63,7 @@ apps-script/        Google Apps Script 備份通道原始碼（見 apps-script/R
 ## 外部整合
 
 - **Telegram 通知**：低庫存、叫貨、QC 不合格等事件經 `notify-telegram` 推播到倉庫群組。
-- **FAMMS 叫料串接**：FAMMS（設備維修系統）工單需要零件時，POST 到 `famms-request` 自動建立叫貨申請（串接細節見 FAMMS 端的 GUDANG_INTEGRATION 文件）。
+- **FAMMS 叫料串接**：FAMMS（設備維修系統）工單需要零件時，POST 到 `famms-request` 自動建立叫貨申請；Gudang One 核准/駁回後經 `famms-request-status` 回饋狀態給 FAMMS（串接細節見 `docs/PLAN_3SYSTEM_INTEGRATION.md`）。
 - **FQMS 品管串接**：FQMS 經 `qc-lookup` 帶入批號、經 `qc-status` 回寫檢驗結果。
 - **Google Sheet 備份（舊通道）**：admin 面板的「📊 Backup ke Google Sheet」按鈕仍在使用。Apps Script 原始碼在 `apps-script/`，實際執行在 Google 端（各倉庫的 webhook URL 寫在 `index.html` 的 `GS_WEBHOOKS`）。
 
