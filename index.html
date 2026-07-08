@@ -589,6 +589,7 @@ function applyNavLang(){
   var b=document.getElementById('hdr-lang-btn');if(b)b.textContent=LANG==='zh'?'ID':'中';
 }
 function toggleLang(){
+  if(hasUnsavedWork()&&!confirm('Ada perubahan belum disimpan (keranjang/opname). Tetap ganti bahasa?'))return;
   LANG=LANG==='zh'?'id':'zh';
   try{localStorage.setItem('lang',LANG);}catch(e){}
   applyNavLang();
@@ -3868,13 +3869,17 @@ async function saveWarehouses(id){
   try{await managePeople('update',{id:id,patch:{warehouses:whs}});toast('✓ Disimpan');closeModal();await loadAll();}
   catch(e){toast('⚠ '+friendlyErr(e));}
 }
+// 共用「目前有沒有還沒存的東西」判斷：換語言/換倉庫這類會整頁重繪的動作前用來決定要不要 confirm
+function hasUnsavedWork(){
+  return !!(Object.keys(CART).length||Object.keys(CART_M).length||Object.keys(STOCKTAKE).length);
+}
 function switchWarehouse(wid){
   if(wid===CURRENT_WAREHOUSE)return; // 已在該倉庫，免重載
-  // 防呆：購物車(Ambil/Masuk)還有未送出的內容時，先確認再切
-  if(Object.keys(CART).length||Object.keys(CART_M).length){
-    if(!confirm('Keranjang belum disimpan akan hilang.\nPindah gudang?'))return;
+  // 防呆：購物車(Ambil/Masuk)或盤點(Opname)還有未送出的內容時，先確認再切
+  if(hasUnsavedWork()){
+    if(!confirm('Ada perubahan belum disimpan (keranjang/opname) akan hilang.\nPindah gudang?'))return;
   }
-  CART={};CART_M={};
+  CART={};CART_M={};STOCKTAKE={};
   CURRENT_WAREHOUSE=wid;
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
   updateWhChips();
