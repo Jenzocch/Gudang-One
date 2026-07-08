@@ -1,8 +1,82 @@
 # 三系統串接計劃書 — Gudang One × FAMMS × FQMS
-**版本:** 1.0
-**日期:** 2026-07-07
+**版本:** 2.0
+**日期:** 2026-07-08（v2 補：完整四線拓撲＋現況盤點）
 **原則:** 資料連動即可、不共庫、不同步、系統不變重
-**給誰看:** 接手 FQMS 開發的 AI（照第五章動工）＋ Gudang One session（照第四章動工）
+**給誰看:** 接手 FQMS 開發的 AI（照第五章動工）＋ Gudang One session（照第四章動工）＋ FAMMS setup session（照 §0.3 收尾）
+
+---
+
+# 〇、v2 現況盤點 ★先讀這段
+
+四條線的完整拓撲（使用者 2026-07-08 定案）：
+
+```
+FAMMS ──① 叫料推送──────→ Gudang One ←──② QC狀態回寫── FQMS
+  ↑                          │
+  └──③ 叫料單狀態/qc_result 回寫┘
+FQMS ──④ 查 machine-status（唯讀，只看機器能不能跑）──→ FAMMS
+```
+
+## 0.1 四線現況（重要：多數已建好，只是散在不同分支）
+
+| 線 | 方向與目的 | 接收端程式碼 | 密鑰（header/env） | 狀態 |
+|---|---|---|---|---|
+| **①** 叫料推送 | FAMMS→Gudang，缺料開單 | Gudang `famms-request` | `x-famms-secret` / `FAMMS_WEBHOOK_SECRET`⇄`GUDANG_WEBHOOK_SECRET` | ✅ **main + 已部署 + 已通** |
+| **②** QC狀態回寫 | FQMS→Gudang，批次變 Hold/Pass | Gudang `qc-lookup`+`qc-status` | `x-qc-secret` / `QC_WEBHOOK_SECRET`⇄`GUDANG_QC_SECRET` | Gudang✅main+部署；FQMS端待做 |
+| **③** 叫料單/qc_result 回寫 | Gudang→FAMMS，回報到貨與QC結果 | FAMMS `POST /api/external/parts-requests` | `Bearer` / `GUDANG_SYNC_SECRET` | ⚠️ **接收端已建，在 FAMMS PR#5 未合併分支**；Gudang觸發端未建 |
+| **④** machine-status | FQMS→FAMMS，查機器能不能跑 | FAMMS `GET /api/external/machine-status` | `Bearer` / `QC_API_SECRET` | ⚠️ **接收端已建，在 FAMMS PR#5 未合併分支**；FQMS呼叫端未建 |
+
+**關鍵事實**：③④ 的 FAMMS 接收端**早就寫好了**，是 `claude/famms-setup-oyy62h`（PR #5）這個 session 做的，跟本計劃書設計幾乎一致。它們現在卡在那個**尚未合併進 main 的大分支**上。
+
+## 0.2 ③④ 接收端的實際契約（給 FQMS / Gudang 觸發端對接用）
+
+**④ machine-status（FQMS 呼叫）**
+```
+GET /api/external/machine-status?factory_code=DIN&machine_code=HMG-001
+headers: { Authorization: "Bearer <QC_API_SECRET>" }
+回應: { machine_code, machine_name, factory_code, status,
+        maintenance_ok, pm_overdue_count, last_pm_completed_at,
+        health_score, open_incident_count }
+錯誤: 401 密鑰 / 400 缺參數 / 404 找不到廠或機台
+```
+
+**③ parts-requests 寫回（Gudang 觸發端呼叫）**
+```
+POST /api/external/parts-requests
+headers: { Authorization: "Bearer <GUDANG_SYNC_SECRET>" }
+body: { request_id,                      ← FAMMS 端 parts_requests 那筆的 id（非 Gudang 的）
+        status?: 'ordered'|'received'|'rejected',
+        qc_result?: 'passed'|'failed'|null,
+        external_ref? }                  ← 存 Gudang 自己的 request id
+回應: { ok:true, request:{...} }  錯誤: 401 / 400 / 404
+```
+
+## 0.3 唯一的真正待辦：PR #5 收斂（歸 FAMMS setup session）
+
+③④ 要真正生效，`claude/famms-setup-oyy62h`（PR #5）必須合併進 main。但那個分支同時帶著 `parts_requests` 表 ＋ **手動輸入面板**（`/api/parts-requests`），這面板跟已在 main 的 `GudangRequest`（線①送出）**功能重疊**，就是先前造成 401／schema 混亂的根源。
+
+**收斂原則（建議給 FAMMS setup session）：**
+1. **送出路徑以 main 的 `GudangRequest` 為準** — 它真的會送到 Gudang。刪掉重複的手動輸入面板 `PartsRequestPanel` 與 `POST /api/parts-requests`。
+2. **保留 `parts_requests` 表當「本地追蹤記錄」** — 但改由 `GudangRequest` 送出成功後寫入一筆（存 Gudang 回傳的 `request_id`＋incident_id＋摘要＋status），不是手動建。
+3. **保留 `external/parts-requests` 寫回接收端**（線③）與 `external/machine-status`（線④）。
+4. 其餘 PR#5 好料（月報、SLA cron、知識庫、PM checklist）照常合併。
+
+## 0.4 Gudang 端剩餘工作（線③ 觸發端，歸 Gudang session）
+
+線③ 要閉合，Gudang 這邊要在「FAMMS 來的叫料單狀態變動時」回呼 FAMMS：
+1. `famms-request` 寫 `requests` 時多存兩欄：`source='famms'`、`external_ref`=FAMMS parts_requests 的 id（需 FAMMS 送叫料時把它的 id 一起帶過來 → 線①payload 加一欄 `famms_request_id`）。
+2. index.html 的 `updReq`／`approveReqBuy` 狀態變動時，若 `source='famms'` → 呼叫新的 Gudang Edge Function（伺服器端持 `GUDANG_SYNC_SECRET`）→ POST FAMMS `external/parts-requests`。
+3. qc_result：FQMS 呼 `qc-status` 讓批次變 Pass/Fail 時，若該批綁著 FAMMS 叫料單，一併回呼 FAMMS 帶 `qc_result`。
+> 這段會動到 index.html 大檔＋新增一個 migration（requests 加兩欄）＋新 Edge Function，屬 P2，等 PR#5 收斂後再做。
+
+## 0.5 四把密鑰總表（別搞混）
+
+| 通道 | 方向 | header | Gudang 端 secret | 對方端 secret |
+|---|---|---|---|---|
+| ① 叫料 | FAMMS→Gudang | `x-famms-secret` | `FAMMS_WEBHOOK_SECRET` | FAMMS `GUDANG_WEBHOOK_SECRET` |
+| ② QC | FQMS→Gudang | `x-qc-secret` | `QC_WEBHOOK_SECRET` | FQMS `GUDANG_QC_SECRET` |
+| ③ 寫回 | Gudang→FAMMS | `Bearer` | （Gudang 觸發端持）FAMMS的 | FAMMS `GUDANG_SYNC_SECRET` |
+| ④ 機況 | FQMS→FAMMS | `Bearer` | — | FAMMS `QC_API_SECRET`（FQMS 也持同串） |
 
 ---
 
