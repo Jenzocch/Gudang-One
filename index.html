@@ -1126,6 +1126,36 @@ function tryRenderFromCache(wid,jump){
 }
 
 var DATA_READY=false; // 首次資料載入完成前，renderHome 顯示載入態而非白屏
+// 從 DATA.people 同步「目前登入者」最新權限（super/office 剛改完開關即時生效）。
+// loadAll 與 refreshPeople 共用，避免權限同步邏輯重複兩份。
+function syncMyPerms(){
+  if(!CURRENT_USER||IS_SUPER||CURRENT_USER.id==null)return;
+  var me=DATA.people.find(function(x){return x.id==CURRENT_USER.id;});
+  if(!me)return;
+  CURRENT_USER.can_ambil=me.can_ambil;
+  CURRENT_USER.can_masuk=me.can_masuk;
+  CURRENT_USER.can_view_pricing=me.can_view_pricing;
+  CURRENT_USER.is_admin=!!me.is_admin;
+  CURRENT_USER.perms=me.perms||null;
+  if(me.warehouses)CURRENT_USER.warehouses=me.warehouses;
+  IS_ADMIN=!!me.is_admin;
+  try{
+    var ss=JSON.parse(localStorage.getItem('staff_sess')||'null');
+    if(ss){ss.can_ambil=me.can_ambil;ss.can_masuk=me.can_masuk;ss.can_view_pricing=me.can_view_pricing;ss.is_admin=!!me.is_admin;ss.perms=me.perms||null;if(me.warehouses)ss.warehouses=me.warehouses;localStorage.setItem('staff_sess',JSON.stringify(ss));}
+  }catch(e){}
+}
+// 輕量刷新：只重抓 people 表並就地更新員工清單。不動庫存/請求/設定，也不砍
+// 掉 #mc（admin 每次改權限/改名/PIN 後畫面不再亂跳、不再等一輪全站網路）。
+// 欄位缺失（migration 未跑）才退回完整 loadAll，沿用其容錯路徑。
+async function refreshPeople(){
+  var p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk,perms').order('name');
+  if(p.error){await loadAll();return;}
+  DATA.people=p.data||[];
+  try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
+  syncMyPerms();
+  var pe=document.getElementById('pe-list');
+  if(pe)pe.innerHTML=peListHTML();
+}
 async function loadAll(afterCb,fromCache){
   setDot('');
   var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Koneksi timeout (20s), coba lagi'));},20000);});
@@ -1194,23 +1224,8 @@ async function loadAll(afterCb,fromCache){
     }
     DATA.people=(p&&p.data)||[];
     // 同步「目前登入者」的最新權限：super admin 剛切了 📤/📥/💰/👑 開關，
-    // 員工這邊下一次 loadAll（切倉/重整/交易後）就生效，不用登出重登
-    if(CURRENT_USER&&!IS_SUPER&&CURRENT_USER.id!=null){
-      var me=DATA.people.find(function(x){return x.id==CURRENT_USER.id;});
-      if(me){
-        CURRENT_USER.can_ambil=me.can_ambil;
-        CURRENT_USER.can_masuk=me.can_masuk;
-        CURRENT_USER.can_view_pricing=me.can_view_pricing;
-        CURRENT_USER.is_admin=!!me.is_admin;
-        CURRENT_USER.perms=me.perms||null;
-        if(me.warehouses)CURRENT_USER.warehouses=me.warehouses;
-        IS_ADMIN=!!me.is_admin;
-        try{
-          var ss=JSON.parse(localStorage.getItem('staff_sess')||'null');
-          if(ss){ss.can_ambil=me.can_ambil;ss.can_masuk=me.can_masuk;ss.can_view_pricing=me.can_view_pricing;ss.is_admin=!!me.is_admin;ss.perms=me.perms||null;if(me.warehouses)ss.warehouses=me.warehouses;localStorage.setItem('staff_sess',JSON.stringify(ss));}
-        }catch(e){}
-      }
-    }
+    // 員工這邊下一次載入（切倉/重整/交易後）就生效，不用登出重登
+    syncMyPerms();
     DATA.requests=r.data||[];
     DATA.batches=bt?bt.data||[]:[];
     DATA.transactions=[];TX_LOADED=false;
@@ -1278,9 +1293,17 @@ function renderAll(){
   if(!IS_ADMIN&&(ACTIVE_TAB==='riwayat'||ACTIVE_TAB==='admin'))ACTIVE_TAB='home';
   if(!IS_SUPER&&ACTIVE_TAB==='analisa')ACTIVE_TAB='home';
   if(!IS_ADMIN&&ACTIVE_TAB==='qc')ACTIVE_TAB='home';
-  document.getElementById('mc').innerHTML=SEC_IDS.map(function(s){
-    return '<div id="'+s+'" class="sec'+(s===ACTIVE_TAB?' active':'')+'"></div>';
-  }).join('');
+  // 分頁骨架只在第一次建立。存檔/編輯/切倉後重繪時，若骨架已存在就「不砍 #mc」——
+  // 只切換目前分頁的 active，再重繪目前分頁即可（下方）。之前每次都 innerHTML 整片重蓋，
+  // 11 個 section 全毀重建 → 新增/編輯時畫面亂跳、切分頁還得從零重繪的主因。
+  var mc=document.getElementById('mc');
+  if(!mc.querySelector('.sec')){
+    mc.innerHTML=SEC_IDS.map(function(s){
+      return '<div id="'+s+'" class="sec'+(s===ACTIVE_TAB?' active':'')+'"></div>';
+    }).join('');
+  }else{
+    SEC_IDS.forEach(function(s){var el=document.getElementById(s);if(el)el.classList.toggle('active',s===ACTIVE_TAB);});
+  }
   // 高亮改用 data-tab 對應（不再依賴按鈕順序）；身在 Lainnya 子頁時高亮 Lainnya
   document.querySelectorAll('.tb').forEach(function(b){
     var dt=b.getAttribute('data-tab');
@@ -3032,7 +3055,7 @@ function showEditPersonName(id){
 async function savePersonName(id){
   var nm=(document.getElementById('pen').value||'').trim();
   if(!nm){toast('⚠ '+('Nama harus diisi'));return;}
-  try{await managePeople('update',{id:id,patch:{name:nm}});toast('✓ '+('Disimpan'));closeModal();await loadAll();}
+  try{await managePeople('update',{id:id,patch:{name:nm}});toast('✓ '+('Disimpan'));closeModal();await refreshPeople();}
   catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function toggleAdmin(id){
@@ -3040,7 +3063,7 @@ async function toggleAdmin(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var nv=!p.is_admin;
   if(!confirm(nv?('Jadikan "'+p.name+'" Admin Gudang?\nDia bisa tambah/edit/hapus barang.'):('Cabut akses Admin dari "'+p.name+'"?')))return;
-  try{await managePeople('update',{id:id,patch:{is_admin:nv}});toast(nv?'✓ '+p.name+' 👑 Admin':'✓ Admin dicabut');await loadAll();}
+  try{await managePeople('update',{id:id,patch:{is_admin:nv}});toast(nv?'✓ '+p.name+' 👑 Admin':'✓ Admin dicabut');await refreshPeople();}
   catch(e){
     if(/is_admin/i.test(e.message||''))toast('⚠ Kolom is_admin belum ada di DB. Jalankan SQL dulu.');
     else toast('⚠ '+friendlyErr(e));
@@ -3052,7 +3075,7 @@ async function togglePricing(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var nv=!p.can_view_pricing;
   if(!confirm(nv?('Izinkan "'+p.name+'" lihat harga HARDWARE?'):('Matikan "'+p.name+'" lihat harga HARDWARE?')))return;
-  try{await managePeople('update',{id:id,patch:{can_view_pricing:nv}});toast(nv?'✓ '+p.name+' 💰 boleh lihat harga':'✓ Akses harga dimatikan');await loadAll();}
+  try{await managePeople('update',{id:id,patch:{can_view_pricing:nv}});toast(nv?'✓ '+p.name+' 💰 boleh lihat harga':'✓ Akses harga dimatikan');await refreshPeople();}
   catch(e){
     if(/can_view_pricing/i.test(e.message||''))toast('⚠ Tambah kolom can_view_pricing di Supabase: ALTER TABLE people ADD COLUMN can_view_pricing BOOLEAN DEFAULT FALSE;');
     else toast('⚠ '+friendlyErr(e));
@@ -3465,7 +3488,7 @@ function showSetPin(id){
 async function savePin(id){
   var pin=String(document.getElementById('sp-pin').value||'').trim();
   if(!/^\d{4}$/.test(pin)){toast('⚠ Masukkan 4 digit');return;}
-  try{await managePeople('update',{id:id,patch:{pin:pin}});toast(t('saveOk'));closeModal();await loadAll();}
+  try{await managePeople('update',{id:id,patch:{pin:pin}});toast(t('saveOk'));closeModal();await refreshPeople();}
   catch(e){toast('⚠ '+friendlyErr(e));}
 }
 
@@ -3793,7 +3816,9 @@ async function saveTxEdit(id){
     if(upd.error)throw upd.error;
     var editEntry={transaction_id:id,edited_by:CURRENT_USER?CURRENT_USER.name:'Admin',old_values:oldVals,new_values:newVals,edited_at:new Date().toISOString()};
     try{await sb.from('transaction_edits').insert(editEntry);}catch(e){}
-    toast(t('saveOk'));closeModal();await loadAll();
+    // 交易編輯只動 transactions 表（不連動庫存），loadAll 甚至不載入交易 → 白等一輪
+    // 全站網路又砍掉 #mc。只把 Riwayat 分頁重抓重繪即可。
+    toast(t('saveOk'));closeModal();TX_LOADED=false;renderRiwayat();
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function confirmDeleteTx(id,itemName){
@@ -3817,7 +3842,7 @@ async function deleteTx(id){
     if(del.error)throw del.error;
     toast('✓ Riwayat transaksi dihapus');
     closeModal();
-    await loadAll();
+    TX_LOADED=false;renderRiwayat(); // 只重抓+重繪 Riwayat，不砍 #mc、不白等全站 loadAll
   }catch(e){
     toast('⚠ Gagal hapus: '+friendlyErr(e));
   }
@@ -3859,7 +3884,7 @@ async function addPerson(){
     var row={name:name,pin:'1234',warehouses:whs,is_admin:isAdm};
     await managePeople('insert',{row:row});
     toast('✓ '+name+' (PIN:1234)'+(isAdm?' 👑':''));
-    document.getElementById('npn').value='';WAREHOUSES.forEach(function(w){var el=document.getElementById('np-wh-'+w);if(el)el.checked=false;});var ad=document.getElementById('np-admin');if(ad)ad.checked=false;await loadAll();
+    document.getElementById('npn').value='';WAREHOUSES.forEach(function(w){var el=document.getElementById('np-wh-'+w);if(el)el.checked=false;});var ad=document.getElementById('np-admin');if(ad)ad.checked=false;await refreshPeople();
   }
   catch(e){toast('⚠ '+friendlyErr(e));}
 }
@@ -3875,7 +3900,7 @@ function showSetWarehouses(id){
 }
 async function saveWarehouses(id){
   var whs=WAREHOUSES.filter(function(w){var el=document.getElementById('pw-'+w);return el&&el.checked;});
-  try{await managePeople('update',{id:id,patch:{warehouses:whs}});toast('✓ Disimpan');closeModal();await loadAll();}
+  try{await managePeople('update',{id:id,patch:{warehouses:whs}});toast('✓ Disimpan');closeModal();await refreshPeople();}
   catch(e){toast('⚠ '+friendlyErr(e));}
 }
 // 共用「目前有沒有還沒存的東西」判斷：換語言/換倉庫這類會整頁重繪的動作前用來決定要不要 confirm
@@ -3945,7 +3970,7 @@ async function delPerson(id){
   try{
     await managePeople('delete',{id:id});
     toast(t('delOk'));
-    await loadAll();
+    await refreshPeople();
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function logoutAdmin(){
