@@ -125,7 +125,7 @@ textarea{resize:vertical;min-height:75px}
 .btn-full{width:100%;margin-top:.7rem}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .qc{display:flex;gap:.4rem;align-items:center;background:var(--light);border-radius:10px;padding:.35rem;border:1px solid var(--border)}
-.qb{width:36px;height:36px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-size:1.15rem;font-weight:700;box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center}
+.qb{width:40px;height:40px;flex-shrink:0;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-size:1.15rem;font-weight:700;box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center}
 .qi{flex:1;text-align:center;font-size:1.1rem;font-weight:700;border:none;background:transparent}
 .sr{display:flex;justify-content:space-between;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--border)}
 .sr:last-child{border:none}
@@ -252,7 +252,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .amb-th{width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in}
 .amb-th-ph{width:60px;height:60px;border-radius:8px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
 .img-ov{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out}
-.amb-name{font-weight:600;font-size:.97rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amb-name{font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .amb-stk{font-size:.82rem;color:var(--ink2);margin-top:.1rem}
 .amb-stk.low{color:var(--danger);font-weight:600}
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
@@ -356,6 +356,11 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   body.print-ana .card,body.print-ana .ana-kpi{box-shadow:none;break-inside:avoid}
   body.print-ana .ana-hbar-fill,body.print-ana .ana-col-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+/* ── UX P1：全域觸控目標加大（追加覆蓋，不改上面既有規則）。
+   戴手套/老花作業員 44px 最小觸控目標；.pk PIN 鍵盤與 .tb 分頁列刻意不動。
+   checkbox/radio 排除：多處 16-18px 勾選框被 min-height 撐開會壞版。 */
+.btn{min-height:44px}
+input:not([type=checkbox]):not([type=radio]),select,textarea{min-height:44px}
 </style>
 </head>
 <body>
@@ -1673,12 +1678,21 @@ function matchesSearch(i,q){
   if(i.description&&i.description.toLowerCase().includes(q))return true;
   return false;
 }
+// UX P1：口語化庫存行（領料/入庫列共用）。
+// Habis＝沒了（紅）；低於 critical_qty＝紅字＋hampir habis；其餘綠字。操作表單維持印尼文（見 Z() 註解），故不包 Z()。
+function stokLineHTML(i){
+  if(i.qty<=0)return'<div style="font-size:.85rem;margin-top:.15rem;color:#C22323;font-weight:800">Habis</div>';
+  var low=i.critical_qty>0&&i.qty<=i.critical_qty;
+  var col=low?'#C22323':'#0B7A55';
+  return'<div style="font-size:.85rem;color:var(--ink2);margin-top:.15rem">Sisa <b style="color:'+col+'">'+i.qty+'</b> '+esc(i.unit)+
+    (low?'<span style="color:#C22323;font-weight:700"> · hampir habis</span>':'')+'</div>';
+}
 function ambRowHTML(i){
   var empty=i.qty<=0;
   var cqty=CART[i.variant_id]||0;
   var th=i.image_url?'<img loading="lazy" class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
     :'<div class="amb-th-ph">📦</div>';
-  var tagHtml=(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="font-size:.7rem">🏷️ '+esc(tg)+'</span>';}).join('');
+  // 列內不再顯示 🏷️ 分類徽章：上方已有分類 chips 篩選，列內重複是視覺噪音
   // FIFO：用預建索引（已按 FIFO 排序、僅含 qty_remaining>0、且已依當前倉庫載入），
   // 避免每個商品都全掃一次 DATA.batches 造成 O(商品×批次) 卡頓
   var iBats=IDX.batchesByItem[i.id]||[];
@@ -1694,14 +1708,13 @@ function ambRowHTML(i){
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--p);padding:0;margin-left:.3rem">📍</button>':'')+'</div>'+
     (i.code?'<div style="font-size:.7rem;color:var(--s);font-weight:700;margin-top:.05rem">🏷️ '+esc(i.code)+'</div>':'')+
     ((i.spec||i.description)?'<div style="font-size:.7rem;color:var(--muted);margin-top:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(i.spec?'📐 '+esc(i.spec):esc(i.description))+'</div>':'')+
-    (tagHtml?'<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">'+tagHtml+'</div>':'')+
-    '<div style="font-size:.75rem;color:'+(empty?'var(--danger)':'var(--ink2)')+';margin-top:.1rem">'+i.qty+' '+esc(i.unit)+(empty?' — Stok habis':'')+'</div>'+
+    stokLineHTML(i)+
     (iBats.length>1?'<div style="font-size:.7rem;color:var(--muted);margin-top:.05rem">📦 '+iBats.length+' batch</div>':'')+
     batInfo+
     '</div></div>'+
-    '<div class="qc" style="width:118px;flex-shrink:0">'+
+    '<div class="qc" style="width:160px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdj(\''+esc(i.variant_id)+'\',-1)" '+(empty?'disabled':'')+'>−</button>'+
-    '<input type="number" inputmode="numeric" id="aq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" max="'+i.qty+'" placeholder="0" '+(empty?'disabled':'')+' onchange="cSet(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:58px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
+    '<input type="number" inputmode="numeric" id="aq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" max="'+i.qty+'" placeholder="0" '+(empty?'disabled':'')+' onchange="cSet(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:44px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
     '<button class="qb" onclick="cAdj(\''+esc(i.variant_id)+'\',1)" '+(empty?'disabled':'')+'>+</button>'+
     '</div></div>';
 }
@@ -1781,14 +1794,18 @@ function cartRowsAmb(){
     }
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
-      '<div class="amb-name">'+esc(item.name)+'</div>'+
+      '<div class="amb-name" style="font-size:.9rem">'+esc(item.name)+'</div>'+
       '<div class="amb-stk">stok '+item.qty+' '+esc(item.unit)+'</div>'+
       batInfo+
       '</div></div>'+
-      '<div class="qc" style="width:106px;flex-shrink:0">'+
+      '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
+      '<div class="qc" style="width:auto">'+ // width:auto 蓋掉手機版 .qc{width:116px}，容納 40px 鈕不擠壓
       '<button class="qb" onclick="cAdj(\''+esc(variantId)+'\',-1)">−</button>'+
-      '<span class="qi" style="font-size:.9rem">'+CART[variantId]+'</span>'+
+      '<span class="qi" style="font-size:1rem;min-width:26px;text-align:center">'+CART[variantId]+'</span>'+
       '<button class="qb" onclick="cAdj(\''+esc(variantId)+'\',1)">+</button>'+
+      '</div>'+
+      // 刪除鈕：一鍵移出購物車（cAdj 夾到 0 即刪，沿用既有機制）
+      '<button onclick="cAdj(\''+esc(variantId)+'\',-1e9)" title="Hapus" style="width:40px;height:40px;flex-shrink:0;border:1px solid #FECACA;background:#FEF2F2;color:#C22323;border-radius:10px;font-size:1.05rem;cursor:pointer">🗑</button>'+
       '</div></div>';
   }).join('');
 }
@@ -2084,11 +2101,11 @@ function maskRowHTML(i){
   return '<div class="amb-row">'+
     '<div class="amb-info">'+th+'<div style="min-width:0">'+
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--p);padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+' </div>'+
-    '<div class="amb-stk">'+i.qty+' '+esc(i.unit)+'</div>'+
+    stokLineHTML(i)+
     '</div></div>'+
-    '<div class="qc" style="width:118px;flex-shrink:0">'+
+    '<div class="qc" style="width:160px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',-1)">−</button>'+
-    '<input type="number" inputmode="numeric" id="mq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" placeholder="0" onchange="cSetM(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:58px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
+    '<input type="number" inputmode="numeric" id="mq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" placeholder="0" onchange="cSetM(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:44px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',1)">+</button>'+
     '</div></div>';
 }
@@ -2152,15 +2169,15 @@ function cartRowsMsk(){
     var hasLot=ci.lot_no||ci.expiry_date||ci.production_date||ci.code_produksi||ci.po_no||ci.do_no;
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
-      '<div class="amb-name">'+esc(item.name)+'</div>'+
+      '<div class="amb-name" style="font-size:.9rem">'+esc(item.name)+'</div>'+
       '<div class="amb-stk">stok '+item.qty+' '+esc(item.unit)+'</div>'+
       (hasLot?'<div style="font-size:.72rem;color:var(--p);margin-top:.1rem">📋 '+(ci.lot_no||'')+(ci.expiry_date?' | Exp:'+ci.expiry_date:'')+'</div>':'<div style="font-size:.72rem;color:#F59E0B">⚠ Belum ada info lot</div>')+
       '</div></div>'+
       '<div style="display:flex;align-items:center;gap:.25rem;flex-shrink:0">'+
-      '<button onclick="showLotInfoModal(\''+esc(variantId)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap">📋 Lot</button>'+
-      '<div class="qc" style="width:100px;flex-shrink:0">'+
+      '<button onclick="showLotInfoModal(\''+esc(variantId)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap;min-height:40px">📋 Lot</button>'+
+      '<div class="qc" style="width:auto">'+ // width:auto 蓋掉手機版 .qc{width:116px}
       '<button class="qb" onclick="cAdjM(\''+esc(variantId)+'\',-1)">−</button>'+
-      '<span class="qi" style="font-size:.9rem">'+ci.qty+'</span>'+
+      '<span class="qi" style="font-size:1rem;min-width:24px;text-align:center">'+ci.qty+'</span>'+
       '<button class="qb" onclick="cAdjM(\''+esc(variantId)+'\',1)">+</button>'+
       '</div></div></div>';
   }).join('');
