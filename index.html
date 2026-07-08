@@ -3303,7 +3303,9 @@ function openStocktake(from){STK_HOST=from||'admin';renderStocktake('');}
 function stkHostEl(){
   return STK_HOST==='home'?document.getElementById('home'):document.getElementById('ait-content');
 }
-function renderStocktake(catFilter){
+// keepState=true：只是重繪目前進度（例如存檔後刷新），不要清掉 STOCKTAKE/搜尋字/展開狀態。
+// 一般進入盤點（openStocktake）或倉庫變了要重新載入時，才是「新的一輪」，要重置。
+function renderStocktake(catFilter,keepState){
   if(!canOpname()){toast('⚠ Tidak ada akses Opname');return;}
   var host=stkHostEl();if(!host)return;
   if(!CURRENT_WAREHOUSE){
@@ -3315,7 +3317,7 @@ function renderStocktake(catFilter){
     (async function(){await loadAll(null,false);if(CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE)renderStocktake(catFilter);})();
     return;
   }
-  STOCKTAKE={};STK_CATG=catFilter||'';STK_SEARCH='';STK_OPEN={};
+  if(!keepState){STOCKTAKE={};STK_CATG=catFilter||'';STK_SEARCH='';STK_OPEN={};}
   var html='<div style="position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid var(--border);padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
     '<span style="font-weight:700;font-size:.9rem">🔢 '+('Stock Check')+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</span>'+
@@ -3442,7 +3444,9 @@ async function saveStocktake(){
   }else{
     toast('✓ '+('Selesai, '+okCount+' item diubah'));
   }
-  renderStocktake(STK_CATG);
+  // keepState=true：失敗項目留在 STOCKTAKE 讓使用者原地重試，不要被這次重繪清空；
+  // 展開的分類、正在打的搜尋字也一併保留（存到一半的人不用重新展開找位置）
+  renderStocktake(STK_CATG,true);
 }
 function exitStocktake(){
   STOCKTAKE={};
