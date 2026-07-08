@@ -2281,12 +2281,11 @@ function renderPermintaan(){
     '</div>';
 }
 function reqHTML(r){
-  var cls=r.status==='approved'?'b-a':r.status==='rejected'?'b-r':'b-p';
-  var lbl=r.status==='approved'?t('approved'):r.status==='rejected'?t('rejected'):t('pending');
+  var badge=r.status==='approved'?stBadge('ok',t('approved')):r.status==='rejected'?stBadge('off',t('rejected')):stBadge('wait',t('pending'));
   var act=r.status==='pending'&&IS_ADMIN?'<div class="ra">'+
     '<button class="btn btn-ok" onclick="approveReqBuy(\''+esc(r.id)+'\')">🛒 Sudah Beli (Masuk)</button>'+
     '<button class="btn btn-d" onclick="updReq(\''+esc(r.id)+'\',\'rejected\')">✗ '+t('reject')+'</button></div>':'';
-  return '<div class="ri"><div class="rh"><span class="rp">'+esc(r.person_name)+'</span><span class="badge '+cls+'">'+lbl+'</span></div>'+
+  return '<div class="ri"><div class="rh"><span class="rp">'+esc(r.person_name)+'</span>'+badge+'</div>'+
     '<div class="rd">'+fmtDate(r.created_at)+'</div>'+
     '<div class="rc">'+esc(r.items_requested)+(r.note?'<br><small style="color:var(--muted)">'+esc(r.note)+'</small>':'')+'</div>'+act+'</div>';
 }
@@ -2376,9 +2375,10 @@ function qcTplItems(tplId){return QC.items.filter(function(x){return x.template_
 function qcTemplatesFor(scope){return QC.templates.filter(function(t){return t.warehouse_id===CURRENT_WAREHOUSE&&t.scope===scope&&t.is_active!==false;});}
 function qcCheckFor(refType,refId){var c=QC.checks.filter(function(x){return x.ref_type===refType&&String(x.ref_id)===String(refId);});return c.length?c[0]:null;}
 function qcBadge(check){
-  var map={pass:['#059669','🟢 Lulus'],fail:['#DC2626','🔴 Gagal'],conditional:['#D97706','🟡 Bersyarat'],rework:['#D97706','🟡 Rework'],pending:['#94A3B8','⚪ Menunggu']};
-  var k=check?check.result:null;var m=map[k]||['#94A3B8','⚪ Belum QC'];
-  return '<span style="font-size:.7rem;font-weight:800;color:'+m[0]+'">'+m[1]+(check&&check.ccp_fail?' ⚠CCP':'')+'</span>';
+  // 統一用 stBadge 三件組；conditional/rework 歸黃色警示（hold），未檢/待檢歸等待（wait）
+  var map={pass:['ok','Lulus'],fail:['bad','Gagal'],conditional:['hold','Bersyarat'],rework:['hold','Rework'],pending:['wait','Menunggu']};
+  var k=check?check.result:null;var m=map[k]||['wait','Belum QC'];
+  return stBadge(m[0],m[1]+(check&&check.ccp_fail?' ⚠CCP':''));
 }
 function renderQC(){
   if(!IS_ADMIN){document.getElementById('qc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses</div>';return;}
@@ -4323,14 +4323,13 @@ function showItemBatches(itemId){
       var isNear=b.expiry_date&&!isExp&&new Date(b.expiry_date)<d30;
       var bg=isExp?'#FEE2E2':isNear?'#FEF3C7':b.qc_status==='Fail'?'#FECACA':b.qc_status==='Hold'?'#FEF08A':'#F8FAFC';
       var ec=isExp?'#DC2626':isNear?'#D97706':'var(--ink2)';
-      var qcIcon={Pass:'✓',Fail:'✗',Hold:'⏸',Pending:'⏳'}[b.qc_status]||'?';
-      var qcColor={Pass:'#059669',Fail:'#DC2626',Hold:'#D97706',Pending:'var(--ink2)'}[b.qc_status]||'var(--ink2)';
+      var qcKind={Pass:'ok',Fail:'bad',Hold:'hold',Pending:'wait'}[b.qc_status]||'off';
       return '<div style="border:1px solid var(--border);border-radius:10px;padding:.7rem;margin-bottom:.5rem;background:'+bg+'">'+
         '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
           '<div style="flex:1;min-width:0">'+
             '<div style="display:flex;gap:.3rem;align-items:center;margin-bottom:.25rem">'+
               (b.lot_no?'<span style="font-weight:700;font-size:.88rem">📋 '+esc(b.lot_no)+'</span>':'')+
-              '<span style="background:'+qcColor+';color:#fff;padding:.15rem .35rem;border-radius:5px;font-weight:700;font-size:.7rem">'+qcIcon+' '+b.qc_status+'</span>'+
+              stBadge(qcKind,esc(b.qc_status||'?'))+
             '</div>'+
             (b.code_produksi||b.po_no||b.do_no?'<div style="font-size:.75rem;color:var(--ink2);margin-bottom:.15rem">'+
               (b.code_produksi?'Code: '+esc(b.code_produksi)+' · ':'')+
@@ -4585,6 +4584,17 @@ function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString
 // 用「當地」日期，不能用 toISOString()（=UTC）：印尼 UTC+7，早上 7 點前會差一天/跨月
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// 全站統一狀態徽章：圖示+顏色+文字三件組（色弱/強光下仍可辨識）
+function stBadge(kind,label){
+  var m={
+    wait:  {i:'⏳',bg:'#FEF0DC',fg:'#8C4A06'},   // 等待中
+    ok:    {i:'✓', bg:'#E3F5EE',fg:'#0B6647'},   // 完成/通過
+    off:   {i:'✕', bg:'#F1F2F4',fg:'#787F8E'},   // 拒絕/作廢（灰，不用紅）
+    bad:   {i:'✗', bg:'#FDE8E8',fg:'#C22323'},   // 錯誤/Fail（紅只留給真正的危險）
+    hold:  {i:'⏸',bg:'#FEF08A',fg:'#854D0E'}    // QC Hold
+  }[kind]||{i:'',bg:'#F1F2F4',fg:'#787F8E'};
+  return '<span style="display:inline-flex;align-items:center;gap:.25rem;border-radius:999px;padding:.18rem .6rem;font-size:.78rem;font-weight:800;background:'+m.bg+';color:'+m.fg+'">'+m.i+' '+label+'</span>';
+}
 // Ubah error mentah (JWT expired / Failed to fetch / duplicate key…) jadi pesan
 // ramah bahasa Indonesia untuk pekerja. Error asli tetap ke console buat debug.
 function friendlyErr(e){
