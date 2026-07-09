@@ -47,6 +47,7 @@ Gudang One 是為四個倉庫（gudang）打造的一站式管理系統，涵蓋
 | `famms-request` | 接收 FAMMS 維修系統叫料的 webhook：驗共享密鑰 → 寫入 requests（出現在 Permintaan 分頁）→ 推 Telegram |
 | `qc-lookup` | FQMS 品管系統的批號查詢入口（唯讀）：查單一批號或某倉最近批次 |
 | `qc-status` | FQMS 品管系統的 QC 狀態回寫：更新 `item_batches.qc_status`，Hold/Fail 推 Telegram 警告並寫 audit_log |
+| `qc-production-summary` | FQMS 每日報表的產量彙總入口（唯讀）：查某天的 `din_production`/`din_rehidrasi`/`din_delivery` 加總，不寫入任何資料 |
 | `notify-famms-status` | 叫料單狀態變動時回呼 FAMMS（僅限來源為 FAMMS 的請求），讓 incident 頁看得到到貨/拒絕結果 |
 
 ## 資料夾結構
@@ -64,7 +65,8 @@ apps-script/        Google Apps Script 備份通道原始碼（見 apps-script/R
 
 - **Telegram 通知**：低庫存、叫貨、QC 不合格等事件經 `notify-telegram` 推播到倉庫群組。
 - **FAMMS 叫料串接**：FAMMS（設備維修系統）工單需要零件時，POST 到 `famms-request` 自動建立叫貨申請（串接細節見 FAMMS 端的 GUDANG_INTEGRATION 文件）。
-- **FQMS 品管串接**：FQMS 經 `qc-lookup` 帶入批號、經 `qc-status` 回寫檢驗結果。
+- **FQMS 品管串接**：FQMS 經 `qc-lookup` 帶入批號、經 `qc-status` 回寫檢驗結果、
+  經 `qc-production-summary` 唯讀取得每日產量彙總（供 FQMS `/admin/reports` 顯示）。
 - **Google Sheet 備份（舊通道）**：admin 面板的「📊 Backup ke Google Sheet」按鈕仍在使用。Apps Script 原始碼在 `apps-script/`，實際執行在 Google 端（各倉庫的 webhook URL 寫在 `index.html` 的 `GS_WEBHOOKS`）。
 
 ## 部署
