@@ -723,10 +723,17 @@ function adminLogin(){ // Super Admin 入口：只接受 super PIN
 function officeLogin(){ // Admin Office 入口：只接受 office PIN
   showAdminPinPad(async function(pin){
     var role=await verifyAdminPin(pin);
-    if(role!=='office'){apinFail('❌ '+t('wrongPin'));return;}
-    closeModal();
-    ADMIN_PIN_MEM=String(pin); // office 也用這組 PIN 授權 manage-people（後端限制不能設 admin）
-    finishAdminLogin('office');
+    if(role==='office'){
+      closeModal();
+      ADMIN_PIN_MEM=String(pin); // office 也用這組 PIN 授權 manage-people（後端限制不能設 admin）
+      finishAdminLogin('office');
+      return;
+    }
+    // 分辨失敗原因，避免只丟「PIN 錯誤」讓人查不到問題：
+    // role==='super' → 打進來的其實是 Super Admin 的 PIN，代表 OFFICE_PIN 沒設、
+    //   或被設成跟 ADMIN_PIN 一樣（後端先比 super 就先命中 super，永遠到不了 office）。
+    if(role==='super'){apinFail('⚠ Ini PIN Super Admin. OFFICE_PIN harus beda dari ADMIN_PIN.');return;}
+    apinFail('❌ PIN salah / OFFICE_PIN belum di-set di server');
   });
 }
 function finishAdminLogin(role){
