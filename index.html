@@ -322,8 +322,9 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .tb.active{background:#EEF2FF;border-left:3px solid var(--p);padding-left:calc(1rem - 3px);color:var(--p)}
   .modal-ov{align-items:center;padding:1.5rem}
   .modal{border-radius:16px;max-width:640px;margin:auto;max-height:90vh}
-  /* 寬螢幕閱讀寬度上限：內容置中，不再無限拉寬 */
-  .sec.active{max-width:1180px;margin:0 auto;width:100%}
+  /* 寬螢幕閱讀寬度上限：內容置中，不再無限拉寬。倉庫資料密集，放寬到 1440
+     讓大螢幕的商品/領料清單能排到 3 欄，不再兩側大量留白 */
+  .sec.active{max-width:1440px;margin:0 auto;width:100%}
   /* 桌面：Admin 商品清單改多欄卡片，不再一條佔整行 */
   .ai-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:.7rem;align-items:start}
   .ai-list.grid .ai-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
@@ -377,6 +378,16 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
    checkbox/radio 排除：多處 16-18px 勾選框被 min-height 撐開會壞版。 */
 .btn{min-height:44px}
 input:not([type=checkbox]):not([type=radio]),select,textarea{min-height:44px}
+/* ── UX 3c：行內圖示按鈕觸控區補到 44px（戴手套/老花作業員好按），
+   用最小尺寸撐開觸控區，視覺圖示大小不變 ── */
+.tedit,.tdel{min-width:44px;min-height:44px}
+.ib{width:44px;height:44px}
+@media(max-width:767px){.ib{width:44px;height:44px}}
+/* 常讀的小字/徽章略放大，倉庫現場更好辨識 */
+.ai-stat{font-size:.8rem}
+.catg-badge{font-size:.76rem}
+.ana-col-lbl{font-size:.72rem}
+.ana-note{font-size:.76rem}
 </style>
 </head>
 <body>
@@ -1390,10 +1401,10 @@ function homeStockRowHTML(i){
       '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.3rem">'+esc(i.name)+
         (i.code?'<span style="font-size:.66rem;font-weight:800;color:var(--s);background:#EEF2FF;border:1px solid #E0E7FF;border-radius:5px;padding:0 .3rem;flex-shrink:0">'+esc(i.code)+'</span>':'')+
         (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:var(--p);padding:0;flex-shrink:0" title="Tempat Simpan">📍</button>':'')+'</div>'+
-      (meta.length?'<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem">'+meta.join(' · ')+'</div>':'')+
+      (meta.length?'<div style="font-size:.78rem;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem">'+meta.join(' · ')+'</div>':'')+
       (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
     '</div>'+
-    '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:#000;font-weight:700;font-size:.92rem">'+i.qty+'</span><span style="color:#999;font-size:.7rem">/'+i.critical_qty+'</span><br><span style="color:var(--ink2);font-size:.72rem">'+esc(i.unit)+'</span></span>'+
+    '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:#000;font-weight:700;font-size:1rem">'+i.qty+'</span><span style="color:#999;font-size:.74rem">/'+i.critical_qty+'</span><br><span style="color:var(--ink2);font-size:.76rem">'+esc(i.unit)+'</span></span>'+
     (i.supplier_url&&ratio<=1?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
   '</div>';
 }
