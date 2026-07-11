@@ -1215,6 +1215,94 @@ async function refreshPeople(){
     await loadAll();
   }
 }
+// item_variants + items(join) 攤平成單一物件。loadAll 與 refreshInventory 共用，
+// 避免兩份攤平邏輯漂移。
+function flattenItems(ivData){
+  return (ivData||[]).map(function(v){
+    var itm=v.items||{};
+    return{
+      id:v.item_id,variant_id:v.id,
+      name:itm.name||'?',code:itm.code,spec:itm.spec,description:itm.description,
+      image_url:itm.image_url,supplier_name:itm.supplier_name,supplier_url:itm.supplier_url,
+      unit:itm.unit,storage_condition:itm.storage_condition,coa_url:itm.coa_url,tags:itm.tags,
+      qty:v.qty,critical_qty:v.critical_qty,storage_photo_url:v.storage_photo_url,warehouse_id:v.warehouse_id
+    };
+  });
+}
+// ── 頁面切換「長久解法」的核心：分頁 ↔ 資料來源 依賴表 ──
+// 局部刷新後只讓「資料真的變了的分頁」失效（從 RENDERED_TABS 移除），其餘保持
+// 已繪。這樣存一次料/改一筆請求後，切到 QC/分析/歷史等無關分頁是即時的，不再
+// 因為以前「每次 loadAll 全清 RENDERED_TABS」而每切一頁都從零重建。
+var TAB_DATA={
+  home:['inventory','requests'],
+  ambil:['inventory'],
+  masuk:['inventory'],
+  permintaan:['requests'],
+  admin:['inventory','people'],
+  riwayat:['transactions'],
+  analisa:['inventory','transactions']
+  // qc/produksi/shipment 有自己的 *_LOADED 快取與 ensure 流程，不受這裡影響
+};
+function invalidateTabs(dataKeys){
+  Object.keys(TAB_DATA).forEach(function(tab){
+    if(tab===ACTIVE_TAB)return; // 目前分頁由呼叫端就地重繪
+    var hit=TAB_DATA[tab].some(function(d){return dataKeys.indexOf(d)>=0;});
+    if(hit)delete RENDERED_TABS[tab];
+  });
+}
+// 就地重繪「目前的庫存相關分頁」，保留捲動/搜尋字。admin 只換商品清單不整頁重建。
+function rerenderInventoryActive(){
+  var snap=snapshotView();
+  var t=ACTIVE_TAB;
+  if(t==='home')renderHome();
+  else if(t==='ambil')renderAmbil();
+  else if(t==='masuk')renderMasuk();
+  else if(t==='permintaan')renderPermintaan();
+  else if(t==='admin'){
+    var aitc=document.getElementById('ait-content');
+    if(aitc){aitc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';}
+    else renderAdminFull();
+  }
+  updateCartBar();
+  restoreView(snap);
+}
+// 只重抓 requests 表並就地更新（新增/核准/拒絕請求都只動這張表）。不重抓庫存/人員/設定。
+async function refreshRequests(){
+  try{
+    var q=CURRENT_WAREHOUSE
+      ? sb.from('requests').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('created_at',{ascending:false})
+      : sb.from('requests').select('*').order('created_at',{ascending:false});
+    var r=await q;
+    if(r.error)throw r.error;
+    DATA.requests=r.data||[];
+    buildIndexes();
+    saveWhCache(CURRENT_WAREHOUSE);
+    if(ACTIVE_TAB==='permintaan'){var snap=snapshotView();renderPermintaan();restoreView(snap);}
+    else if(ACTIVE_TAB==='home'){var s2=snapshotView();renderHome();restoreView(s2);}
+    invalidateTabs(['requests']);
+  }catch(e){console.warn('refreshRequests fallback:',e&&e.message);await loadAll();}
+}
+// 只重抓 item_variants + item_batches（領料/收料/新增編輯商品/批次都只動庫存）。
+// 不重抓 people/requests/config。錯誤一律退回完整 loadAll，永不把畫面卡死。
+async function refreshInventory(){
+  try{
+    var q1=CURRENT_WAREHOUSE
+      ? sb.from('item_variants').select('*, items(*)').eq('warehouse_id',CURRENT_WAREHOUSE).order('items(name)')
+      : sb.from('item_variants').select('*, items(*)').order('items(name)');
+    var q4=CURRENT_WAREHOUSE
+      ? sb.from('item_batches').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('expiry_date',{ascending:true})
+      : sb.from('item_batches').select('*').order('expiry_date',{ascending:true});
+    var res=await Promise.all([q1,q4]);
+    if(res[0].error)throw res[0].error;
+    DATA.items=flattenItems(res[0].data||[]);
+    if(res[1]&&!res[1].error)DATA.batches=res[1].data||[];
+    buildIndexes();
+    saveWhCache(CURRENT_WAREHOUSE);
+    rerenderInventoryActive();
+    invalidateTabs(['inventory']);
+    setTimeout(checkLowStock,300);
+  }catch(e){console.warn('refreshInventory fallback:',e&&e.message);await loadAll();}
+}
 async function loadAll(afterCb,fromCache){
   setDot('');
   var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Koneksi timeout (20s), coba lagi'));},20000);});
@@ -1252,28 +1340,7 @@ async function loadAll(afterCb,fromCache){
     DATA.categories=(cg&&!cg.error&&cg.data)?cg.data.map(function(c){return c.name;}):[];
     if(iv.error)throw iv.error;
     // Flatten item_variants + items: 合併成單一物件，便於現有程式碼使用
-    DATA.items=(iv.data||[]).map(function(v){
-      var itm=v.items||{};
-      return{
-        id:v.item_id,
-        variant_id:v.id,
-        name:itm.name||'?',
-        code:itm.code,
-        spec:itm.spec,
-        description:itm.description,
-        image_url:itm.image_url,
-        supplier_name:itm.supplier_name,
-        supplier_url:itm.supplier_url,
-        unit:itm.unit,
-        storage_condition:itm.storage_condition,
-        coa_url:itm.coa_url,
-        tags:itm.tags,
-        qty:v.qty,
-        critical_qty:v.critical_qty,
-        storage_photo_url:v.storage_photo_url,
-        warehouse_id:v.warehouse_id
-      };
-    });
+    DATA.items=flattenItems(iv.data||[]);
     // 容錯：perms / can_ambil / can_masuk 欄位還沒加(migration 未跑)時逐步退回舊欄位清單
     if(p&&p.error){
       p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk').order('name');
@@ -2057,7 +2124,7 @@ async function undoLastTake(btn){
     LAST_TAKE=[];
     toast('✓ Dibatalkan — stok dikembalikan');
     closeModal();
-    await loadAll();renderAmbil();
+    await refreshInventory();
   }catch(e){toast('⚠ '+friendlyErr(e));btn.disabled=false;btn.textContent='↩ Salah ambil? Batalkan';}
 }
 function getAmbilBatches(itemId,qty){
@@ -2154,13 +2221,12 @@ async function executeAmbilCart(){
     LAST_TAKE=taken; // 供「↩ Batalkan」復原用
     showTakeConfirm(taken);
     CART={};
-    await loadAll();
-    renderAmbil();
+    await refreshInventory(); // 只重抓庫存+就地重繪 Ambil，不再全站 loadAll
   }catch(e){
     // 部分成功：已落帳的不在購物車了，剩下的保留，重按只會送失敗的那些
     toast('⚠ '+friendlyErr(e)+(taken.length?' — '+taken.length+' item tersimpan, sisanya masih di keranjang':''));
     var keep=Object.assign({},CART);
-    await loadAll(); // 同步已扣的庫存（會重繪並清空 CART）
+    await refreshInventory(); // 同步已扣的庫存（會重繪並清空 CART）
     CART=keep;       // 還原未送出的項目
     var cw=document.getElementById('amb-cart');if(cw)cw.innerHTML=cartRowsAmb();
     updateCartBar();
@@ -2367,12 +2433,12 @@ async function doMasukCart(){
       if(r3.error)throw r3.error;
       delete CART_M[variantId];done++; // 這一項已完整落帳，失敗重送不會重複
     }
-    // 留在 Masuk 頁（常常還要繼續收下一批），loadAll 會重繪當前分頁
-    toast(t('rcvOk')+' ✓');CART_M={};await loadAll();
+    // 留在 Masuk 頁（常常還要繼續收下一批），refreshInventory 會重繪當前分頁
+    toast(t('rcvOk')+' ✓');CART_M={};await refreshInventory();
   }catch(e){
     toast('⚠ '+friendlyErr(e)+(done?' — '+done+' item tersimpan, sisanya masih di keranjang':''));
     var keep=Object.assign({},CART_M);
-    await loadAll(); // 同步庫存（重繪會清空 CART_M）
+    await refreshInventory(); // 同步庫存（重繪會清空 CART_M）
     CART_M=keep;
     var cw=document.getElementById('msk-cart');if(cw)cw.innerHTML=cartRowsMsk();
     var cnt=document.getElementById('msk-cart-cnt');if(cnt)cnt.textContent=Object.keys(CART_M).length?Object.keys(CART_M).length+' barang':'';
@@ -3757,7 +3823,7 @@ async function addExistingToWarehouse(itemId){
     var {error}=await sb.from('item_variants').insert({item_id:itemId,warehouse_id:wh,qty:0,critical_qty:10});
     if(error)throw error;
     toast('✓ '+('Barang ditambah ke ')+wh);
-    closeModal();await loadAll();
+    closeModal();await refreshInventory();
   }catch(e){
     if(/duplicate|unique/i.test(e.message||''))toast('⚠ '+('Barang sudah ada di gudang ini'));
     else toast('⚠ '+friendlyErr(e));
@@ -3868,7 +3934,7 @@ async function savePendingVariant(){
     var vins=await sbInsertSafe('item_variants',{item_id:p.masterId,warehouse_id:p.warehouse,qty:p.qty,critical_qty:p.min,storage_photo_url:p.sp});
     if(vins.error)throw vins.error;
     toast('✓ Pakai barang sama — stok dibuka di '+p.warehouse);
-    closeModal();await loadAll();
+    closeModal();await refreshInventory();
   }catch(e){
     if(/duplicate|unique/i.test((e&&e.message)||''))toast('⚠ Barang sudah ada di gudang ini');
     else toast('⚠ '+friendlyErr(e));
@@ -3882,7 +3948,7 @@ async function savePendingNew(){
     if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
     var vins=await sbInsertSafe('item_variants',{item_id:ins.data[0].id,warehouse_id:p.warehouse,qty:p.qty,critical_qty:p.min,storage_photo_url:p.sp});
     if(vins.error)throw vins.error;
-    toast(t('saveOk'));closeModal();await loadAll();
+    toast(t('saveOk'));closeModal();await refreshInventory();
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function saveItem(){
@@ -3969,7 +4035,7 @@ async function saveItem(){
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
       if(vins.error)throw vins.error;
     }
-    toast(t('saveOk'));closeModal();await loadAll();
+    toast(t('saveOk'));closeModal();await refreshInventory();
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 function editSupUrl(id){
@@ -4258,12 +4324,13 @@ async function doReq(){
     document.getElementById('ri-sel').value='';document.getElementById('ri').value='';document.getElementById('ri').style.display='none';
     document.getElementById('rno').value='';
     document.getElementById('req-photo-prev').innerHTML='';REQ_PHOTO='';
-    await loadAll();
+    await refreshRequests(); // 只動 requests 表 → 局部刷新，不再全站重抓
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function updReq(id,status){
   if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa setujui/tolak'));return;}
-  try{await sb.from('requests').update({status:status}).eq('id',id);toast('✓');notifyFammsIfNeeded(id);await loadAll();}
+  // 核准/拒絕只改 requests.status（不動庫存；加庫存走 confirmApproveReqBuy）→ 局部刷新
+  try{await sb.from('requests').update({status:status}).eq('id',id);toast('✓');notifyFammsIfNeeded(id);await refreshRequests();}
   catch(e){toast('⚠ '+friendlyErr(e));}
 }
 // 線③：叫料單狀態變動時，若這筆是 FAMMS 送來的，回呼 FAMMS 更新它的追蹤清單
@@ -4757,7 +4824,7 @@ async function saveBatch(itemId,batchId){
       var {error}=await sb.from('item_batches').insert({item_id:itemId,warehouse_id:CURRENT_WAREHOUSE||null,lot_no:lot||null,code_produksi:cprod||null,po_no:pono||null,do_no:dono||null,production_date:pd,expiry_date:ed,shelf_life:sl||null,qc_status:qc,qc_date:qcd,coa_url:coa||null,qty_initial:qty,qty_remaining:qty,received_date:new Date().toISOString().slice(0,10)});
       if(error)throw error;
     }
-    toast('✓ Disimpan');closeModal();await loadAll();
+    toast('✓ Disimpan');closeModal();await refreshInventory();
     setTimeout(function(){showItemBatches(itemId);},300);
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
@@ -4766,7 +4833,7 @@ async function deleteBatch(batchId,itemId){
   try{
     var {error}=await sb.from('item_batches').delete().eq('id',batchId);
     if(error)throw error;
-    toast('✓ Dihapus');closeModal();await loadAll();
+    toast('✓ Dihapus');closeModal();await refreshInventory();
     if(itemId)setTimeout(function(){showItemBatches(itemId);},300);
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
