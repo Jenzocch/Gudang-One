@@ -54,7 +54,8 @@ body{display:flex;flex-direction:column}
 #cart-bar button{border:none;border-radius:9px;padding:.5rem .8rem;font-size:.85rem;font-weight:800;cursor:pointer}
 @media(min-width:768px){#cart-bar{left:auto;right:1.4rem;transform:none;bottom:1.4rem;max-width:400px}}
 .hdr-title{display:flex;align-items:center;gap:.55rem;min-width:0;line-height:1.2}
-.hdr-logo-mark{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);display:grid;place-items:center;font-size:.72rem;font-weight:900;letter-spacing:-.02em;color:#fff}
+.hdr-logo-mark{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);display:grid;place-items:center;overflow:hidden}
+.hdr-logo-mark img{width:100%;height:100%;object-fit:cover;display:block}
 .hdr-logo-txt{min-width:0}
 .hdr-title-main{font-size:1rem;font-weight:800;letter-spacing:.01em;white-space:nowrap}
 .hdr-title-sub{font-size:.65rem;opacity:.78;font-weight:400;margin-top:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -394,7 +395,7 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{min-height:44px}
 <div id="app">
   <div class="hdr">
     <div class="hdr-title">
-      <span class="hdr-logo-mark">G1</span>
+      <span class="hdr-logo-mark"><img src="icon.svg" alt="Gudang One" width="28" height="28"></span>
       <div class="hdr-logo-txt">
         <div class="hdr-title-main">Gudang One</div>
         <div class="hdr-title-sub" id="hdr-sub">Manajemen Stok Barang</div>
