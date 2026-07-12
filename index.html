@@ -1276,9 +1276,15 @@ var TAB_DATA={
   analisa:['inventory','transactions']
   // qc/produksi/shipment 有自己的 *_LOADED 快取與 ensure 流程，不受這裡影響
 };
+// 只有 rerenderInventoryActive() 真的認得怎麼「就地重繪」的分頁，才能在自己是目前
+// 分頁時被跳過——不然像 analisa（rerenderInventoryActive 沒有它的分支）身為目前分頁時
+// 會兩頭落空：沒被就地重繪，RENDERED_TABS 也沒被標記失效，之後切走再切回來還是舊資料，
+// 等於永遠卡在失效前的畫面。riwayat 交易編輯已有自己專屬的局部刷新（不靠這裡），這條
+// 規則對它只是多一層保險，不影響原本行為。
+var LIVE_REDRAW_TABS={home:1,ambil:1,masuk:1,permintaan:1,admin:1};
 function invalidateTabs(dataKeys){
   Object.keys(TAB_DATA).forEach(function(tab){
-    if(tab===ACTIVE_TAB)return; // 目前分頁由呼叫端就地重繪
+    if(tab===ACTIVE_TAB&&LIVE_REDRAW_TABS[tab])return; // 這幾頁呼叫端會就地重繪
     var hit=TAB_DATA[tab].some(function(d){return dataKeys.indexOf(d)>=0;});
     if(hit)delete RENDERED_TABS[tab];
   });
