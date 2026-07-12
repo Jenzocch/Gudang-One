@@ -6521,9 +6521,12 @@ async function anaLoad(cb){
   if(ANA.loadedFor===ANA.months){cb();return;}
   var since=anaMonthKeys(ANA.months)[0]+'-01';
   // 個別抓：其中一間公司的表還沒建好也不擋另一間
+  // order('date',{ascending:false})+limit: kalau rentang ini >5000 baris, yang KEPOTONG
+  // harus data paling LAMA, bukan paling baru — sebelumnya ascending+limit malah membuang
+  // bulan terkini duluan, jadi KPI "bulan ini" bisa tampil kosong/rendah padahal datanya ada.
   var rs=await Promise.all([
-    sb.from('sja_delivery').select('date,customer_name,product_code,qty').gte('date',since).order('date').limit(5000),
-    sb.from('din_delivery').select('date,product_code,kg,ctn,bags').gte('date',since).order('date').limit(5000),
+    sb.from('sja_delivery').select('date,customer_name,product_code,qty').gte('date',since).order('date',{ascending:false}).limit(5000),
+    sb.from('din_delivery').select('date,product_code,kg,ctn,bags').gte('date',since).order('date',{ascending:false}).limit(5000),
     sb.from('sja_products').select('code,product_name,category,unit')
   ]);
   ANA.sja=rs[0].error?[]:(rs[0].data||[]);
