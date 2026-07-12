@@ -2169,6 +2169,22 @@ async function undoLastTake(btn){
       await atomicAdjustQty(x.variantId,x.qty); // baca-terbaru + compare-and-swap, bukan qty lokal
       var r2=await sb.from('transactions').insert({type:'masuk',item_id:x.itemId,item_name:x.name,person_id:(CURRENT_USER&&CURRENT_USER.id)||null,person_name:(CURRENT_USER?CURRENT_USER.name:'')+' (batal ambil)',qty:x.qty,warehouse_id:CURRENT_WAREHOUSE||null});
       if(r2.error)throw r2.error;
+      // Kembalikan qty_remaining persis ke batch yang kepotong saat ambil tadi (lihat batchDed
+      // di executeAmbilCart) — dulu qty_remaining tidak pernah dikembalikan sama sekali, jadi
+      // tiap "Batalkan Ambil" bikin total item_batches.qty_remaining makin ketinggalan dari
+      // item_variants.qty (stok utuh, tapi rincian per-lot di Kelola Lot jadi kurang). Best-effort
+      // seperti pemotongannya: variant qty & transaction di atas sudah commit, gagal di sini cuma warning.
+      var bds=x.batches||[];
+      for(var bj=0;bj<bds.length;bj++){
+        try{
+          var bd=bds[bj];
+          var rbc=await sb.from('item_batches').select('qty_remaining').eq('id',bd.batchId).single();
+          if(rbc.error||!rbc.data)continue;
+          var newRem=(Number(rbc.data.qty_remaining)||0)+bd.amt;
+          var rbu=await sb.from('item_batches').update({qty_remaining:newRem}).eq('id',bd.batchId);
+          if(rbu.error)console.warn('[undoLastTake] gagal kembalikan batch',bd.batchId,rbu.error.message);
+        }catch(e3){console.warn('[undoLastTake] batch restore exception',e3);}
+      }
     }
     LAST_TAKE=[];
     toast('✓ Dibatalkan — stok dikembalikan');
@@ -2274,13 +2290,14 @@ async function executeAmbilCart(){
       // FIFO: deduct from batches in current warehouse (filter by item_id AND warehouse_id)
       var abat=DATA.batches.filter(function(b){return b.item_id==item.id&&b.warehouse_id==CURRENT_WAREHOUSE&&b.qty_remaining>0;}).sort(function(a,b){if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);if(a.expiry_date)return -1;if(b.expiry_date)return 1;return new Date(a.created_at)-new Date(b.created_at);});
       var remQ=qty;
+      var batchDed=[]; // {batchId,amt} tiap batch yang kepotong — dipakai undoLastTake() buat kembalikan qty_remaining yang tepat
       for(var bi=0;bi<abat.length&&remQ>0;bi++){
         var bat=abat[bi];var ded=Math.min(bat.qty_remaining,remQ);var nr=bat.qty_remaining-ded;
         var rb=await sb.from('item_batches').update({qty_remaining:nr}).eq('id',bat.id);
         // variant qty & transaction di atas SUDAH commit — batch gagal tak boleh membatalkan
         // seluruh item (retry akan dobel-potong variant). Cukup catat + beri tahu, jangan throw.
         if(rb.error){console.warn('[batch update gagal]',item.name,bat.id,rb.error.message);if(batchWarn.indexOf(item.name)<0)batchWarn.push(item.name);break;}
-        bat.qty_remaining=nr;remQ-=ded;
+        bat.qty_remaining=nr;remQ-=ded;batchDed.push({batchId:bat.id,amt:ded});
       }
       // Telegram throttle: use variant_id to ensure per-warehouse-item throttling
       if(newQty<=item.critical_qty&&item.critical_qty>0){
@@ -2295,7 +2312,7 @@ async function executeAmbilCart(){
             '🕐 '+new Date().toLocaleString('id-ID'));
         }
       }
-      taken.push({variantId:variantId,itemId:item.id,name:item.name,qty:qty,unit:item.unit});
+      taken.push({variantId:variantId,itemId:item.id,name:item.name,qty:qty,unit:item.unit,batches:batchDed});
       delete CART[variantId]; // 這一項已完整落帳
     }
     LAST_TAKE=taken; // 供「↩ Batalkan」復原用
