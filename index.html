@@ -4458,13 +4458,32 @@ function notifyFammsIfNeeded(id){
     sb.functions.invoke('notify-famms-status',{body:{request_id:id}}).catch(function(){});
   }catch(e){}
 }
+// FAMMS 送來的多品項申請格式："• name [partNo] × qty unit"（見 famms-request/index.ts），
+// 逐行對應到一個商品。手動「Minta」單品項是自由文字、不會有這個格式 → 回傳 null，走原本整串模糊比對。
+// 只要有一行不符合格式就整批當非結構化文字（保守：寧可退回舊邏輯，不要誤判成多品項）。
+function parseReqItemLines(text){
+  var lines=(text||'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  if(!lines.length)return null;
+  var out=[];
+  for(var i=0;i<lines.length;i++){
+    var m=lines[i].match(/^•\s*(.+?)(?:\s*\[([^\]]+)\])?\s*×\s*([\d.]+)\s*(\S+)?\s*$/);
+    if(!m)return null;
+    out.push({raw:lines[i],name:m[1].trim(),partNo:m[2]||'',qty:parseFloat(m[3])||0,unit:m[4]||''});
+  }
+  return out;
+}
 // 已購買 → 開窗選擇對應商品與數量，記為進貨(Masuk)並加庫存
 function approveReqBuy(id){
   if(!IS_ADMIN){toast('⚠ '+('Hanya admin'));return;}
   var r=DATA.requests.find(function(x){return x.id==id;});
   if(!r)return;
-  // 嘗試把請求文字對應到現有商品（先精確、再包含匹配）
-  var reqName=(r.items_requested||'').toLowerCase().trim();
+  var lines=parseReqItemLines(r.items_requested);
+  // 多品項的 FAMMS 申請（例如一次叫 2 種零件）不能只用一個下拉選單、只入庫其中一項
+  // 卻把整筆請求標記已完成 — 那會讓其餘品項的庫存永遠不會被加回去。改走逐項處理的流程。
+  if(lines&&lines.length>1){approveReqBuyMulti(id,r,lines);return;}
+  // 嘗試把請求文字對應到現有商品（先精確、再包含匹配）；若已解析出單一品項（bullet 格式只有一行），
+  // 用解析出的乾淨名稱比對，比直接拿含「• × pcs」雜訊的整串字比對準確。
+  var reqName=(lines&&lines.length===1?lines[0].name:(r.items_requested||'')).toLowerCase().trim();
   var matched=DATA.items.find(function(i){return reqName===(i.name||'').toLowerCase();})
     ||DATA.items.find(function(i){var n=(i.name||'').toLowerCase();return n&&(reqName.indexOf(n)>=0||n.indexOf(reqName)>=0);});
   var opts=DATA.items.map(function(i){
@@ -4480,12 +4499,86 @@ function approveReqBuy(id){
       '<select id="arq-item">'+(matched?'':'<option value="">-- Pilih barang --</option>')+opts+'</select>'+
     '</div>'+
     (matched?'':'<div style="font-size:.78rem;color:#D97706;margin-bottom:.6rem">⚠️ Tidak ada barang yang cocok otomatis. Jika ini barang baru, tambahkan dulu di menu Admin, lalu setujui lagi.</div>')+
-    '<div class="ig"><label>🔢 Jumlah Dibeli</label><input id="arq-qty" type="number" min="1" value="1"></div>'+
+    '<div class="ig"><label>🔢 Jumlah Dibeli</label><input id="arq-qty" type="number" min="1" value="'+(lines&&lines.length===1&&lines[0].qty>0?lines[0].qty:1)+'"></div>'+
     '<div style="display:flex;gap:.5rem;margin-top:.5rem">'+
       '<button class="btn btn-s" style="flex:1" onclick="closeModal()">✕ Batal</button>'+
       '<button class="btn btn-ok" style="flex:2" onclick="confirmApproveReqBuy(\''+esc(id)+'\')">✓ Masuk ke Stok</button>'+
     '</div>'
   );
+}
+// Permintaan multi-barang (biasanya dari FAMMS) — satu baris per barang, masing-masing dengan
+// pilihan produk & jumlah sendiri, supaya SEMUA barang di-input ke stok, bukan cuma yang pertama.
+function approveReqBuyMulti(id,r,lines){
+  var rowsHtml=lines.map(function(ln,idx){
+    var reqName=ln.name.toLowerCase();
+    var matched=DATA.items.find(function(i){return reqName===(i.name||'').toLowerCase();})
+      ||DATA.items.find(function(i){var n=(i.name||'').toLowerCase();return n&&(reqName.indexOf(n)>=0||n.indexOf(reqName)>=0);});
+    var opts=DATA.items.map(function(i){
+      return '<option value="'+esc(i.variant_id)+'"'+(matched&&matched.variant_id===i.variant_id?' selected':'')+'>'+esc(i.name)+' (stok: '+i.qty+' '+esc(i.unit)+')</option>';
+    }).join('');
+    return '<div style="border:1px solid var(--border);border-radius:8px;padding:.6rem;margin-bottom:.6rem">'+
+      '<div style="font-size:.82rem;color:var(--ink2);margin-bottom:.3rem">'+esc(ln.raw)+(matched?'':' <span style="color:#D97706">⚠️ tidak cocok otomatis</span>')+'</div>'+
+      '<select id="arqm-item-'+idx+'" style="margin-bottom:.3rem">'+(matched?'':'<option value="">-- Pilih barang --</option>')+opts+'</select>'+
+      '<input id="arqm-qty-'+idx+'" type="number" min="1" value="'+(ln.qty>0?ln.qty:1)+'" style="width:100%">'+
+    '</div>';
+  }).join('');
+  showModal('🛒 Sudah Beli — Masuk ke Stok ('+lines.length+' barang)',
+    '<div style="background:#ECFDF5;border:1.5px solid #86EFAC;border-radius:8px;padding:.7rem;margin-bottom:.8rem;font-size:.85rem">'+
+      '<div style="font-weight:700;color:#059669;margin-bottom:.2rem">📋 Permintaan ('+lines.length+' barang)</div>'+
+      '<div style="font-size:.78rem;color:var(--ink2)">👤 '+esc(r.person_name)+'</div>'+
+    '</div>'+
+    '<div id="arqm-rows" data-count="'+lines.length+'">'+rowsHtml+'</div>'+
+    '<div style="display:flex;gap:.5rem;margin-top:.5rem">'+
+      '<button class="btn btn-s" style="flex:1" onclick="closeModal()">✕ Batal</button>'+
+      '<button class="btn btn-ok" style="flex:2" onclick="confirmApproveReqBuyMulti(\''+esc(id)+'\')">✓ Masuk ke Stok Semua</button>'+
+    '</div>'
+  );
+}
+async function confirmApproveReqBuyMulti(id){
+  var r=DATA.requests.find(function(x){return x.id==id;});
+  if(!r)return;
+  var rowsEl=document.getElementById('arqm-rows');
+  var n=rowsEl?(parseInt(rowsEl.getAttribute('data-count'))||0):0;
+  var rows=[];
+  for(var i=0;i<n;i++){
+    var sel=document.getElementById('arqm-item-'+i);
+    var qtyEl=document.getElementById('arqm-qty-'+i);
+    var variantId=sel?sel.value:'';
+    var q=parseInt(qtyEl&&qtyEl.value)||0;
+    if(!variantId){toast('⚠ Pilih semua barang dulu (baris '+(i+1)+' belum dipilih)');return;}
+    if(q<1){toast('⚠ Jumlah minimal 1 (baris '+(i+1)+')');return;}
+    var item=DATA.items.find(function(it2){return it2.variant_id==variantId;});
+    if(!item)return;
+    rows.push({item:item,qty:q});
+  }
+  var ok=[],fail=[],batchWarn=[];
+  for(var j=0;j<rows.length;j++){
+    var row=rows[j];
+    try{
+      await atomicAdjustQty(row.item.variant_id,row.qty);
+      var u2=await sb.from('transactions').insert({type:'masuk',item_id:row.item.id,item_name:row.item.name,person_name:r.person_name,qty:row.qty,warehouse_id:CURRENT_WAREHOUSE||null});
+      if(u2.error)throw u2.error;
+      var u2b=await sbInsertSafe('item_batches',{item_id:row.item.id,warehouse_id:CURRENT_WAREHOUSE||null,qty_initial:row.qty,qty_remaining:row.qty,received_date:today()});
+      if(u2b.error){console.warn('[confirmApproveReqBuyMulti] batch insert gagal:',u2b.error.message);batchWarn.push(row.item.name);}
+      ok.push(row.item.name+' +'+row.qty);
+    }catch(e){
+      console.warn('[confirmApproveReqBuyMulti] gagal untuk',row.item.name,e);
+      fail.push(row.item.name+' ('+friendlyErr(e)+')');
+    }
+  }
+  // Kalau minimal satu barang berhasil masuk stok, tandai permintaan selesai — yang gagal
+  // sudah ditampilkan di toast supaya admin tahu harus tindak lanjut manual (bukan hilang diam-diam).
+  if(ok.length){
+    try{
+      var u3=await sb.from('requests').update({status:'approved'}).eq('id',id);
+      if(u3.error)console.warn('[confirmApproveReqBuyMulti] update status gagal:',u3.error.message);
+      notifyFammsIfNeeded(id);
+    }catch(e2){console.warn('[confirmApproveReqBuyMulti] update status exception:',e2);}
+  }
+  closeModal();
+  var msg=(ok.length?'✓ Masuk: '+ok.join(', '):'')+(fail.length?(ok.length?' | ':'')+'✗ Gagal: '+fail.join(', '):'')+(batchWarn.length?' ⚠ catatan lot gagal untuk '+batchWarn.join(', '):'');
+  toast(msg||'⚠ Tidak ada barang diproses');
+  await loadAll();
 }
 async function confirmApproveReqBuy(id){
   var r=DATA.requests.find(function(x){return x.id==id;});
