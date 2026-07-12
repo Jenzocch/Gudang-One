@@ -2899,17 +2899,31 @@ function renderAdminFull(){
 // 手機上 Shopee/Tokopedia 的 https 連結會直接開對應 App。網址集中在此，平台若
 // 改搜尋參數格式，只要改這個陣列一處即可。
 var MARKETPLACES=[
-  {label:'Shopee',bg:'#EE4D2D',url:'https://shopee.co.id/search?keyword='},
-  {label:'Tokopedia',bg:'#03AC0E',url:'https://www.tokopedia.com/search?q='},
-  {label:'BigGo',bg:'#2563EB',url:'https://biggo.id/s/?q=',cmp:true} // 跨平台比價
+  {label:'Shopee',emoji:'🛒',bg:'#EE4D2D',url:'https://shopee.co.id/search?keyword='},
+  {label:'Tokopedia',emoji:'🛍️',bg:'#03AC0E',url:'https://www.tokopedia.com/search?q='},
+  {label:'BigGo',emoji:'📊',bg:'#2563EB',url:'https://biggo.id/s/?q=',cmp:true} // 跨平台比價
 ];
-function marketSearchHTML(name){
-  var kw=encodeURIComponent((name||'').trim());
-  if(!kw)return'';
-  return '<span style="font-size:.7rem;color:var(--muted);font-weight:700">🔍</span>'+
-    MARKETPLACES.map(function(m){
-      return '<a href="'+m.url+kw+'" target="_blank" rel="noopener noreferrer" style="background:'+m.bg+';color:#fff;padding:.16rem .5rem;border-radius:6px;font-size:.72rem;font-weight:800;text-decoration:none;white-space:nowrap">'+esc(m.label)+(m.cmp?' 📊':'')+'</a>';
-    }).join('');
+// 卡片上只放一顆 🔍；點了才開這個面板（三個平台大按鈕，間距大不會點錯）+ 基準價
+function openMarketSearch(itemId){
+  var it=DATA.items.find(function(x){return x.id==itemId&&x.warehouse_id==='HARDWARE';})||DATA.items.find(function(x){return x.id==itemId;});
+  if(!it)return;
+  var name=(it.name||'').trim();
+  var kw=encodeURIComponent(name);
+  var canPrice=IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing);
+  var lp=canPrice?lastHardwarePrice(it.id):null;
+  var btns=MARKETPLACES.map(function(m){
+    return '<a href="'+m.url+kw+'" target="_blank" rel="noopener noreferrer" onclick="closeModal()" style="display:flex;align-items:center;gap:.7rem;background:'+m.bg+';color:#fff;padding:.9rem 1rem;border-radius:12px;font-size:1.02rem;font-weight:800;text-decoration:none;min-height:54px">'+
+      '<span style="font-size:1.25rem">'+m.emoji+'</span>'+
+      '<span style="flex:1">'+esc(m.label)+'</span>'+
+      (m.cmp?'<span style="font-size:.76rem;font-weight:700;opacity:.92;background:rgba(255,255,255,.2);padding:.15rem .5rem;border-radius:6px">banding harga</span>':'<span style="opacity:.75;font-size:1.1rem">↗</span>')+
+    '</a>';
+  }).join('');
+  showModal('🔍 Cari Online',
+    '<div style="font-weight:800;font-size:1.05rem;margin-bottom:.25rem">'+esc(name)+'</div>'+
+    (lp!=null?'<div style="font-size:.88rem;color:var(--ink2);margin-bottom:1rem">💰 Terakhir beli: <b style="color:var(--p)">Rp '+lp.toLocaleString('id-ID')+'</b> — bandingkan dengan harga online</div>'
+      :'<div style="font-size:.84rem;color:var(--muted);margin-bottom:1rem">Cari harga & stok di toko online</div>')+
+    '<div style="display:flex;flex-direction:column;gap:.65rem">'+btns+'</div>'
+  );
 }
 // Hardware 最近一次進貨單價（當線上比價的基準）；只在有看價權限時顯示。
 // 直查 DATA.batches（不是 IDX.batchesByItem，那個只留有庫存的），因為就算那批
@@ -2962,12 +2976,9 @@ function aiItemHTML(i){
           (i.supplier_url?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" class="ai-link" style="margin-left:.2rem">🔗 Beli</a><button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--muted);padding:.3rem .4rem">✏️</button>'
             :'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--muted);padding:.05rem 0">＋link</button>')+
           (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;padding:0 .2rem;color:var(--p)" title="Tempat Simpan">📍</button>':'')+
+          // Hardware 專屬：一顆 🔍 開線上比價面板（Shopee/Tokopedia/BigGo + 自家基準價）
+          (i.warehouse_id==='HARDWARE'?'<button onclick="openMarketSearch(\''+esc(i.id)+'\')" title="Cari online (Shopee/Tokopedia/BigGo)" style="display:inline-flex;align-items:center;gap:.2rem;background:#EEF2FF;border:1px solid #C7D2FE;color:var(--p);border-radius:8px;cursor:pointer;font-size:.74rem;font-weight:800;padding:.28rem .55rem;margin-left:.15rem">🔍 Cari</button>':'')+
         '</div>'+
-        // Hardware 專屬：用商品名一鍵搜 Shopee/Tokopedia/BigGo 比價，旁邊放自家上次進貨價當基準
-        (i.warehouse_id==='HARDWARE'?'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;padding-top:.35rem;border-top:1px dashed var(--border)">'+
-          marketSearchHTML(i.name)+
-          ((IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing))?(function(){var lp=lastHardwarePrice(i.id);return lp!=null?'<span style="font-size:.7rem;color:var(--ink2);font-weight:800;background:#EEF2FF;padding:.16rem .45rem;border-radius:6px;white-space:nowrap">💰 Terakhir beli: Rp '+lp.toLocaleString('id-ID')+'</span>':'';})():'')+
-        '</div>':'')+
         '</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" title="Kelola Lot" onclick="showItemBatches(\''+esc(i.id)+'\')">📋</button>'+
