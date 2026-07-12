@@ -2190,6 +2190,7 @@ async function executeAmbilCart(){
   var pid=CURRENT_USER.id||null;
   var btn=document.getElementById('amb-btn');btn.disabled=true;btn.textContent='...';
   var taken=[]; // 已成功落帳的品項（成功一項就從購物車移除，失敗重按不會重複入帳）
+  var batchWarn=[]; // FIFO 批次扣減失敗的品項名（variant/transaction 已成功，不能整項回滾重試，只能警示）
   try{
     for(var ki=0;ki<keys.length;ki++){
       var variantId=keys[ki];var item=DATA.items.find(function(i){return i.variant_id==variantId;});var qty=CART[variantId];
@@ -2203,7 +2204,14 @@ async function executeAmbilCart(){
       // FIFO: deduct from batches in current warehouse (filter by item_id AND warehouse_id)
       var abat=DATA.batches.filter(function(b){return b.item_id==item.id&&b.warehouse_id==CURRENT_WAREHOUSE&&b.qty_remaining>0;}).sort(function(a,b){if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);if(a.expiry_date)return -1;if(b.expiry_date)return 1;return new Date(a.created_at)-new Date(b.created_at);});
       var remQ=qty;
-      for(var bi=0;bi<abat.length&&remQ>0;bi++){var bat=abat[bi];var ded=Math.min(bat.qty_remaining,remQ);var nr=bat.qty_remaining-ded;await sb.from('item_batches').update({qty_remaining:nr}).eq('id',bat.id);bat.qty_remaining=nr;remQ-=ded;}
+      for(var bi=0;bi<abat.length&&remQ>0;bi++){
+        var bat=abat[bi];var ded=Math.min(bat.qty_remaining,remQ);var nr=bat.qty_remaining-ded;
+        var rb=await sb.from('item_batches').update({qty_remaining:nr}).eq('id',bat.id);
+        // variant qty & transaction di atas SUDAH commit — batch gagal tak boleh membatalkan
+        // seluruh item (retry akan dobel-potong variant). Cukup catat + beri tahu, jangan throw.
+        if(rb.error){console.warn('[batch update gagal]',item.name,bat.id,rb.error.message);if(batchWarn.indexOf(item.name)<0)batchWarn.push(item.name);break;}
+        bat.qty_remaining=nr;remQ-=ded;
+      }
       // Telegram throttle: use variant_id to ensure per-warehouse-item throttling
       if(newQty<=item.critical_qty&&item.critical_qty>0){
         var tgm=tgGetNotified();var lastN=tgm[variantId]||0;
@@ -2222,6 +2230,7 @@ async function executeAmbilCart(){
     }
     LAST_TAKE=taken; // 供「↩ Batalkan」復原用
     showTakeConfirm(taken);
+    if(batchWarn.length)toast('⚠ Stok tersimpan, tapi catatan lot untuk '+batchWarn.join(', ')+' mungkin tidak sinkron — cek Kelola Lot');
     CART={};
     await refreshInventory(); // 只重抓庫存+就地重繪 Ambil，不再全站 loadAll
   }catch(e){
