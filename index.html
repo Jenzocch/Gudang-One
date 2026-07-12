@@ -897,6 +897,10 @@ var CATG_MODAL_CAT=null;
 var FORM_TAGS=[];
 var CURRENT_WAREHOUSE=null;
 var LAST_LOADED_WAREHOUSE=null;
+// loadAll 每次呼叫遞增這個序號；回應套用前比對，若使用者在飛行途中已經觸發了
+// 更新的 loadAll（通常是切倉），這次是過期回應，直接丟棄不套用——避免舊倉資料
+// 蓋掉新倉，且 CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE 誤判「已是最新」而卡死。
+var LOAD_SEQ=0;
 // HARDWARE = gudang bahan baku / sparepart (五金原料 - gudang asli/pertama)
 // 依分頁 id 找底部按鈕（不能用位置索引，新增分頁會移位）
 function tbBtn(id){return document.querySelector('.tb[data-tab="'+id+'"]');}
@@ -1306,6 +1310,7 @@ async function refreshInventory(){
   }catch(e){console.warn('refreshInventory fallback:',e&&e.message);await loadAll();}
 }
 async function loadAll(afterCb,fromCache){
+  var mySeq=++LOAD_SEQ; // 這次呼叫的序號，用來偵測後續是否被更新的呼叫取代
   setDot('');
   var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Koneksi timeout (20s), coba lagi'));},20000);});
   try{
@@ -1330,6 +1335,7 @@ async function loadAll(afterCb,fromCache){
     // q6：全站設定（office 臨時開放旗標 + 低庫存彈窗設定）；表未建時容錯
     var q6=sb.from('app_config').select('key,value').in('key',['office_view_delivery','alert_config']);
     var results=await Promise.race([Promise.all([q1,q2,q3,q4,q5,q6]),tOut]);
+    if(mySeq!==LOAD_SEQ)return; // 過期：使用者已經切到別的倉庫，這批回應不再代表目前狀態
     var iv=results[0],p=results[1],r=results[2],bt=results[3],cg=results[4],cfg=results[5];
     var cfgRows=(cfg&&!cfg.error&&cfg.data)?cfg.data:[];
     var ovdRow=cfgRows.find(function(r2){return r2.key==='office_view_delivery';});
@@ -1361,6 +1367,9 @@ async function loadAll(afterCb,fromCache){
     try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
     saveWhCache(CURRENT_WAREHOUSE);
     setDot('ok');
+    // 二次確認：people 欄位缺失時上面的 fallback 重查也有 await 空隙，理論上切倉可能插在
+    // 那之間。渲染前再檢查一次序號，過期就不渲染（較新的那次呼叫自己會渲染正確狀態）。
+    if(mySeq!==LOAD_SEQ)return;
     // 同倉庫的資料重載（存檔/核准/交易後）不可以把使用者「彈走」：
     // 重繪前記住捲動位置與搜尋字，重繪後原地還原。換倉庫是新情境，不還原。
     var sameWh=(LAST_LOADED_WAREHOUSE===CURRENT_WAREHOUSE);
@@ -1381,6 +1390,7 @@ async function loadAll(afterCb,fromCache){
     // Preload gudang lain di background untuk switch cepat（函數內部自帶節流/新鮮度判斷）
     setTimeout(function(){preloadAllWarehouses();},2500);
   }catch(e){
+    if(mySeq!==LOAD_SEQ)return; // 過期呼叫的失敗別蓋掉更新那次呼叫已經渲染好的畫面
     setDot('err');
     // Jika data cache sudah tampil, jangan hapus layar - cukup beri tahu
     if(fromCache){toast('⚠ '+('Offline - tampilkan data tersimpan'));if(afterCb)afterCb();return;}
