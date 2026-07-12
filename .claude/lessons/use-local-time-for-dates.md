@@ -9,3 +9,11 @@ day/month before 07:00 local. Any user-facing date boundary (today's date,
 UTC ISO string.
 
 Evidence: `index.html` `today()` and its comment.
+
+**Same gotcha, query side:** a bare `<input type="date">` value like
+`"2026-07-01"` sent straight into `.lt('created_at', cutoff)` against a
+`timestamptz` column gets cast by Postgres as UTC midnight — 7 hours earlier
+than WIB midnight — so rows from 00:00–06:59 WIB on the cutoff day get
+wrongly included as "before cutoff". Fix: append `T00:00:00+07:00` before
+comparing against `timestamptz` columns; leave plain `date`-typed columns
+(no time component) as the bare string. See `arcCutoffFor()` in `index.html`.
