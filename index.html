@@ -1113,14 +1113,41 @@ function setDot(s){var d=document.getElementById('cdot');d.className='conn-dot'+
 // Transaksi dimuat saat dibutuhkan (tab Riwayat / export CSV), bukan di pemuatan awal
 var TX_LOADED=false;
 var TX_LOAD_FAILED=false;
+// Riwayat dulu hard-limit 200 baris tanpa cara buka yang lebih lama — begitu gudang
+// lewat 200 transaksi, sisanya tidak bisa dilihat/diedit/dihapus lagi lewat UI sama
+// sekali. Sekarang halaman pertama tetap 200 (cepat dimuat), tapi ada tombol "muat lebih
+// banyak" yang nyambung pakai .range() untuk ambil halaman berikutnya.
+var TX_PAGE_SIZE=200;
+var TX_OFFSET=0;
+var TX_HAS_MORE=false;
+function txQueryBase(){
+  return (CURRENT_WAREHOUSE?sb.from('transactions').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('transactions').select('*'))
+    .order('created_at',{ascending:false}).order('id',{ascending:false});
+}
 async function loadTransactions(cb){
   try{
-    var q=CURRENT_WAREHOUSE?sb.from('transactions').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('transactions').select('*');
-    var res=await q.order('created_at',{ascending:false}).limit(200);
+    var res=await txQueryBase().range(0,TX_PAGE_SIZE-1);
     if(res.error)throw res.error;
-    DATA.transactions=res.data||[];TX_LOADED=true;TX_LOAD_FAILED=false;
+    DATA.transactions=res.data||[];
+    TX_OFFSET=DATA.transactions.length;TX_HAS_MORE=DATA.transactions.length===TX_PAGE_SIZE;
+    TX_LOADED=true;TX_LOAD_FAILED=false;
     if(cb)cb();
   }catch(e){TX_LOAD_FAILED=true;if(cb)cb();}
+}
+async function loadMoreTransactions(){
+  var btn=document.getElementById('rw-loadmore');
+  if(btn){btn.disabled=true;btn.textContent='⏳ '+('Memuat')+'...';}
+  try{
+    var res=await txQueryBase().range(TX_OFFSET,TX_OFFSET+TX_PAGE_SIZE-1);
+    if(res.error)throw res.error;
+    var got=res.data||[];
+    DATA.transactions=DATA.transactions.concat(got);
+    TX_OFFSET+=got.length;TX_HAS_MORE=got.length===TX_PAGE_SIZE;
+    renderRiwayat();
+  }catch(e){
+    toast('⚠ '+friendlyErr(e));
+    if(btn){btn.disabled=false;btn.textContent='⬇️ '+('Muat lebih banyak');}
+  }
 }
 
 // === INSTANT CACHE: tampilkan data tersimpan langsung, refresh di background ===
@@ -1164,7 +1191,7 @@ function tryRenderFromCache(wid,jump){
     if(!c||!c.items||!c.items.length)return false;
     DATA.items=c.items;DATA.batches=c.batches||[];DATA.requests=c.requests||[];
     DATA.categories=c.categories||[]; // 換倉時分類一起換，避免殘留上一倉的分類
-    DATA.transactions=[];TX_LOADED=false;
+    DATA.transactions=[];TX_LOADED=false;TX_OFFSET=0;TX_HAS_MORE=false;
     if((!DATA.people||!DATA.people.length)){try{var cp=JSON.parse(localStorage.getItem('cached_people')||'[]');if(cp.length)DATA.people=cp;}catch(e){}}
     buildIndexes();DATA_READY=true;
     // 快取即是目前顯示的資料：標記已載入，避免 renderAmbil/renderMasuk 看到倉庫不符
@@ -1362,7 +1389,7 @@ async function loadAll(afterCb,fromCache){
     syncMyPerms();
     DATA.requests=r.data||[];
     DATA.batches=bt?bt.data||[]:[];
-    DATA.transactions=[];TX_LOADED=false;
+    DATA.transactions=[];TX_LOADED=false;TX_OFFSET=0;TX_HAS_MORE=false;
     buildIndexes();DATA_READY=true;
     try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
     saveWhCache(CURRENT_WAREHOUSE);
@@ -2578,7 +2605,8 @@ function renderRiwayat(){
   if(!all.length){document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div><div style="text-align:center;color:var(--muted);padding:2rem;font-size:.85rem">'+t('noTxn')+'</div>';return;}
   // 先渲染前 40 筆（快速呈現），其餘分批補上避免一次性大 DOM 建構造成卡頓
   var first=all.slice(0,40).map(txRow).join('');
-  document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div><div id="rw-list">'+first+(all.length>40?'<div id="rw-more" style="text-align:center;color:var(--muted);padding:.8rem;font-size:.8rem">⏳ '+('Memuat')+'… (+'+(all.length-40)+')</div>':'')+'</div>';
+  var loadMoreBtn=TX_HAS_MORE?'<div style="text-align:center;padding:.8rem"><button id="rw-loadmore" class="btn btn-s" onclick="loadMoreTransactions()">⬇️ '+('Muat lebih banyak')+'</button></div>':'';
+  document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div><div id="rw-list">'+first+(all.length>40?'<div id="rw-more" style="text-align:center;color:var(--muted);padding:.8rem;font-size:.8rem">⏳ '+('Memuat')+'… (+'+(all.length-40)+')</div>':'')+'</div>'+loadMoreBtn;
   if(all.length>40)setTimeout(function(){
     var more=document.getElementById('rw-more');
     if(more)more.outerHTML=all.slice(40).map(txRow).join('');
