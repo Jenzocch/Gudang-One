@@ -2111,15 +2111,7 @@ async function undoLastTake(btn){
   try{
     for(var i=0;i<LAST_TAKE.length;i++){
       var x=LAST_TAKE[i];
-      var it=DATA.items.find(function(o){return o.variant_id==x.variantId;});
-      var cur;
-      if(it)cur=it.qty;
-      else{
-        var rv=await sb.from('item_variants').select('qty').eq('id',x.variantId).single();
-        cur=(rv.data&&Number(rv.data.qty))||0;
-      }
-      var r1=await sb.from('item_variants').update({qty:cur+x.qty}).eq('id',x.variantId);
-      if(r1.error)throw r1.error;
+      await atomicAdjustQty(x.variantId,x.qty); // baca-terbaru + compare-and-swap, bukan qty lokal
       var r2=await sb.from('transactions').insert({type:'masuk',item_id:x.itemId,item_name:x.name,person_id:(CURRENT_USER&&CURRENT_USER.id)||null,person_name:(CURRENT_USER?CURRENT_USER.name:'')+' (batal ambil)',qty:x.qty,warehouse_id:CURRENT_WAREHOUSE||null});
       if(r2.error)throw r2.error;
     }
@@ -2183,6 +2175,30 @@ async function doAmbilCart(){
   '</div>';
   showModal('📤 '+t('take'),msg);
 }
+// Ambil/Masuk/batal-ambil semua pernah menulis qty pakai "baca lokal (mungkin basi) + qty±delta"
+// — dua orang ambil barang yang sama nyaris bersamaan bisa saling timpa (lost update), bahkan
+// stok jadi minus tanpa peringatan. Ganti dengan baca-terbaru-lalu-tulis pakai compare-and-swap:
+// UPDATE ... WHERE qty = (nilai yang baru dibaca). Kalau 0 baris ter-update, berarti orang lain
+// baru saja mengubahnya di antara baca & tulis kita — baca ulang & coba lagi (maks 5x).
+async function atomicAdjustQty(variantId,delta,opts){
+  var floorZero=opts&&opts.floorZero;
+  for(var attempt=0;attempt<5;attempt++){
+    var rv=await sb.from('item_variants').select('qty').eq('id',variantId).single();
+    if(rv.error)throw rv.error;
+    var cur=Number(rv.data&&rv.data.qty)||0;
+    var next=cur+delta;
+    if(floorZero&&next<0){
+      var e=new Error('Stok tidak cukup (sisa '+cur+')');
+      e.friendly=true;throw e;
+    }
+    var upd=await sb.from('item_variants').update({qty:next}).eq('id',variantId).eq('qty',cur).select('qty');
+    if(upd.error)throw upd.error;
+    if(upd.data&&upd.data.length)return next; // sukses, tak ada yang menimpa di antaranya
+    // 0 baris = ditimpa orang lain barusan; ulangi dari baca terbaru
+  }
+  var e2=new Error('Stok berubah terlalu cepat, coba lagi');
+  e2.friendly=true;throw e2;
+}
 async function executeAmbilCart(){
   closeModal();
   var keys=Object.keys(CART);
@@ -2195,10 +2211,9 @@ async function executeAmbilCart(){
     for(var ki=0;ki<keys.length;ki++){
       var variantId=keys[ki];var item=DATA.items.find(function(i){return i.variant_id==variantId;});var qty=CART[variantId];
       btn.textContent=(ki+1)+'/'+keys.length+'...';
-      var newQty=item.qty-qty;
-      // Update item_variants (per-warehouse) instead of items
-      var ru=await sb.from('item_variants').update({qty:newQty}).eq('id',variantId);
-      if(ru.error)throw ru.error;
+      // Update item_variants (per-warehouse) instead of items — baca-terbaru + compare-and-swap,
+      // bukan qty lokal yang mungkin basi (lihat atomicAdjustQty)
+      var newQty=await atomicAdjustQty(variantId,-qty,{floorZero:true});
       var rt=await sb.from('transactions').insert({type:'ambil',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
       if(rt.error)throw rt.error;
       // FIFO: deduct from batches in current warehouse (filter by item_id AND warehouse_id)
@@ -2435,8 +2450,7 @@ async function doMasukCart(){
       var variantId=keys[ki];var ci=CART_M[variantId];var item=DATA.items.find(function(i){return i.variant_id==variantId;});var qty=ci.qty;
       btn.textContent=(ki+1)+'/'+keys.length+'...';
       // Update item_variants (per-warehouse) instead of items
-      var r1=await sb.from('item_variants').update({qty:item.qty+qty}).eq('id',variantId);
-      if(r1.error)throw r1.error;
+      await atomicAdjustQty(variantId,qty); // baca-terbaru + compare-and-swap, bukan qty lokal
       var r2=await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
       if(r2.error)throw r2.error;
       // 批次記錄失敗不能靜默吞掉（否則庫存加了、批號/效期/FIFO 卻沒建），用 safe insert 容錯缺欄位
@@ -4474,9 +4488,8 @@ async function confirmApproveReqBuy(id){
   var item=DATA.items.find(function(i){return i.variant_id==variantId;});
   if(!item)return;
   try{
-    // 1) 加庫存
-    var u1=await sb.from('item_variants').update({qty:item.qty+q}).eq('id',item.variant_id);
-    if(u1.error)throw u1.error;
+    // 1) 加庫存（baca-terbaru + compare-and-swap，bukan qty lokal）
+    await atomicAdjustQty(item.variant_id,q);
     // 2) 記為進貨交易(Masuk)
     var u2=await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_name:r.person_name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
     if(u2.error)throw u2.error;
@@ -5118,6 +5131,9 @@ function stBadge(kind,label){
 function friendlyErr(e){
   var m=(e&&e.message)||String(e||'');
   try{if(m)console.error('[err]',m);}catch(_){}
+  // Error yang sudah ditulis khusus untuk pengguna (mis. atomicAdjustQty) — tampilkan apa adanya,
+  // jangan digeneralisir jadi "Gagal, coba lagi" oleh pola-pola di bawah.
+  if(e&&e.friendly)return m;
   if(/failed to fetch|network|timeout|koneksi|fetch/i.test(m))return 'Koneksi bermasalah, coba lagi';
   if(/jwt|expired|token|unauthorized|auth/i.test(m))return 'Sesi habis, silakan masuk ulang';
   if(/duplicate|unique|already exists|sudah ada/i.test(m))return 'Data sudah ada';
