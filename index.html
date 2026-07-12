@@ -4503,11 +4503,17 @@ async function confirmApproveReqBuy(id){
     // 2) 記為進貨交易(Masuk)
     var u2=await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_name:r.person_name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
     if(u2.error)throw u2.error;
-    // 3) 請求標記為已批准
+    // 3) 建立批次記錄——跟一般 Masuk 一致，不然 item_variants.qty 會比 item_batches
+    // 總量多，FIFO 領料批次提早見底但總庫存還沒扣完（沒有 lot/效期可填，留空即可）。
+    // qty/交易在這之前都已 commit，批次失敗不能整段回滾重試（會重複加庫存+記交易），
+    // 只能警示、繼續往下標記已核准。
+    var u2b=await sbInsertSafe('item_batches',{item_id:item.id,warehouse_id:CURRENT_WAREHOUSE||null,qty_initial:q,qty_remaining:q,received_date:today()});
+    if(u2b.error)console.warn('[confirmApproveReqBuy] batch insert gagal:',u2b.error.message);
+    // 4) 請求標記為已批准
     var u3=await sb.from('requests').update({status:'approved'}).eq('id',id);
     if(u3.error)throw u3.error;
     notifyFammsIfNeeded(id);
-    toast('✓ '+item.name+' +'+q+' '+('masuk stok'));
+    toast('✓ '+item.name+' +'+q+' '+('masuk stok')+(u2b.error?' ⚠ catatan lot gagal disimpan':''));
     closeModal();
     await loadAll();
   }catch(e){toast('⚠ '+friendlyErr(e));}
