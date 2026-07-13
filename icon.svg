@@ -8,17 +8,19 @@
       <stop offset="0" stop-color="#F49B2B"/>
       <stop offset="1" stop-color="#E97C17"/>
     </linearGradient>
+    <linearGradient id="gDiagGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5AA84A"/>
+      <stop offset="1" stop-color="#1E6B2E"/>
+    </linearGradient>
   </defs>
   <rect width="512" height="512" rx="110" fill="#F7F3E8"/>
-  <!-- G -->
-  <text x="190" y="318" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="300" fill="url(#gGrad)">G</text>
-  <!-- 1 -->
-  <text x="330" y="322" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="215" fill="url(#oGrad)">1</text>
-  <!-- 葉子 -->
-  <path d="M300 96 C325 48 380 40 412 58 C400 108 348 128 308 108 C305 106 302 101 300 96 Z" fill="#5FAE3D"/>
-  <path d="M310 104 Q356 76 402 64" stroke="#3E8230" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- 3 kotak bertumpuk (stok/rak gudang) -->
+  <rect x="104" y="260" width="140" height="140" rx="20" fill="url(#gGrad)"/>
+  <rect x="268" y="260" width="140" height="140" rx="20" fill="url(#oGrad)"/>
+  <rect x="186" y="96" width="140" height="140" rx="20" fill="url(#gDiagGrad)"/>
+  <line x1="256" y1="260" x2="256" y2="400" stroke="#F7F3E8" stroke-width="16"/>
   <!-- 文字 -->
-  <text x="256" y="452" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="66">
-    <tspan fill="#2E7D32">Gudang </tspan><tspan fill="#EF8A1F">One</tspan>
+  <text x="256" y="460" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="64">
+    <tspan fill="#2E7D32">Gudang</tspan><tspan fill="#EF8A1F">-1</tspan>
   </text>
 </svg>

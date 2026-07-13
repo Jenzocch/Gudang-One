@@ -1,1 +1,3 @@
-.claude/
+.claude/*
+# ...but keep the durable AI lessons in the repo so they survive fresh clones
+!.claude/lessons/
