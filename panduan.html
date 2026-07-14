@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Panduan — Gudang One</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<meta name="theme-color" content="#2E7D32">
+<style>
+/* Panduan situasional — murni Indonesia, HP-first, huruf besar, klik untuk buka.
+   Sengaja tanpa library/JS eksternal: <details>/<summary> asli browser supaya
+   jalan di HP tua & tablet gudang. Satu file, ikut ter-deploy bareng index.html. */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --g:#2E7D32; --g-dark:#1B5E20; --g-bg:#E8F5E9;
+  --ink:#1F2937; --ink2:#4B5563; --muted:#9CA3AF;
+  --card:#fff; --bg:#F4F6F4; --border:#E5E7EB;
+  --amber:#B45309; --amber-bg:#FEF3C7;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:17px;line-height:1.65;-webkit-text-size-adjust:100%}
+.wrap{max-width:720px;margin:0 auto;padding:0 .9rem 4rem}
+
+/* ── Header ── */
+header{background:linear-gradient(160deg,var(--g) 0%,var(--g-dark) 100%);color:#fff;padding:1.6rem .9rem 1.4rem;text-align:center}
+header .logo{width:64px;height:64px;margin:0 auto .6rem;display:block}
+header h1{font-size:1.5rem;font-weight:900;letter-spacing:-.01em}
+header p{font-size:.98rem;opacity:.92;margin-top:.35rem;max-width:34ch;margin-left:auto;margin-right:auto}
+.back{display:inline-block;margin-top:.9rem;background:rgba(255,255,255,.16);color:#fff;text-decoration:none;font-weight:800;font-size:.9rem;padding:.5rem 1.1rem;border-radius:999px;border:1px solid rgba(255,255,255,.35)}
+
+/* ── Petunjuk pakai halaman ini ── */
+.howto{background:var(--g-bg);border:1.5px solid #A5D6A7;border-radius:12px;padding:.8rem 1rem;margin:1rem 0 0;font-size:.92rem;color:#1B5E20;font-weight:600}
+
+/* ── Bagian ── */
+.sec-title{margin:1.6rem 0 .6rem;font-size:1.05rem;font-weight:900;color:var(--ink);display:flex;align-items:center;gap:.5rem}
+.sec-title .tag{font-size:.68rem;font-weight:800;padding:.14rem .55rem;border-radius:999px;letter-spacing:.03em}
+.tag-utama{background:var(--g);color:#fff}
+.tag-admin{background:#4338CA;color:#fff}
+.sec-sub{font-size:.85rem;color:var(--ink2);margin:-.3rem 0 .7rem}
+
+/* ── Kartu situasi (details/summary) ── */
+details{background:var(--card);border:1.5px solid var(--border);border-radius:14px;margin-bottom:.7rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+details[open]{border-color:var(--g)}
+summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.7rem;padding:.95rem 1rem;min-height:56px;-webkit-tap-highlight-color:rgba(46,125,50,.12)}
+summary::-webkit-details-marker{display:none}
+summary .ic{font-size:1.5rem;flex-shrink:0}
+summary .q{flex:1;font-weight:800;font-size:1rem;line-height:1.35}
+summary .arr{color:var(--muted);font-size:.8rem;transition:transform .15s;flex-shrink:0}
+details[open] summary .arr{transform:rotate(90deg);color:var(--g)}
+details[open] summary{background:var(--g-bg)}
+.body{padding:.4rem 1rem 1.05rem;border-top:1px dashed var(--border)}
+
+/* ── Langkah bernomor ── */
+ol.steps{margin:.6rem 0 0;padding:0;list-style:none;counter-reset:s}
+ol.steps li{counter-increment:s;position:relative;padding:.32rem 0 .32rem 2.3rem;font-size:.95rem}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:.36rem;width:1.6rem;height:1.6rem;background:var(--g);color:#fff;border-radius:50%;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.btnref{display:inline-block;background:#F3F4F6;border:1px solid var(--border);border-radius:7px;padding:.05rem .5rem;font-weight:800;font-size:.88rem;white-space:nowrap}
+.tip{margin-top:.7rem;background:var(--amber-bg);border-left:4px solid var(--amber);border-radius:0 9px 9px 0;padding:.55rem .8rem;font-size:.88rem;color:#78350F}
+.tip b{color:var(--amber)}
+.note{margin-top:.55rem;font-size:.86rem;color:var(--ink2)}
+
+/* status contoh */
+.st-ok{color:#059669;font-weight:800}.st-low{color:#D97706;font-weight:800}.st-out{color:#DC2626;font-weight:800}
+
+footer{text-align:center;color:var(--muted);font-size:.78rem;padding:2rem 0 1rem}
+@media print{
+  header{background:var(--g);-webkit-print-color-adjust:exact}
+  details{page-break-inside:avoid}
+  .back{display:none}
+}
+@media(min-width:600px){body{font-size:18px}}
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo" src="icon.svg" alt="Gudang One">
+  <h1>Panduan Gudang One</h1>
+  <p>Cari situasi yang lagi kamu hadapi, klik, ikuti langkahnya. Selesai.</p>
+  <a class="back" href="index.html">◀ Kembali ke Aplikasi</a>
+</header>
+
+<div class="wrap">
+
+<div class="howto">👆 Klik kotak di bawah sesuai situasimu — langkahnya langsung muncul.<br>
+Kalau ada tombol yang tidak muncul di HP-mu, berarti itu bukan tugasmu — tidak perlu bingung. 😊</div>
+
+<!-- ═══════════════ SEHARI-HARI ═══════════════ -->
+<div class="sec-title">📦 Pekerjaan Sehari-hari <span class="tag tag-utama">UTAMA</span></div>
+<div class="sec-sub">Untuk semua karyawan gudang — ini 90% yang kamu butuhkan.</div>
+
+<details open>
+  <summary><span class="ic">🔍</span><span class="q">"Barang ini masih ada nggak sih?"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Buka aplikasi → di halaman depan langsung <b>ketik nama barang</b> di kolom cari.</li>
+      <li>Lihat angkanya: <span class="st-ok">🟢 aman</span> · <span class="st-low">🟠 menipis</span> · <span class="st-out">❌ habis</span>.</li>
+      <li>Mau lihat-lihat saja tanpa takut salah pencet? Pakai tombol <span class="btnref">🔍 Cek Stok</span> — itu <b>hanya untuk melihat</b>, stok tidak akan berubah.</li>
+    </ol>
+    <div class="tip">💡 <b>Tip:</b> bisa juga cari pakai kode barang atau nama tag/kategori.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">📤</span><span class="q">"Saya mau ambil barang"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Buka tab <span class="btnref">📤 Ambil</span> di bawah.</li>
+      <li>Cari barangnya → tekan <span class="btnref">+</span> atau langsung ketik jumlahnya.</li>
+      <li>Mau ambil beberapa barang? Tambahkan semua dulu — seperti keranjang belanja.</li>
+      <li>Tekan tombol besar <span class="btnref">✓ Ambil</span> di bawah → selesai, stok otomatis berkurang.</li>
+    </ol>
+    <div class="tip">💡 <b>Penting (bahan makanan):</b> sistem menunjukkan lot mana yang harus <b>"Pakai dulu"</b> — yang paling lama / paling dekat kadaluarsa. Ambil dari lot itu, jangan pilih sendiri.</div>
+    <div class="note">Stok tidak cukup? Sistem menolak otomatis dan memberi tahu sisa yang ada — tidak mungkin minus.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">😅</span><span class="q">"Waduh, salah ambil!"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Setelah konfirmasi ambil, di layar ada tombol <span class="btnref">↩ Salah ambil? Batalkan</span>.</li>
+      <li>Tekan → stok langsung kembali seperti semula, termasuk catatan lot-nya.</li>
+      <li>Sudah terlanjur tutup layarnya? <b>Lapor admin</b> — admin bisa koreksi lewat Riwayat.</li>
+    </ol>
+    <div class="tip">💡 Lebih baik lapor daripada diam — semua tercatat, tidak ada yang dimarahi karena jujur. 😄</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">📥</span><span class="q">"Barang baru datang, mau dimasukkan"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Buka tab <span class="btnref">📥 Masuk</span>.</li>
+      <li>Pilih siapa yang menerima, barangnya, dan jumlahnya.</li>
+      <li>Ada <b>No. Lot / tanggal produksi / kadaluarsa</b> di kemasan? <b>Isi!</b> Ini penting supaya barang bisa dilacak.</li>
+      <li>Simpan → halaman tetap di sini, langsung lanjut terima barang berikutnya.</li>
+    </ol>
+    <div class="tip">💡 <b>Tip:</b> harga beli & nama supplier juga bisa diisi di sini — nanti berguna waktu mau beli lagi.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">🙋</span><span class="q">"Barang habis / rusak — minta dibelikan"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Buka tab <span class="btnref">🙋 Minta</span>.</li>
+      <li>Pilih barang dari daftar, atau ketik sendiri kalau barang baru. Isi jumlah.</li>
+      <li>Boleh lampirkan <b>📷 foto</b> — admin jadi tahu persis barang yang dimaksud.</li>
+      <li>Bingung belinya di mana? Tekan <span class="btnref">🔍 Cari online</span> → langsung buka Shopee / Tokopedia / BigGo. Ketemu yang bagus? <b>Tempel link-nya di catatan.</b></li>
+      <li>Kirim → tunggu: ⏳ menunggu → ✓ disetujui atau ✕ ditolak.</li>
+    </ol>
+    <div class="note">Kalau disetujui admin, barang otomatis masuk stok begitu dibeli — kamu tidak perlu apa-apa lagi.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">🧮</span><span class="q">"Disuruh hitung stok (opname)"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Buka <span class="btnref">🔍 Cek Stok</span> → pilih <b>kategori</b> yang mau dihitung (tidak harus semua sekaligus).</li>
+      <li>Hitung barang fisiknya → ketik angka hasil hitungan. Yang kamu ubah jadi <b>kuning</b>.</li>
+      <li>Hanya yang kuning yang akan disimpan — yang tidak disentuh aman, tidak berubah.</li>
+      <li>Tekan <span class="btnref">✓ Simpan</span>. Kalau ada yang gagal, angkamu <b>tidak hilang</b> — tinggal tekan simpan lagi.</li>
+    </ol>
+    <div class="tip">💡 <b>Tip:</b> pakai 📷 <b>scan barcode</b> untuk langsung loncat ke barangnya — tidak perlu scroll panjang.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">🔔</span><span class="q">"Muncul peringatan stok menipis — ngapain?"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Itu artinya ada barang di bawah batas minimum — anggap saja <b>daftar belanja</b>.</li>
+      <li>Ada tombol <span class="btnref">🔗</span>? Klik → langsung ke toko online tempat biasa beli.</li>
+      <li>Bukan tugasmu belanja? Tutup saja — admin juga dapat pemberitahuan lewat Telegram.</li>
+    </ol>
+  </div>
+</details>
+
+<!-- ═══════════════ UNTUK ADMIN ═══════════════ -->
+<div class="sec-title">👑 Untuk Admin <span class="tag tag-admin">LANJUTAN</span></div>
+<div class="sec-sub">Admin Gudang 👑 · Admin Office 🏢 · Super Admin 🔐 — masuk lewat menu <b>☰ Lainnya</b>.</div>
+
+<details>
+  <summary><span class="ic">➕</span><span class="q">"Mau daftarkan barang baru ke sistem"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li><span class="btnref">☰ Lainnya</span> → <span class="btnref">⚙️ Admin</span> → Kelola Barang → <span class="btnref">+ Tambah</span>.</li>
+      <li><b>Pilih gudangnya dulu</b>, baru isi nama. Kalau nama sudah ada di gudang lain, sistem menawarkan <b>pakai barang yang sama</b> — supaya tidak ada nama dobel.</li>
+      <li>Isi foto, satuan, stok awal, dan <b>batas minimum</b> (di bawah angka ini = peringatan 🟠).</li>
+    </ol>
+    <div class="tip">💡 <b>Tip:</b> foto <b>📍 lokasi rak</b> juga bisa diunggah — karyawan baru langsung tahu barangnya di mana. Banyak barang sekaligus? Pakai <b>impor CSV</b>.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">✅</span><span class="q">"Ada permintaan pembelian masuk — cara menyetujui"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Buka tab <span class="btnref">🙋 Minta</span> → permintaan ⏳ ada tombol untuk admin.</li>
+      <li>Sudah dibeli? Tekan <span class="btnref">🛒 Sudah Beli (Masuk)</span> → pilih barang & jumlah → stok langsung masuk + tercatat sebagai lot.</li>
+      <li>Permintaan berisi <b>beberapa barang</b> (misalnya dari FAMMS)? Tiap baris dipilih satu-satu — semua barang pasti masuk, bukan cuma yang pertama.</li>
+      <li>Tidak jadi beli? Tekan <span class="btnref">✗ Tolak</span>.</li>
+    </ol>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">🏷️</span><span class="q">"Atur lot, kadaluarsa & harga beli"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Kelola Barang → buka barangnya → bagian <b>📦 Lot</b>.</li>
+      <li>Isi No. Lot, PO/DO, tanggal produksi & kadaluarsa, harga beli, supplier, link COA.</li>
+      <li>Sistem otomatis pakai urutan <b>FIFO</b>: lot paling lama keluar duluan saat karyawan ambil barang.</li>
+    </ol>
+    <div class="note">Barang mendekati kadaluarsa (30 hari) otomatis muncul di peringatan halaman depan.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">🔬</span><span class="q">"QC / HACCP — cek mutu batch"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li><span class="btnref">☰ Lainnya</span> → <span class="btnref">✅ QC</span> → pilih batch / hasil produksi yang mau dicek.</li>
+      <li>Isi tiap item pemeriksaan. Daftar pemeriksaannya bisa diubah sendiri di <b>⚙️ Atur Item</b>.</li>
+      <li>Item bertanda <b>🔴 CCP</b> = titik kritis: kalau gagal (termasuk angka yang melewati batas, misal suhu &gt; 4°C), batch <b>tidak bisa diluluskan</b> dan wajib isi tindakan koreksi.</li>
+    </ol>
+    <div class="note">QC gagal otomatis mengirim peringatan ke grup Telegram — tidak perlu lapor manual.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">👥</span><span class="q">"Atur karyawan & izin akses"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Admin → <b>Kelola Orang</b> → tambah karyawan (PIN awal <b>1234</b>, suruh ganti).</li>
+      <li>Klik kotak izin per orang <b>per gudang</b>: Ambil / Masuk / Opname / Produksi / Kirim — bisa beda tiap gudang.</li>
+      <li>Lupa PIN? Reset di sini juga.</li>
+    </ol>
+    <div class="note">🔐 Hanya Super Admin yang bisa mengangkat Admin Gudang 👑 atau membuka akses lihat harga 💰.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">📊</span><span class="q">"Cek riwayat / koreksi transaksi yang salah"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li><span class="btnref">☰ Lainnya</span> → <span class="btnref">📊 Riwayat</span>: siapa ambil/terima apa, kapan, berapa.</li>
+      <li>Ada yang salah input? Tekan <span class="btnref">✏️</span> untuk koreksi atau <span class="btnref">🗑️</span> untuk hapus.</li>
+      <li>Riwayat panjang? Tekan <span class="btnref">⬇️ Muat lebih banyak</span> di bawah daftar.</li>
+    </ol>
+    <div class="note">Semua koreksi & penghapusan tercatat permanen di log — bisa diaudit, tidak bisa dihapus diam-diam.</div>
+  </div>
+</details>
+
+<details>
+  <summary><span class="ic">🗂</span><span class="q">"Database mulai penuh — arsip data lama"</span><span class="arr">▶</span></summary>
+  <div class="body">
+    <ol class="steps">
+      <li>Admin → <b>🗂 Arsip</b> (khusus Super Admin).</li>
+      <li>Pilih tanggal batas → <b>1️⃣ Hitung</b> → <b>2️⃣ Unduh CSV</b> (simpan baik-baik, terutama catatan QC!) → <b>3️⃣ Hapus</b>.</li>
+      <li>Urutannya jangan dibalik: <b>unduh dulu, baru hapus</b> — yang dihapus tidak bisa kembali.</li>
+    </ol>
+    <div class="tip">💡 Backup rutin juga bisa dikirim ke <b>Google Sheet</b> sekali klik dari menu Admin.</div>
+  </div>
+</details>
+
+<footer>📦 Gudang One · Panduan situasional · Buka lagi kapan saja dari menu ☰ Lainnya</footer>
+</div>
+
+</body>
+</html>

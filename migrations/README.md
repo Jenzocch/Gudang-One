@@ -25,3 +25,5 @@
 | `MIGRATION_QC_SJA.sql` | SJA 的 QC 檢驗範本種子資料（前置：MIGRATION_QC_SYSTEM.sql） | ✅ 已執行（正式庫） |
 | `MIGRATION_AUDIT_LOG.sql` | audit_log 刪改留痕表（只給 INSERT/SELECT，稽核不可竄改） | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（Arsip 稽核記錄功能依賴它） |
 | `MIGRATION_FAMMS_LINK.sql` | requests 表加 `source`/`famms_request_id`，供線③（叫料狀態回寫 FAMMS）追蹤來源 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（notify-famms-status 依賴它） |
+| `MIGRATION_STORAGE_LOCKDOWN.sql` | 撤掉 Storage `item-photos` bucket 的 anon DELETE/UPDATE 政策（原本任何人都能刪改別人上傳的商品照片） | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（純安全性收斂，未套用前功能仍正常，只是漏洞還開著） |
+| `MIGRATION_PRODUCT_REFS.sql` | 新增 `product_refs` 表——供應商/產品知識庫（不綁倉庫、不算庫存），供「📚 Referensi」分頁關鍵字搜尋用 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（Referensi 分頁依賴它） |
