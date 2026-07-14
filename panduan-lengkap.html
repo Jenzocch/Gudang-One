@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Gudang One — 完整使用說明書</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<meta name="theme-color" content="#2E7D32">
+<meta name="description" content="Gudang One 倉儲系統完整使用說明書 — 給老闆/管理者的中文版功能總覽，含情境快查、完整功能清單、權限對照表">
+<style>
+  :root{
+    --paper:#F7F3E8; --card:#FFFFFF; --ink:#22261C; --ink2:#4E5442; --muted:#82896F;
+    --green:#2E7D32; --green-d:#1E6B2E; --green-soft:#E7F3E4;
+    --orange:#EF8A1F; --orange-d:#E2790F; --orange-soft:#FDEEDA;
+    --line:#E4DFC9; --ok:#2E7D32; --ok-soft:#E7F3E4; --warn:#B4740E; --warn-soft:#FDEEDA;
+    --danger:#C23B22; --danger-soft:#FBE4DD;
+    --shadow:0 1px 3px rgba(34,38,28,.08),0 6px 18px rgba(34,38,28,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#15170F; --card:#1E2117; --ink:#EDEFE3; --ink2:#BEC4AC; --muted:#8A9077;
+      --green:#6FCB63; --green-d:#4CA344; --green-soft:#1B2A18;
+      --orange:#F5A94B; --orange-d:#E2790F; --orange-soft:#302311;
+      --line:#33392A; --ok:#6FCB63; --ok-soft:#1B2A18; --warn:#F5A94B; --warn-soft:#302311;
+      --danger:#F0876F; --danger-soft:#331813;
+      --shadow:0 1px 3px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#15170F; --card:#1E2117; --ink:#EDEFE3; --ink2:#BEC4AC; --muted:#8A9077;
+    --green:#6FCB63; --green-d:#4CA344; --green-soft:#1B2A18;
+    --orange:#F5A94B; --orange-d:#E2790F; --orange-soft:#302311;
+    --line:#33392A; --ok:#6FCB63; --ok-soft:#1B2A18; --warn:#F5A94B; --warn-soft:#302311;
+    --danger:#F0876F; --danger-soft:#331813;
+  }
+  :root[data-theme="light"]{
+    --paper:#F7F3E8; --card:#FFFFFF; --ink:#22261C; --ink2:#4E5442; --muted:#82896F;
+    --green:#2E7D32; --green-d:#1E6B2E; --green-soft:#E7F3E4;
+    --orange:#EF8A1F; --orange-d:#E2790F; --orange-soft:#FDEEDA;
+    --line:#E4DFC9; --ok:#2E7D32; --ok-soft:#E7F3E4; --warn:#B4740E; --warn-soft:#FDEEDA;
+    --danger:#C23B22; --danger-soft:#FBE4DD;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;font-size:17px;line-height:1.75}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+
+  .cover{background:linear-gradient(165deg,var(--green) 0%, var(--green-d) 100%);color:#fff;padding:2.6rem 0 2.2rem;position:relative;overflow:hidden}
+  .cover .top{display:flex;align-items:center;gap:.9rem;margin-bottom:1.4rem}
+  .cover .icon{width:52px;height:52px;border-radius:14px;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+  .cover .brandname{font-size:1.05rem;font-weight:800;letter-spacing:.01em}
+  .cover .tag{display:block;font-size:.74rem;font-weight:700;letter-spacing:.18em;color:rgba(255,255,255,.82);margin-top:.15rem}
+  .cover h1{font-size:clamp(1.7rem,4.6vw,2.5rem);line-height:1.3;margin:0 0 .55rem;font-weight:800;letter-spacing:.01em;text-wrap:balance}
+  .cover p.lede{font-size:1.02rem;max-width:32em;margin:0 0 1.3rem;color:rgba(255,255,255,.9)}
+  .cover .meta{display:flex;gap:1.2rem;flex-wrap:wrap;font-size:.82rem;color:rgba(255,255,255,.72)}
+  .cover .meta b{color:#fff;font-weight:700}
+  .cover::after{content:"";position:absolute;inset:auto 0 0 0;height:10px;background:repeating-linear-gradient(-45deg,var(--orange) 0 14px,rgba(0,0,0,.28) 14px 28px);opacity:.85}
+
+  .rak{display:inline-flex;align-items:center;gap:.55rem;margin-bottom:.55rem}
+  .rak .kode{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem;font-weight:700;letter-spacing:.06em;background:var(--ink);color:var(--paper);padding:.18rem .55rem;border-radius:4px}
+  .rak .lbl{font-size:.78rem;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+
+  section{padding:2.5rem 0 .9rem}
+  h2{font-size:clamp(1.4rem,3.2vw,1.8rem);margin:.1rem 0 .5rem;font-weight:800;letter-spacing:.01em;text-wrap:balance}
+  .sub{color:var(--ink2);max-width:40em;margin:0 0 1.4rem}
+  h3{font-size:1.1rem;margin:0 0 .4rem;font-weight:800}
+
+  /* 重點功能 grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.85rem}
+  .fit{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:.3rem}
+  .fit .ico{font-size:1.5rem}
+  .fit h3{font-size:1.02rem}
+  .fit p{margin:0;font-size:.92rem;color:var(--ink2);line-height:1.65}
+
+  /* 情境 hero */
+  .hero-situasi{background:var(--card);border:1.5px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+  .sit-row{display:flex;align-items:center;gap:1rem;padding:1rem 1.3rem;border-bottom:1px solid var(--line)}
+  .sit-row:last-child{border-bottom:none}
+  .sit-row .emo{font-size:1.5rem;flex-shrink:0;width:2.1rem;text-align:center}
+  .sit-row .situ{flex:1;font-size:1rem;color:var(--ink2);min-width:0}
+  .sit-row .situ b{color:var(--ink);font-weight:700}
+  .sit-row .go{flex-shrink:0}
+  .btnchip{display:inline-flex;align-items:center;gap:.35rem;font-size:.9rem;font-weight:800;border-radius:10px;padding:.4rem .85rem;white-space:nowrap;color:#fff;text-decoration:none}
+  .btnchip.green{background:var(--green)}
+  .btnchip.orange{background:var(--orange)}
+  .btnchip.line{background:transparent;color:var(--ink2);border:1.5px solid var(--line)}
+  @media(max-width:520px){
+    .sit-row{flex-wrap:wrap}
+    .sit-row .situ{flex-basis:100%;order:2}
+    .sit-row .go{order:1;margin-left:auto}
+    .sit-row .emo{order:0}
+  }
+
+  .chip{display:inline-flex;align-items:center;gap:.35rem;font-size:.88rem;font-weight:800;border-radius:10px;padding:.26rem .68rem;white-space:nowrap;vertical-align:middle}
+  .chip.green{background:var(--green-soft);color:var(--green)}
+  .chip.orange{background:var(--orange-soft);color:var(--orange-d)}
+  .chip.ok{background:var(--ok-soft);color:var(--ok)}
+  .chip.warn{background:var(--warn-soft);color:var(--warn)}
+  .chip.line{background:var(--card);color:var(--ink2);border:1px solid var(--line)}
+
+  /* 完整功能總覽 modules */
+  .legend{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.2rem;font-size:.8rem}
+  .rlg{display:inline-flex;align-items:center;gap:.3rem;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.2rem .6rem;color:var(--ink2);font-weight:600}
+  .modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:.9rem}
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.1rem 1.2rem;break-inside:avoid}
+  .mod-h{display:flex;align-items:center;gap:.55rem;margin-bottom:.7rem;padding-bottom:.55rem;border-bottom:1.5px solid var(--line)}
+  .mod-h .mi{font-size:1.3rem}
+  .mod-h h3{margin:0;font-size:1.05rem}
+  .mod ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.5rem}
+  .mod li{font-size:.92rem;color:var(--ink2);line-height:1.55;display:flex;gap:.4rem;align-items:baseline}
+  .mod li b{color:var(--ink);font-weight:700}
+  .rt{flex-shrink:0;font-size:.68rem;font-weight:800;border-radius:5px;padding:.05rem .35rem;white-space:nowrap;align-self:center}
+  .rt.all{background:var(--green-soft);color:var(--green)}
+  .rt.adm{background:var(--orange-soft);color:var(--orange-d)}
+  .rt.sa{background:#EDE7FB;color:#6D4AAE}
+  .rt.sys{background:#E5EEF6;color:#2A6699}
+  @media (prefers-color-scheme: dark){.rt.sa{background:#2A2340;color:#B79AF0}.rt.sys{background:#152634;color:#7FB4E0}}
+  :root[data-theme="dark"] .rt.sa{background:#2A2340;color:#B79AF0}
+  :root[data-theme="dark"] .rt.sys{background:#152634;color:#7FB4E0}
+
+  /* 操作卡 */
+  .task{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.3rem 1.4rem;margin-bottom:1.05rem}
+  .task-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-bottom:.3rem}
+  .task-head .ikon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:var(--green-soft);flex-shrink:0}
+  .task-head .siapa{margin-left:auto;font-size:.76rem;font-weight:700;color:var(--muted)}
+  ol.langkah{margin:.65rem 0 .2rem;padding:0;list-style:none;counter-reset:step;display:flex;flex-direction:column;gap:.55rem}
+  ol.langkah li{counter-increment:step;position:relative;padding-left:2.5rem;font-size:1rem;color:var(--ink)}
+  ol.langkah li::before{content:counter(step);position:absolute;left:0;top:.1rem;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--green);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+  .catatan{margin-top:.85rem;border-left:4px solid var(--orange);background:var(--orange-soft);padding:.55rem .9rem;border-radius:0 10px 10px 0;font-size:.92rem;color:var(--ink2)}
+  .catatan b{color:var(--orange-d)}
+
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;min-width:560px;font-size:.94rem}
+  th{text-align:left;font-size:.8rem;color:var(--muted);padding:.7rem .9rem;border-bottom:1.5px solid var(--line);font-weight:700}
+  td{padding:.62rem .9rem;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.ya{color:var(--ok);font-weight:800}
+  td.no{color:var(--muted)}
+  td.harga{color:var(--orange-d);font-weight:800}
+
+  .dua{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.85rem}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.05rem 1.15rem;box-shadow:var(--shadow)}
+  .panel p{margin:.5rem 0 0;font-size:.96rem;color:var(--ink2);line-height:2}
+  .panel.ok-b{border-top:4px solid var(--ok)}
+  .panel.bad-b{border-top:4px solid var(--danger)}
+
+  footer{margin-top:2.6rem;padding:1.4rem 0 2rem;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+  footer .fbrand{display:flex;align-items:center;gap:.5rem}
+  footer .fbrand b{color:var(--ink2)}
+
+  a{color:var(--green)}
+  :focus-visible{outline:3px solid var(--orange);outline-offset:2px;border-radius:4px}
+
+  .pintas{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);padding:.5rem 0}
+  .pintas .wrap{display:flex;gap:.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .pintas a{flex-shrink:0;font-size:.85rem;font-weight:700;text-decoration:none;color:var(--ink2);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:.32rem .85rem}
+  .pintas a:hover{color:var(--green);border-color:var(--green)}
+
+  @media print{
+    .pintas{display:none}
+    .cover{background:#fff !important;color:#000;padding:1rem 0}
+    .cover p.lede,.cover .meta,.cover .tag{color:#333}
+    .cover::after{display:none}
+    body{font-size:12px;background:#fff}
+    .task,.hero-situasi,.panel,.tbl-wrap,.mod,.fit{box-shadow:none;break-inside:avoid}
+    section{padding:1rem 0 .3rem}
+  }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="gudangIcon" viewBox="0 0 512 512">
+      <linearGradient id="gGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4C9A3F"/><stop offset="1" stop-color="#1E6B2E"/></linearGradient>
+      <linearGradient id="oGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F49B2B"/><stop offset="1" stop-color="#E97C17"/></linearGradient>
+      <linearGradient id="gDiagGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5AA84A"/><stop offset="1" stop-color="#1E6B2E"/></linearGradient>
+      <rect width="512" height="512" rx="110" fill="#F7F3E8"/>
+      <rect x="104" y="260" width="140" height="140" rx="20" fill="url(#gGrad)"/>
+      <rect x="268" y="260" width="140" height="140" rx="20" fill="url(#oGrad)"/>
+      <rect x="186" y="96" width="140" height="140" rx="20" fill="url(#gDiagGrad)"/>
+      <line x1="256" y1="260" x2="256" y2="400" stroke="#F7F3E8" stroke-width="16"/>
+      <text x="256" y="460" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="64"><tspan fill="#2E7D32">Gudang</tspan><tspan fill="#EF8A1F">-1</tspan></text>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="cover">
+  <div class="wrap">
+    <div class="top">
+      <svg class="icon" viewBox="0 0 512 512"><use href="#gudangIcon"/></svg>
+      <div><span class="brandname">Gudang One 倉儲系統</span><span class="tag">完整使用說明書</span></div>
+    </div>
+    <h1>領料、收料、叫料 ——<br>全部用手機記錄。</h1>
+    <p class="lede">從日常作業到品管、生產、報表 —— 一套系統管四個倉庫。本說明書涵蓋全部功能。</p>
+    <div class="meta"><span>2026 年 7 月</span><span>手機 · 平板 · 電腦</span><span>系統介面：印尼文</span></div>
+  </div>
+</div>
+
+<nav class="pintas" aria-label="快速導覽">
+  <div class="wrap">
+    <a href="#situasi">我要做什麼？</a>
+    <a href="#zhongdian">重點功能</a>
+    <a href="#quanbu">完整功能總覽</a>
+    <a href="#caozuo">日常操作</a>
+    <a href="#peran">權限對照</a>
+    <a href="#tips">注意事項</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ══ 情境 ══ -->
+  <section id="situasi">
+    <div class="rak"><span class="kode">從這裡開始</span></div>
+    <h2>我現在要做什麼？→ 按這個</h2>
+    <p class="sub">找到你目前的狀況，直接知道該按哪一個。（括號內為系統上的印尼文按鈕名稱）</p>
+    <div class="hero-situasi">
+      <div class="sit-row"><span class="emo">🚚</span><span class="situ">供應商送貨來了</span><span class="go"><a href="#caozuo" class="btnchip orange">↓ 收料 Masuk</a></span></div>
+      <div class="sit-row"><span class="emo">🔧</span><span class="situ">要拿東西出來用</span><span class="go"><a href="#caozuo" class="btnchip green">↑ 領料 Ambil</a></span></div>
+      <div class="sit-row"><span class="emo">😥</span><span class="situ">東西沒了 / 需要採購</span><span class="go"><a href="#caozuo" class="btnchip green">🙋 叫料 Minta</a></span></div>
+      <div class="sit-row"><span class="emo">👀</span><span class="situ">看到不錯的供應商，但還不用買</span><span class="go"><a href="#quanbu" class="btnchip line">📚 Referensi 先記錄</a></span></div>
+      <div class="sit-row"><span class="emo">📋</span><span class="situ">被交代要盤點庫存</span><span class="go"><a href="#caozuo" class="btnchip orange">🔢 盤點 Cek Stok</a></span></div>
+      <div class="sit-row"><span class="emo">🤷</span><span class="situ">不知道東西放哪個架子</span><span class="go"><span class="btnchip line">📍 看照片</span></span></div>
+      <div class="sit-row"><span class="emo">⚠️</span><span class="situ">出現黃色 / 紅色警告</span><span class="go"><a href="#caozuo" class="btnchip line">回報 / 叫料</a></span></div>
+      <div class="sit-row"><span class="emo">🆕</span><span class="situ">第一次使用這個系統</span><span class="go"><a href="#caozuo" class="btnchip line">先登入</a></span></div>
+      <div class="sit-row"><span class="emo">❓</span><span class="situ">找不到某個功能分頁</span><span class="go"><a href="#peran" class="btnchip line">看權限</a></span></div>
+    </div>
+  </section>
+
+  <!-- ══ 重點功能 ══ -->
+  <section id="zhongdian">
+    <div class="rak"><span class="kode">重點</span><span class="lbl">最常用、最有感的功能</span></div>
+    <h2>重點功能</h2>
+    <p class="sub">先掌握這幾個，日常九成的事都搞定了。</p>
+    <div class="grid">
+      <div class="fit"><span class="ico">🔑</span><h3>4 位數 PIN 登入</h3><p>選名字、輸 PIN，免帳密免 email，手機記住不用每次登。</p></div>
+      <div class="fit"><span class="ico">📤</span><h3>購物車式領料</h3><p>多樣加入一次確認，庫存自動扣、留下誰領的紀錄。</p></div>
+      <div class="fit"><span class="ico">📋</span><h3>FIFO「先用這個」</h3><p>系統直接標出該先領的批次（最舊/最近效期），不用記。</p></div>
+      <div class="fit"><span class="ico">📥</span><h3>收料含批號效期</h3><p>登記 Lot 與有效日期，食品級可追溯，撐起 FIFO。</p></div>
+      <div class="fit"><span class="ico">🔍</span><h3>叫料 + 線上找料</h3><p>缺料一鍵搜 Shopee/Tokopedia/BigGo 比價，貼連結給管理員直接買。</p></div>
+      <div class="fit"><span class="ico">🔢</span><h3>手機盤點</h3><p>免紙本，分類逐區清點，只存改過的數字。</p></div>
+      <div class="fit"><span class="ico">📍</span><h3>存放位置照片</h3><p>點 📍 看貨架照片，新人也能立刻找到東西。</p></div>
+      <div class="fit"><span class="ico">⚠️</span><h3>自動預警</h3><p>庫存快沒、快過期，開 App 自動彈窗提醒。</p></div>
+      <div class="fit"><span class="ico">📱</span><h3>手機 / 平板 / 電腦通用</h3><p>版面自動適應，沒網路也看得到最後資料，可裝成 App。</p></div>
+    </div>
+  </section>
+
+  <!-- ══ 完整功能總覽 ══ -->
+  <section id="quanbu">
+    <div class="rak"><span class="kode">全部</span><span class="lbl">所有模組一覽</span></div>
+    <h2>完整功能總覽</h2>
+    <p class="sub">系統全部功能依模組分類。右側小標籤代表誰能用。</p>
+    <div class="legend">
+      <span class="rlg"><span class="rt all">全部</span> 所有同仁 / 訪客</span>
+      <span class="rlg"><span class="rt adm">管理</span> 倉庫👑 / 辦公室🏢 管理員</span>
+      <span class="rlg"><span class="rt sa">最高</span> 最高管理員 🔐</span>
+      <span class="rlg"><span class="rt sys">自動</span> 系統自動</span>
+    </div>
+    <div class="modules">
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🔑</span><h3>登入與角色</h3></div>
+        <ul>
+          <li><b>員工 PIN 登入</b>：選名字 + 4 位 PIN，後端驗證<span class="rt all">全部</span></li>
+          <li><b>訪客登入</b>：臨時碼填名字即用<span class="rt all">全部</span></li>
+          <li><b>辦公室 / 最高管理員登入</b>：各一組 6 位 PIN<span class="rt adm">管理</span></li>
+          <li><b>記住登入</b>：同裝置免每次重登<span class="rt all">全部</span></li>
+          <li><b>每人每倉權限</b>：逐倉開關領/收/盤/生產/出貨<span class="rt adm">管理</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🏭</span><h3>多倉庫</h3></div>
+        <ul>
+          <li><b>四個倉庫</b>：HARDWARE / SJA / DENIKIN / OLENTIA，庫存各自獨立<span class="rt all">全部</span></li>
+          <li><b>切換倉庫</b>：頂部切換器，背景預載秒切<span class="rt all">全部</span></li>
+          <li><b>「全部倉庫」總覽</b>：一次看所有倉，卡片標倉別徽章<span class="rt adm">管理</span></li>
+          <li><b>倉庫篩選 chips</b>：物品管理頁一鍵聚焦某倉<span class="rt adm">管理</span></li>
+          <li><b>共用商品主檔</b>：同名商品跨倉共用名稱/照片，庫存獨立<span class="rt all">—</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🏠</span><h3>首頁總覽</h3></div>
+        <ul>
+          <li><b>庫存清單</b>：現量/低標 + 🟢🟠❌ 狀態燈<span class="rt all">全部</span></li>
+          <li><b>即時搜尋</b>：打字即篩選<span class="rt all">全部</span></li>
+          <li><b>低庫存區塊</b>：依分類分組，快速看要補什麼<span class="rt all">全部</span></li>
+          <li><b>到期預警</b>：30 天內到期批次列表<span class="rt all">全部</span></li>
+          <li><b>快捷任務</b>：一鍵進領料 / 收料 / 盤點<span class="rt all">全部</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">📤</span><h3>領料・收料・叫料</h3></div>
+        <ul>
+          <li><b>購物車領料</b>：多樣一次確認，FIFO 提示、防扣負數<span class="rt all">全部</span></li>
+          <li><b>收料入庫</b>：登記 Lot / 生產日 / 效期，可追溯<span class="rt all">全部</span></li>
+          <li><b>取消已領</b>：撤銷並還原庫存<span class="rt adm">管理</span></li>
+          <li><b>叫料申請</b>：選/自填品項、附照片、備註<span class="rt all">全部</span></li>
+          <li><b>🔍 線上找料</b>：搜 Shopee/Tokopedia/BigGo，貼連結<span class="rt all">全部</span></li>
+          <li><b>審批流程</b>：待審 → 核准(入庫) / 拒絕<span class="rt adm">管理</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🔢</span><h3>盤點</h3></div>
+        <ul>
+          <li><b>分類盤點</b>：選類別逐區清點<span class="rt all">全部</span></li>
+          <li><b>只存有改的</b>：改過欄位標黃，只存這些<span class="rt all">—</span></li>
+          <li><b>掃描輔助</b>：📷 相機 / 條碼槍定位<span class="rt all">—</span></li>
+          <li><b>失敗保留重試</b>：部分失敗不清空、原地重存<span class="rt all">—</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">📦</span><h3>品項與批次管理</h3></div>
+        <ul>
+          <li><b>新增/編輯品項</b>：名稱、規格、單位、照片、供應商<span class="rt adm">管理</span></li>
+          <li><b>倉庫優先新增</b>：先選倉，跨倉同名引導沿用同一主檔防重複<span class="rt adm">管理</span></li>
+          <li><b>批次(Lot)管理</b>：Lot/PO/DO/生產日/效期/QC/進貨價<span class="rt adm">管理</span></li>
+          <li><b>標籤分類</b>、<b>存放位置照片 📍</b>、<b>COA 連結</b><span class="rt adm">管理</span></li>
+          <li><b>QR 標籤列印 🖨️</b>：產生商品 QR 貼標<span class="rt adm">管理</span></li>
+          <li><b>🔍 線上比價（五金）</b>：卡片搜三平台 + 上次進貨價基準<span class="rt adm">管理</span></li>
+          <li><b>看進貨價 💰</b>：只有管理員 / 授權者看得到<span class="rt adm">管理</span></li>
+          <li><b>🛒 貼上網購連結自動填表</b>：貼 Shopee/Tokopedia「分享」文字，商品名/連結/價格自動帶入，名稱仍可自行縮短<span class="rt adm">管理</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">📚</span><h3>供應商 / 產品知識庫（Referensi）</h3></div>
+        <ul>
+          <li><b>先記下來，不算庫存</b>：逛到不錯的供應商/產品先存起來，不影響庫存量或低庫存警示<span class="rt adm">管理</span></li>
+          <li><b>關鍵字搜尋</b>：找名稱、供應商、備註，以後要用隨時找回來<span class="rt adm">管理</span></li>
+          <li><b>貼連結自動記錄</b>：跟品項表單同一套貼上功能，商品名/連結/價格自動帶入<span class="rt adm">管理</span></li>
+          <li><b>📦 一鍵「轉入庫存」</b>：真的買了之後，一鍵把知識庫紀錄轉成正式庫存品項，不用重打<span class="rt adm">管理</span>，知識庫原紀錄保留不刪</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">✅</span><h3>品質管制 QC / HACCP</h3></div>
+        <ul>
+          <li><b>檢驗範本</b>：後台自訂檢查項目<span class="rt adm">管理</span></li>
+          <li><b>執行檢驗</b>：對批次逐項檢查、填備註<span class="rt adm">管理</span></li>
+          <li><b>CCP 放行閘門</b>：關鍵管制點未過就擋放行<span class="rt all">—</span></li>
+          <li><b>結果徽章</b>：通過/失敗/有條件/重工，統一色票<span class="rt all">全部</span></li>
+          <li><b>QC 失敗推播</b>：自動發 Telegram 警示<span class="rt sys">自動</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🏭</span><h3>生產（DENIKIN / SJA）</h3></div>
+        <ul>
+          <li><b>生產記錄</b>：投料、產出<span class="rt adm">管理</span></li>
+          <li><b>💧 泡發 Rehidrasi</b>：浸泡工序記錄（DIN）<span class="rt adm">管理</span></li>
+          <li><b>成品庫存</b>、<b>產品清單</b>、<b>客戶名單</b><span class="rt adm">管理</span></li>
+          <li><b>生產報表</b><span class="rt adm">管理</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🚚</span><h3>出貨 Kirim</h3></div>
+        <ul>
+          <li><b>出貨記錄</b>：對客戶的發貨單<span class="rt adm">管理</span></li>
+          <li><b>FIFO 出貨</b>：依效期先進先出<span class="rt all">—</span></li>
+          <li><b>臨時開放辦公室看出貨</b>：由最高管理員開關<span class="rt sa">最高</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">📊</span><h3>歷史與分析</h3></div>
+        <ul>
+          <li><b>出入庫紀錄</b>：誰、何時、領/收什麼、多少，分批載入不卡頓<span class="rt adm">管理</span></li>
+          <li><b>編輯/刪除交易</b>：更正紀錄，留編輯痕跡<span class="rt adm">管理</span></li>
+          <li><b>KPI 指標 + 圖表</b>：關鍵數字與趨勢<span class="rt sa">最高</span></li>
+          <li><b>月報列印</b>：可列印月度報表<span class="rt sa">最高</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">👥</span><h3>人員管理</h3></div>
+        <ul>
+          <li><b>新增/刪除員工</b>：建帳號（預設 PIN 1234）<span class="rt adm">管理</span></li>
+          <li><b>權限矩陣 🔐</b>：點格子開關某人在某倉的各項權限<span class="rt adm">管理</span></li>
+          <li><b>設 Admin / 開放看價 💰</b><span class="rt sa">最高</span></li>
+          <li><b>改名 / PIN / 倉庫存取</b><span class="rt adm">管理</span></li>
+          <li><b>低庫存彈窗設定</b>：頻率/範圍/靜音日/<b>提示音量</b><span class="rt sa">最高</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🗂</span><h3>資料維運</h3></div>
+        <ul>
+          <li><b>封存舊資料</b>：下載 CSV → 確認 → 刪除，避免 DB 爆滿<span class="rt sa">最高</span></li>
+          <li><b>稽核日誌</b>：誰刪了什麼、何時（含快照），不可竄改<span class="rt sa">最高</span></li>
+          <li><b>Google Sheet 備份</b>：一鍵寄出倉庫資料<span class="rt adm">管理</span></li>
+          <li><b>CSV 匯入 / 匯出</b>：範本批量匯入品項<span class="rt adm">管理</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">🔔</span><h3>通知與整合</h3></div>
+        <ul>
+          <li><b>低庫存 / 到期預警</b>：開 App 自動彈窗<span class="rt all">全部</span></li>
+          <li><b>提示音（可調）</b>：靜音(預設)/小/中/大，可試聽<span class="rt sa">最高</span></li>
+          <li><b>Telegram 推播</b>：低庫存、QC 失敗自動發群組<span class="rt sys">自動</span></li>
+          <li><b>瀏覽器通知</b>：桌面/手機系統通知<span class="rt all">全部</span></li>
+          <li><b>FAMMS 三系統串接</b>：採購進單 + 狀態回寫 + QC 互通<span class="rt sys">自動</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mi">📱</span><h3>平台與體驗</h3></div>
+        <ul>
+          <li><b>RWD</b>：手機/平板/電腦自動適應，桌面多欄<span class="rt all">全部</span></li>
+          <li><b>離線快取</b>：沒網路仍顯示最後資料<span class="rt all">全部</span></li>
+          <li><b>安裝為 App (PWA)</b>：加到主畫面像原生 App<span class="rt all">全部</span></li>
+          <li><b>雙語 印尼文 / 中文</b>：頂部「中」切換<span class="rt all">全部</span></li>
+          <li><b>順暢切換 + 大字大觸控</b>：為戴手套/年長者優化<span class="rt all">全部</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ 日常操作 ══ -->
+  <section id="caozuo">
+    <div class="rak"><span class="kode">操作</span><span class="lbl">最常做的五件事</span></div>
+    <h2>日常操作步驟</h2>
+
+    <div class="task">
+      <div class="task-head"><span class="ikon">🔑</span><h3>A · 登入</h3><span class="siapa">所有同仁</span></div>
+      <ol class="langkah">
+        <li>用手機瀏覽器打開 <b>gudang-one.denikin.co.id</b></li>
+        <li>選<b>你的名字</b> → 輸入 <b>4 位數 PIN</b></li>
+        <li>選<b>你要進的倉庫</b>（有多倉權限時）</li>
+      </ol>
+      <div class="catatan"><b>新同仁？</b>選「✏️ Pengguna Baru」。預設 PIN <span class="mono">1234</span>，請盡快請管理員改掉。</div>
+    </div>
+
+    <div class="task">
+      <div class="task-head"><span class="ikon">📤</span><h3>B · 領料（分頁 <span class="chip green">↑ Ambil</span>）</h3><span class="siapa">有領料權限</span></div>
+      <ol class="langkah">
+        <li>搜尋物品，用 <b>− / +</b> 調數量（放入購物車）</li>
+        <li>優先拿標示 <b>📋「Pakai dulu 先用這個」</b>的批次</li>
+        <li>按 <b>✓ Konfirmasi Ambil（確認領料）</b></li>
+      </ol>
+      <div class="catatan"><b>庫存不夠？</b>系統會提醒且不讓變負數。沒了 → 改用叫料。</div>
+    </div>
+
+    <div class="task">
+      <div class="task-head"><span class="ikon">📥</span><h3>C · 收料（分頁 <span class="chip orange">↓ Masuk</span>）</h3><span class="siapa">有收料權限</span></div>
+      <ol class="langkah">
+        <li>選收貨人、物品 + 數量</li>
+        <li>填 <b>批號 (No. Lot) 與有效日期</b>（包裝上有的話）</li>
+        <li>按 <b>✓ Konfirmasi Masuk（確認收料）</b></li>
+      </ol>
+      <div class="catatan"><b>一次到很多種？</b>存檔後留在原頁，接著登記下一項。批號/效期是食品追溯與 FIFO 關鍵。</div>
+    </div>
+
+    <div class="task">
+      <div class="task-head"><span class="ikon">🙋</span><h3>D · 叫料（分頁 <span class="chip green">🙋 Minta</span>）</h3><span class="siapa">所有同仁</span></div>
+      <ol class="langkah">
+        <li>選名字，選現有物品或自打「新物品」</li>
+        <li>按 <b>🔍 Cari online</b> → 開三平台 → <b>複製連結</b> → <b>貼到備註</b></li>
+        <li>需要加 📷 照片 → 按 <b>Kirim（送出）</b></li>
+      </ol>
+      <div class="catatan">狀態：<span class="chip warn">⏳ 等待</span> → <span class="chip ok">✓ 核准</span> / <span class="chip line">✕ 拒絕</span>。連結管理員可直接點開買。</div>
+    </div>
+
+    <div class="task">
+      <div class="task-head"><span class="ikon">🔢</span><h3>E · 盤點（按鈕 <span class="chip orange">🔢 Cek Stok</span>）</h3><span class="siapa">有盤點權限</span></div>
+      <ol class="langkah">
+        <li>選一個分類（不用一次全盤）</li>
+        <li>數架上的量，打進正確數字（可用 📷 掃描 / 條碼槍）</li>
+        <li>按 <b>✓ Simpan（儲存）</b></li>
+      </ol>
+      <div class="catatan">只有改過（黃色）的欄位會存，不動其他數字。</div>
+    </div>
+  </section>
+
+  <!-- ══ 權限 ══ -->
+  <section id="peran">
+    <div class="rak"><span class="kode">權限</span><span class="lbl">誰能做什麼</span></div>
+    <h2>權限對照表</h2>
+    <p class="sub">權限由管理員「按每個人、每個倉庫」設定。手機看不到某分頁 = 你還沒那個權限，請找管理員。</p>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>操作</th><th>一般同仁</th><th>倉庫管理員 👑</th><th>辦公室管理員 🏢</th><th>最高管理員 🔐</th></tr>
+        <tr><td>領料 / 收料 / 盤點</td><td class="ya">✓ 依權限</td><td class="ya">✓</td><td class="no">—</td><td class="ya">✓</td></tr>
+        <tr><td>叫料 + 線上找料</td><td class="ya">✓</td><td class="ya">✓</td><td class="ya">✓</td><td class="ya">✓</td></tr>
+        <tr><td>新增 / 編輯物品・批次</td><td class="no">—</td><td class="ya">✓</td><td class="ya">✓</td><td class="ya">✓</td></tr>
+        <tr><td>核准叫料申請</td><td class="no">—</td><td class="ya">✓</td><td class="no">—</td><td class="ya">✓</td></tr>
+        <tr><td>QC 品管 / 生產 / 出貨</td><td class="no">—</td><td class="ya">✓ 依權限</td><td class="no">—</td><td class="ya">✓</td></tr>
+        <tr><td>查看採購價格 💰</td><td class="no">—</td><td class="harga">✓</td><td class="no">—</td><td class="harga">✓</td></tr>
+        <tr><td>管理員工 & PIN</td><td class="no">—</td><td class="no">—</td><td class="ya">✓</td><td class="ya">✓</td></tr>
+        <tr><td>報表分析 / 封存 / 系統設定</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="ya">✓</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ 注意事項 ══ -->
+  <section id="tips">
+    <div class="rak"><span class="kode">提醒</span><span class="lbl">讓流程順暢</span></div>
+    <h2>該做 & 不該做</h2>
+    <div class="dua">
+      <div class="panel ok-b">
+        <h3>✅ 該做</h3>
+        <p>領料當下就馬上輸入 · 遵照「先用這個」批次 · 每次收料都填有效日期 · 拿到帳號盡快改掉預設 PIN 1234</p>
+      </div>
+      <div class="panel bad-b">
+        <h3>🚫 不該做</h3>
+        <p>拿了東西卻不輸入 · 用別人的名字操作 · 購物車放著沒按確認 · 把你的 PIN 告訴任何人</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="fbrand"><svg width="22" height="22" viewBox="0 0 512 512"><use href="#gudangIcon"/></svg><b>Gudang One 倉儲系統</b> · 2026 年 7 月</span>
+    <span>有問題？請聯絡你的倉庫管理員或辦公室管理員。</span>
+  </div>
+</footer>
+
+</body>
+</html>
