@@ -1,12 +1,12 @@
 {
   "name": "Gudang One",
   "short_name": "Gudang One",
-  "description": "倉庫物料進出管理系統",
+  "description": "Sistem manajemen stok gudang — Gudang One",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#312E81",
-  "theme_color": "#312E81",
+  "background_color": "#2E7D32",
+  "theme_color": "#2E7D32",
   "icons": [
     {
       "src": "/icon.svg",
