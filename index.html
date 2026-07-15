@@ -4141,14 +4141,34 @@ function parseShareText(text){
   if(um)out.url=um[0].replace(/[.,;!?)\]]+$/,'');
   var pm=text.match(/Rp\s?[\d][\d.,]*/);
   if(pm)out.price=pm[0].replace(/\s/g,'').replace(/[.,]+$/,''); // buang titik/koma akhir kalimat yang ikut kena regex
-  // Format share Shopee: "Temukan {nama} seharga Rp... Dapatkan sekarang juga di Shopee! {url}"
-  // (kadang "hanya Rp"). Kalau dua pola itu tak kena, fallback: buang url/harga/boilerplate.
+  // Nama: coba pola persis Shopee dulu (paling akurat kalau kena) — "Temukan {nama} seharga/
+  // hanya Rp...". Tokopedia dan versi app lain pakai kalimat pembungkus yang beda-beda dan
+  // sering berubah, jadi jangan taruh nasib di SATU pola tepat lagi (itu sebabnya nama sering
+  // gagal ke-parse). Fallback format-agnostic: buang URL, harga, dan daftar kata/frasa basa-basi
+  // yang UMUM dipakai lintas platform — apa pun yang tersisa dianggap nama produk. Kalau nama
+  // produk kebetulan memuat salah satu kata basa-basi ini, hasilnya bisa kepotong dikit — tapi
+  // kolom nama tetap bisa diedit manual, jadi lebih baik "hampir benar" daripada kosong.
   var nm=text.match(/Temukan\s+([\s\S]+?)\s+(?:seharga|hanya)\s/i)
        ||text.match(/^([\s\S]+?)\s+(?:seharga|hanya)\s+Rp/i);
-  var name=nm?nm[1]:text.replace(/https?:\/\/\S+/g,'')
-    .replace(/Temukan\s+/i,'').replace(/Dapatkan sekarang juga di Shopee!?/i,'')
-    .replace(/Rp\s?[\d][\d.,]*/g,'').replace(/\b(seharga|hanya)\b/gi,'');
-  out.name=(name||'').replace(/\s+/g,' ').trim().slice(0,150);
+  var name;
+  if(nm){
+    name=nm[1];
+  }else{
+    name=text
+      .replace(/https?:\/\/\S+/g,'')
+      .replace(/Rp\s?[\d][\d.,]*/g,'')
+      .replace(/^\s*(yuk|hai|halo)[,!]?\s*/i,'')
+      .replace(/\b(temukan|dapatkan|checkout|order)\b/gi,'')
+      .replace(/\bcek\s+produk\b/gi,'').replace(/\blihat\s+produk\b/gi,'')
+      .replace(/\bbeli\s+(sekarang|di)\b/gi,'')
+      .replace(/\bsekarang(\s+juga)?\b/gi,'')
+      .replace(/\bhanya\s+di\b/gi,'')
+      .replace(/\b(seharga|harga|hanya)\b/gi,'')
+      .replace(/\bdi\s+(shopee|tokopedia|tiktok\s*shop|lazada|bukalapak)\b/gi,'')
+      .replace(/\b(shopee|tokopedia|tiktokshop|lazada|bukalapak)\b/gi,'')
+      .replace(/\bdownload\s+aplikasinya\b/gi,'');
+  }
+  out.name=(name||'').replace(/\s+/g,' ').replace(/^[\s\-–—:,.!]+|[\s\-–—:,.!]+$/g,'').trim().slice(0,150);
   return out;
 }
 function onPasteShare(el){
