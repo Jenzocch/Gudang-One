@@ -48,6 +48,11 @@ summary .arr{color:var(--muted);font-size:.8rem;transition:transform .15s;flex-s
 details[open] summary .arr{transform:rotate(90deg);color:var(--g)}
 details[open] summary{background:var(--g-bg)}
 .body{padding:.4rem 1rem 1.05rem;border-top:1px dashed var(--border)}
+/* Pengaman: kalau nanti ada style baru yang taruh display: pada anak langsung <details>
+   (mis. display:flex), itu bisa menimpa perilaku bawaan browser "sembunyikan isi saat
+   tertutup" — origin author selalu menang atas UA stylesheet, terlepas dari spesifisitas
+   selector. Baris ini eksplisit menjamin perilakunya, tidak bergantung ke default browser. */
+details:not([open])>*:not(summary){display:none!important}
 
 /* ── Langkah bernomor ── */
 ol.steps{margin:.6rem 0 0;padding:0;list-style:none;counter-reset:s}
@@ -66,6 +71,11 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:2rem 0 1rem
   header{background:var(--g);-webkit-print-color-adjust:exact}
   details{page-break-inside:avoid}
   .back{display:none}
+  /* Kartu yang lagi tertutup harus tetap kelihatan isinya kalau dicetak — kalau tidak,
+     versi kertas cuma berisi daftar judul kosong. Spesifisitas harus menyamai/lebih
+     tinggi dari aturan sembunyi di atas supaya menang saat sama-sama !important. */
+  details:not([open])>*:not(summary){display:block!important}
+  .arr{display:none!important}
 }
 @media(min-width:600px){body{font-size:18px}}
 </style>
