@@ -17,3 +17,11 @@ the eye:
 Also: Read the exact lines before Edit (unique `old_string`); don't re-Read to
 "confirm" after — Edit errors if it failed. Write commit messages that state
 the root cause and why, not just what changed.
+
+Delegated work is no exception: when a subagent implements a batch and reports
+"verified ✓", the lead still reads the full diff line-by-line against the spec
+and re-runs node --check + at least one independent Playwright assertion on the
+riskiest change before committing. A subagent's green self-report has been
+wrong in test methodology (e.g. asserting against its own stubbed modal instead
+of the real one) even when the production change was fine — independent
+verification catches both directions.
