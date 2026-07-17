@@ -1520,7 +1520,7 @@ function homeStockRowHTML(i){
       (meta.length?'<div style="font-size:.78rem;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem">'+meta.join(' · ')+'</div>':'')+
       (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
     '</div>'+
-    '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:#000;font-weight:700;font-size:1rem">'+i.qty+'</span><span style="color:#999;font-size:.74rem">/'+i.critical_qty+'</span><br><span style="color:var(--ink2);font-size:.76rem">'+esc(i.unit)+'</span></span>'+
+    '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:var(--dark);font-weight:700;font-size:1rem">'+i.qty+'</span><span style="color:var(--muted);font-size:.74rem">/'+i.critical_qty+'</span><br><span style="color:var(--ink2);font-size:.76rem">'+esc(i.unit)+'</span></span>'+
     (i.supplier_url&&ratio<=1?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
   '</div>';
 }
@@ -1604,7 +1604,7 @@ function renderHome(){
       '<span id="low-toggle" class="home-sec-toggle" style="transform:rotate(-90deg)">▼</span>'+
       '</div>'+
       '</div>'+
-      '<div class="home-sec-srch"><input id="low-search" type="text" placeholder="🔍 '+Z('Cari barang perlu beli...')+'" oninput="filterLowItems()"></div>'+
+      '<div id="low-srch-wrap" class="home-sec-srch" style="display:none"><input id="low-search" type="text" placeholder="🔍 '+Z('Cari barang perlu beli...')+'" oninput="filterLowItems()"></div>'+
       '<div id="low-content" style="display:none">';
       var catGrp={};var noCat=[];
       // 每個商品只歸到第一個標籤，避免多標籤商品在清單重複出現
@@ -1641,7 +1641,7 @@ function renderHome(){
     '<span class="home-sec-title">📦 '+Z('Status Stok')+' ('+sorted.length+')</span>'+
     '<span id="stock-toggle" class="home-sec-toggle" style="transform:rotate(-90deg)">▼</span>'+
     '</div>'+
-    '<div class="home-sec-srch"><input id="stock-search" type="text" placeholder="🔍 '+Z('Cari semua barang...')+'" oninput="filterStockItems()"></div>'+
+    '<div id="stock-srch-wrap" class="home-sec-srch" style="display:none"><input id="stock-search" type="text" placeholder="🔍 '+Z('Cari semua barang...')+'" oninput="filterStockItems()"></div>'+
     '<div id="stock-content" style="display:none">';
     // 先渲染前20個（快速顯示）
     var renderStockItems=function(startIdx,endIdx,cb){
@@ -1701,18 +1701,24 @@ function renderHome(){
 function toggleLowSection(){
   var content=document.getElementById('low-content');
   var toggle=document.getElementById('low-toggle');
+  var srch=document.getElementById('low-srch-wrap');
   if(content){
     var isOpen=content.style.display!=='none';
     content.style.display=isOpen?'none':'block';
+    // Kotak cari cuma berguna kalau isinya kelihatan — sembunyikan bareng saat section ditutup,
+    // supaya tidak ada dua kotak "tak tahu lagi cari apa" nongol di layar sebelum diketik.
+    if(srch)srch.style.display=isOpen?'none':'block';
     if(toggle)toggle.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
   }
 }
 function toggleStockSection(){
   var content=document.getElementById('stock-content');
   var toggle=document.getElementById('stock-toggle');
+  var srch=document.getElementById('stock-srch-wrap');
   if(content){
     var isOpen=content.style.display!=='none';
     content.style.display=isOpen?'none':'block';
+    if(srch)srch.style.display=isOpen?'none':'block';
     if(toggle)toggle.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
   }
 }
@@ -1875,8 +1881,7 @@ function renderAmbil(){
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+' — '+(CURRENT_WAREHOUSE?(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE):'')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
     '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(0,0,0,.12);border:none;color:'+col+';padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;font-weight:600">☰</button>'+
-    '<span style="color:'+col+';font-size:1.4rem;opacity:.9;cursor:default;font-weight:900" title="Barcode gun ready">▌▌▌</span>'+
-    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(0,0,0,.12);border:none;color:'+col+';padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:600" title="Kamera">📷</button></div>'+
+    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(0,0,0,.12);border:none;color:'+col+';padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:600" title="Kamera / scan barcode">📷</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0;background:#fff;color:var(--dark);border:1.5px solid '+col+'33">'+
     '</div>'+
     (cats.length?'<div id="catg-chips" style="display:flex;gap:.6rem;padding:.55rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
@@ -2479,7 +2484,7 @@ function cartRowsMsk(){
       (hasLot?'<div style="font-size:.72rem;color:var(--p);margin-top:.1rem">📋 '+esc(ci.lot_no||'')+(ci.expiry_date?' | Exp:'+esc(ci.expiry_date):'')+'</div>':'<div style="font-size:.72rem;color:#F59E0B">⚠ Belum ada info lot</div>')+
       '</div></div>'+
       '<div style="display:flex;align-items:center;gap:.25rem;flex-shrink:0">'+
-      '<button onclick="showLotInfoModal(\''+esc(variantId)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap;min-height:40px">📋 Lot</button>'+
+      '<button onclick="showLotInfoModal(\''+esc(variantId)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap;min-height:44px">📋 Lot</button>'+
       '<div class="qc" style="width:auto">'+ // width:auto 蓋掉手機版 .qc{width:116px}
       '<button class="qb" onclick="cAdjM(\''+esc(variantId)+'\',-1)">−</button>'+
       '<span class="qi" style="font-size:1rem;min-width:24px;text-align:center">'+ci.qty+'</span>'+
@@ -2565,7 +2570,7 @@ async function doMasukCart(){
 function renderPermintaan(){
   var h=DATA.requests.map(reqHTML).join('')||'<div style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">'+t('noReq')+'</div>';
   document.getElementById('permintaan').innerHTML=
-    '<div class="card"><div class="card-title">📤 '+t('req')+'</div>'+
+    '<div class="card"><div class="card-title">🙋 '+t('req')+'</div>'+
     '<div class="ig"><label>'+t('myName')+'</label>'+
       '<select id="rn-sel" onchange="onReqNameSel()" style="margin-bottom:.4rem">'+
         '<option value="">-- '+t('selPerson')+' --</option>'+
@@ -2671,11 +2676,12 @@ function prCardHTML(p){
       '<div style="font-weight:800;font-size:.95rem;line-height:1.3">'+esc(p.name)+'</div>'+
       (p.supplier_name?'<div style="font-size:.78rem;color:var(--ink2);margin-top:.1rem">🏢 '+esc(p.supplier_name)+'</div>':'')+
       (p.note?'<div style="font-size:.78rem;color:var(--ink2);margin-top:.15rem;white-space:pre-wrap">'+esc(p.note)+'</div>':'')+
-      '<div style="display:flex;gap:.4rem;margin-top:.45rem;flex-wrap:wrap">'+
-        (p.url?'<a href="'+safeUrl(p.url)+'" target="_blank" rel="noopener noreferrer" class="btn btn-s" style="font-size:.85rem;padding:.4rem .7rem;text-decoration:none">🔗 Buka Link</a>':'')+
-        '<button class="btn btn-ok" style="font-size:.85rem;padding:.4rem .7rem" onclick="prMakeItem('+p.id+')">📦 Jadikan Stok</button>'+
-        '<button class="btn btn-s" style="font-size:.85rem;padding:.4rem .7rem" onclick="prShowEdit('+p.id+')">✏️ Edit</button>'+
-        '<button class="btn btn-d" style="font-size:.85rem;padding:.4rem .7rem" onclick="prDelete('+p.id+')">🗑️ Hapus</button>'+
+      '<div style="display:flex;align-items:center;gap:.4rem;margin-top:.45rem;flex-wrap:wrap">'+
+        '<button class="btn btn-ok" style="font-size:.85rem;padding:.4rem .7rem;flex-shrink:0" onclick="prMakeItem('+p.id+')">📦 Jadikan Stok</button>'+
+        (p.url?'<a href="'+safeUrl(p.url)+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);font-size:.8rem;text-decoration:underline;padding:.4rem .2rem">🔗 Link</a>':'')+
+        '<span style="flex:1"></span>'+
+        '<button class="ib" onclick="prShowEdit('+p.id+')" title="Edit">✏️</button>'+
+        '<button class="ib" onclick="prDelete('+p.id+')" title="Hapus">🗑️</button>'+
       '</div>'+
     '</div>'+
   '</div>';
@@ -3952,8 +3958,7 @@ function renderStocktake(catFilter,keepState){
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
     '<span style="font-weight:700;font-size:.9rem">🔢 '+('Stock Check')+' — '+(WH_SHORT[wh]||wh)+'</span>'+
     '<div style="display:flex;gap:.4rem;align-items:center">'+
-    '<span style="color:var(--p);font-size:1.2rem;font-weight:900;cursor:default" title="Scan dengan barcode gun">▌▌▌</span>'+
-    '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')">📷 '+('Cam')+'</button>'+
+    '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')" title="Kamera / scan barcode">📷 '+('Cam')+'</button>'+
     '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+('Kembali')+'</button>'+
     '</div>'+
     '</div>'+
