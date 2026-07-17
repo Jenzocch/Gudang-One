@@ -5832,13 +5832,22 @@ function dinProd(code){for(var i=0;i<DIN.products.length;i++)if(DIN.products[i].
 function dinStockOf(code){for(var i=0;i<DIN.stock.length;i++)if(DIN.stock[i].product_code===code)return DIN.stock[i];return null;}
 // 產品排序比較：先看手動 sort_order（後台可調），沒設定就退回 code
 function prodCmp(a,b){return ((a.sort_order||0)-(b.sort_order||0))||String(a.code||'').localeCompare(String(b.code||''));}
-function dinProdOptions(sel){
+// inclInactiveStock=true（只給「出貨」下拉用）：把停產但仍有餘貨的產品也列出，標 (nonaktif)，
+// 讓餘貨還能被出清；生產下拉不傳這旗標，停產品照樣不出現（停產就不該再生產）。
+function dinProdOptions(sel,inclInactiveStock){
   var byCust={};
-  DIN.products.forEach(function(p){if(p.is_active===false)return;(byCust[p.customer_name]=byCust[p.customer_name]||[]).push(p);});
+  DIN.products.forEach(function(p){
+    if(p.is_active===false){
+      if(!inclInactiveStock)return;
+      var s=dinStockOf(p.code);
+      if(!s||((s.stock_kg||0)===0&&(s.stock_bags||0)===0))return; // 停產且無餘貨 → 不列
+    }
+    (byCust[p.customer_name]=byCust[p.customer_name]||[]).push(p);
+  });
   var h='<option value="">-- Pilih Produk --</option>';
   Object.keys(byCust).forEach(function(c){
     h+='<optgroup label="'+esc(c)+'">';
-    byCust[c].slice().sort(prodCmp).forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.item_name)+'</option>';});
+    byCust[c].slice().sort(prodCmp).forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.item_name)+(p.is_active===false?' (nonaktif)':'')+'</option>';});
     h+='</optgroup>';
   });
   return h;
@@ -5890,10 +5899,14 @@ function sjaPartsFor(table){
   return['products','customers','production','delivery','stock','monthly'];
 }
 function sjaProd(code){for(var i=0;i<SJA.products.length;i++)if(SJA.products[i].code===code)return SJA.products[i];return null;}
-function sjaProdOptions(sel,cat){
+function sjaProdOptions(sel,cat,inclInactiveStock){
   var byCat={},order=[];
   SJA.products.forEach(function(p){
-    if(p.is_active===false)return;
+    if(p.is_active===false){
+      if(!inclInactiveStock)return;
+      var s=sjaStockOf(p.code);
+      if(!s||(s.stock_qty||0)===0)return; // 停產且無餘貨 → 不列
+    }
     var c=p.category||'Lainnya';
     if(cat&&c!==cat)return; // 只列選中的分類
     if(!byCat[c]){byCat[c]=[];order.push(c);}
@@ -5902,7 +5915,7 @@ function sjaProdOptions(sel,cat){
   var h='<option value="">-- Pilih Produk --</option>';
   order.forEach(function(c){
     h+='<optgroup label="'+esc(c)+'">';
-    byCat[c].slice().sort(prodCmp).forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.product_name)+'</option>';});
+    byCat[c].slice().sort(prodCmp).forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.product_name)+(p.is_active===false?' (nonaktif)':'')+'</option>';});
     h+='</optgroup>';
   });
   return h;
@@ -5928,7 +5941,7 @@ function sjaPickCat(prefix,cat){
   var chipEl=document.getElementById(prefix+'-catchips');
   if(chipEl)chipEl.outerHTML=sjaCatChipsHTML(prefix); // 重繪 chips（更新 act 高亮）
   var sel=document.getElementById(prefix+'-code');
-  if(sel){sel.innerHTML=sjaProdOptions('',cat);sel.value='';} // 下拉只剩該分類、清空選擇
+  if(sel){sel.innerHTML=sjaProdOptions('',cat,prefix==='sd');sel.value='';} // 下拉只剩該分類、清空選擇（出貨=sd 保留停產餘貨）
   if(prefix==='sp')sjaFillProd();else if(prefix==='sd')sjaFillDeliv();
 }
 // ── Box+Eceran 總計（生產/出貨共用）：總數 = 箱數×每箱件數 + 散件 ──
@@ -6217,7 +6230,8 @@ function dinStokHTML(){
     '<tr style="color:var(--ink2);text-align:left"><th style="padding:.3rem .4rem">Produk</th><th>Pelanggan</th><th style="text-align:right">Produksi KG</th><th style="text-align:right">Kirim KG</th><th style="text-align:right">Stok KG</th><th style="text-align:right">Stok Bags</th></tr>'+
     rows.map(function(s){
       var neg=(s.stock_kg||0)<0;
-      return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem"><b>'+esc(s.product_code)+'</b><br><span style="color:var(--muted);font-size:.7rem">'+esc(s.item_name||'')+'</span></td>'+
+      var inact=s.is_active===false; // 停產但仍有餘貨（視圖更新後才會出現）
+      return'<tr style="border-top:1px solid #F1F5F9'+(inact?';background:#F9FAFB':'')+'"><td style="padding:.35rem .4rem"><b>'+esc(s.product_code)+'</b>'+(inact?' <span style="font-size:.62rem;background:#E5E7EB;color:#6B7280;padding:.05rem .3rem;border-radius:5px;font-weight:700">nonaktif</span>':'')+'<br><span style="color:var(--muted);font-size:.7rem">'+esc(s.item_name||'')+'</span></td>'+
       '<td>'+esc(s.customer_name||'')+'</td>'+
       '<td style="text-align:right">'+fmtN(s.total_produced_kg)+'</td>'+
       '<td style="text-align:right">'+fmtN(s.total_delivered_kg)+'</td>'+
@@ -6312,6 +6326,13 @@ async function dinSaveProduct(){
   dinRefresh(['products','stock'],dinBody);
 }
 async function dinToggleProduct(code,activate){
+  // 停用前若還有餘貨先警告：停產不代表庫存歸零，餘貨仍需慢慢出清（會標 nonaktif 續留 Stok/出貨）
+  if(!activate){
+    var s=dinStockOf(code);
+    if(s&&((s.stock_kg||0)!==0||(s.stock_bags||0)!==0)){
+      if(!confirm('⚠ Produk "'+code+'" masih ada sisa stok ('+fmtN(s.stock_kg)+' kg). Nonaktifkan?\nSisa stok tetap bisa dikirim & muncul ditandai "nonaktif", tapi produk tak bisa diproduksi lagi.'))return;
+    }
+  }
   var r=await sb.from('din_products').update({is_active:activate}).eq('code',code);
   if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   dinRefresh(['products'],dinBody);
@@ -6475,7 +6496,8 @@ function sjaStokRows(q){
   if(!rows.length)return'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Tidak ada data</td></tr>';
   return rows.map(function(s){
     var neg=(s.stock_qty||0)<0;
-    return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem"><b>'+esc(s.product_code)+'</b><br><span style="color:var(--muted);font-size:.7rem">'+esc(s.product_name||'')+'</span></td>'+
+    var inact=s.is_active===false; // 停產但仍有餘貨（視圖更新後才會出現）
+    return'<tr style="border-top:1px solid #F1F5F9'+(inact?';background:#F9FAFB':'')+'"><td style="padding:.35rem .4rem"><b>'+esc(s.product_code)+'</b>'+(inact?' <span style="font-size:.62rem;background:#E5E7EB;color:#6B7280;padding:.05rem .3rem;border-radius:5px;font-weight:700">nonaktif</span>':'')+'<br><span style="color:var(--muted);font-size:.7rem">'+esc(s.product_name||'')+'</span></td>'+
     '<td style="text-align:right">'+fmtN(s.total_produced_qty)+'</td>'+
     '<td style="text-align:right">'+fmtN(s.total_delivered_qty)+'</td>'+
     '<td style="text-align:right;font-weight:700;color:'+(neg?'#DC2626':'#059669')+'">'+fmtN(s.stock_qty)+' '+esc(s.unit||'')+'</td></tr>';
@@ -6565,7 +6587,14 @@ async function sjaAddProduct(){
 }
 async function sjaToggleProduct(code){
   var p=sjaProd(code);if(!p)return;
-  var nv=p.is_active===false;
+  var nv=p.is_active===false; // 目標狀態：目前停用→啟用；目前啟用→停用
+  // 停用前若還有餘貨先警告（同 DIN）
+  if(!nv){
+    var s=sjaStockOf(code);
+    if(s&&(s.stock_qty||0)!==0){
+      if(!confirm('⚠ Produk "'+code+'" masih ada sisa stok ('+fmtN(s.stock_qty)+' '+(s.unit||'')+'). Nonaktifkan?\nSisa stok tetap bisa dikirim & muncul ditandai "nonaktif", tapi produk tak bisa diproduksi lagi.'))return;
+    }
+  }
   var r=await sb.from('sja_products').update({is_active:nv,updated_at:new Date().toISOString()}).eq('code',code);
   if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
   p.is_active=nv;
@@ -6694,7 +6723,7 @@ function renderShipment(){
       '<div style="font-weight:800;font-size:.95rem;color:'+WH_TEXT.DENIKIN+'">🚚 Pengiriman — DIN</div></div>';
     h+='<div class="card"><div class="card-title">📦 Kirim Baru</div>'+
     '<div class="ig"><label>Tanggal</label><input type="date" id="dd-date" value="'+today()+'"></div>'+
-    '<div class="ig"><label>Produk</label><select id="dd-code" onchange="dinFillDeliv()">'+dinProdOptions()+'</select>'+
+    '<div class="ig"><label>Produk</label><select id="dd-code" onchange="dinFillDeliv()">'+dinProdOptions('',true)+'</select>'+
     '<div id="dd-stok" style="font-size:.78rem;margin-top:.3rem"></div></div>'+
     '<div class="ig"><label>Lot No <span style="font-weight:400;color:var(--muted)">(boleh beberapa, pisah koma)</span></label><input id="dd-lot" placeholder="260530A-29,260531A-30"></div>'+
     '<div class="fr"><div class="ig"><label>Bags</label><input type="number" id="dd-bags" min="0" placeholder="0" oninput="dinDelivCalc()"></div>'+
@@ -6811,7 +6840,7 @@ function renderSjaShipment(){
     '<div class="ig"><label>Customer</label><select id="sd-cust">'+custOpts+'</select></div></div>'+
     '<div class="ig"><label>Produk</label>'+
     sjaCatChipsHTML('sd')+
-    '<select id="sd-code" onchange="sjaFillDeliv()">'+sjaProdOptions('',SJA_CAT.sd)+'</select>'+
+    '<select id="sd-code" onchange="sjaFillDeliv()">'+sjaProdOptions('',SJA_CAT.sd,true)+'</select>'+
     '<div id="sd-stok" style="font-size:.78rem;margin-top:.3rem"></div>'+
     '<div id="sd-fifo" style="margin-top:.3rem"></div></div>'+
     '<div class="fr"><div class="ig"><label>Box (kotak) <span id="sd-ctn-label" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sd-boxes" min="0" step="1" placeholder="0" oninput="sjaBoxTotal(\'sd\')"></div>'+

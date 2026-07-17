@@ -27,3 +27,4 @@
 | `MIGRATION_FAMMS_LINK.sql` | requests 表加 `source`/`famms_request_id`，供線③（叫料狀態回寫 FAMMS）追蹤來源 | ✅ 已執行（正式庫） |
 | `MIGRATION_STORAGE_LOCKDOWN.sql` | 撤掉 Storage `item-photos` bucket 的 anon DELETE/UPDATE 政策（原本任何人都能刪改別人上傳的商品照片） | ✅ 已執行（正式庫） |
 | `MIGRATION_PRODUCT_REFS.sql` | 新增 `product_refs` 表——供應商/產品知識庫（不綁倉庫、不算庫存），供「🗂️ Katalog Supplier」分頁關鍵字搜尋用 | ✅ 已執行（正式庫） |
+| `MIGRATION_STOCK_KEEP_INACTIVE.sql` | 重建 `din_stock_summary`/`sja_stock_summary` 視圖：保留「停產(is_active=false)但庫存≠0」的產品並回傳 `is_active`，讓停產餘貨仍可見、可出清（不再隱形） | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（前端已相容，未套用前行為同現況） |
