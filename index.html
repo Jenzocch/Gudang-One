@@ -1510,7 +1510,7 @@ function homeStockRowHTML(i){
       (meta.length?'<div style="font-size:.78rem;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem">'+meta.join(' · ')+'</div>':'')+
       (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
     '</div>'+
-    '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:var(--dark);font-weight:700;font-size:1rem">'+i.qty+'</span><span style="color:var(--muted);font-size:.74rem">/'+i.critical_qty+'</span><br><span style="color:var(--ink2);font-size:.76rem">'+esc(i.unit)+'</span></span>'+
+    '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:var(--dark);font-weight:700;font-size:1rem">'+i.qty+'</span><span style="color:var(--muted);font-size:.74rem">/'+i.critical_qty+'</span><br><span style="color:var(--ink2);font-size:.76rem">'+esc(i.unit)+'</span>'+(boxFmt(i.qty,i.pcs_per_ctn)?'<br><span style="color:var(--muted);font-size:.68rem">'+esc(boxFmt(i.qty,i.pcs_per_ctn).trim())+'</span>':'')+'</span>'+
     (i.supplier_url&&ratio<=1?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
   '</div>';
 }
@@ -1605,7 +1605,7 @@ function renderHome(){
           '<span style="font-size:.95rem;flex-shrink:0">'+(empty?'❌':'🟠')+'</span>'+
           '<div style="flex:1;min-width:0">'+
             '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+(empty?'var(--danger)':'var(--dark)')+'">'+esc(i.name)+'</div>'+
-            '<div style="font-size:.75rem;color:var(--danger);font-weight:700;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+'</div>'+
+            '<div style="font-size:.75rem;color:var(--danger);font-weight:700;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+esc(boxFmt(i.qty,i.pcs_per_ctn))+(i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+'</div>'+
           '</div>'+
           (i.supplier_url?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+('Beli')+'</a>':'')+
           (i.supplier_whatsapp?'<a href="'+esc(waLink(i.supplier_whatsapp))+'" target="_blank" rel="noopener noreferrer" title="WhatsApp" style="background:var(--ok);color:#fff;padding:.3rem .5rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">📱</a>':'')+
@@ -1928,11 +1928,19 @@ function matchesSearch(i,q){
 }
 // UX P1：口語化庫存行（領料/入庫列共用）。
 // Habis＝沒了（紅）；低於 critical_qty＝紅字＋hampir habis；其餘綠字。操作表單維持印尼文（見 Z() 註解），故不包 Z()。
+// pcs → 「幾箱(+零頭)」輔助顯示。存的永遠是 pcs（單一真相來源），這裡只是換算給人看，
+// 所以 pcs_per_ctn 之後改了也不會有資料歪掉的問題，顯示自動跟著新比例走。
+function boxFmt(qty,ppc){
+  ppc=Number(ppc)||0;qty=Number(qty)||0;
+  if(ppc<=0||qty<ppc)return'';
+  var b=Math.floor(qty/ppc),r=Math.round((qty-b*ppc)*100)/100;
+  return' ('+b+' box'+(r?' + '+r:'')+')';
+}
 function stokLineHTML(i){
   if(i.qty<=0)return'<div style="font-size:.85rem;margin-top:.15rem;color:#C22323;font-weight:800">Habis</div>';
   var low=i.critical_qty>0&&i.qty<=i.critical_qty;
   var col=low?'#C22323':'#0B7A55';
-  return'<div style="font-size:.85rem;color:var(--ink2);margin-top:.15rem">Sisa <b style="color:'+col+'">'+i.qty+'</b> '+esc(i.unit)+
+  return'<div style="font-size:.85rem;color:var(--ink2);margin-top:.15rem">Sisa <b style="color:'+col+'">'+i.qty+'</b> '+esc(i.unit)+esc(boxFmt(i.qty,i.pcs_per_ctn))+
     (low?'<span style="color:#C22323;font-weight:700"> · hampir habis</span>':'')+'</div>';
 }
 function ambRowHTML(i){
@@ -2508,6 +2516,15 @@ function mskBoxFill(variantId,boxInput){
   var target=document.getElementById('mq-'+variantId);if(!target)return;
   target.value=(parseFloat(boxInput.value)||0)*ppc;
   cSetM(variantId,target);
+}
+// 品項表單「最低庫存」的箱數計算框：讀表單當下的 f-ctn（還沒存檔也算得出來），
+// 換算成 pcs 填進 fm。存進 DB 的 critical_qty 永遠是 pcs。
+function fmBoxFill(inp){
+  var ctnEl=document.getElementById('f-ctn');
+  var ppc=(ctnEl&&Number(ctnEl.value))||0;
+  if(ppc<=0){toast('⚠ Isi dulu "Isi per Box/CTN" di atas');inp.value='';return;}
+  var target=document.getElementById('fm');if(!target)return;
+  target.value=(parseFloat(inp.value)||0)*ppc;
 }
 function onMskPersonChange(){
   var sel=document.getElementById('msk-p');
@@ -4228,7 +4245,8 @@ function itemFormHTML(item){
     '</div>'+
     '<div class="ig"><label>📐 Spesifikasi / Kemasan</label><input id="f-spec" type="text" value="'+(item&&item.spec?esc(item.spec):'')+'" placeholder="cth: 1 sak = 50 kg · 1 box = 100 pcs"></div>'+
     '<div class="ig"><label>📦 Isi per Box/CTN <span style="font-weight:400;color:var(--muted)">(opsional — aktifkan kalkulator box saat Masuk/Opname)</span></label><input id="f-ctn" type="number" min="0" value="'+(item&&item.pcs_per_ctn?item.pcs_per_ctn:'')+'" placeholder="cth: 12"></div>'+
-    '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0"></div>'+
+    '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0">'+
+      '<div style="font-size:.72rem;color:var(--ink2);margin-top:.25rem;display:flex;align-items:center;gap:.3rem">📦 <input type="number" inputmode="numeric" min="0" placeholder="box" onchange="fmBoxFill(this)" style="width:44px;font-size:.85rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.15rem 0"> box × Isi per Box/CTN = pcs otomatis</div></div>'+
     '<div class="ig"><label>'+('Foto Barang')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
         '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-cam\').click()">📷 '+('Kamera')+'</button>'+
@@ -5124,9 +5142,9 @@ function showLow(item,need){
   LOW_ITEM=item;
   var msg='<div style="font-size:1.1rem;font-weight:700;color:var(--dark);margin-bottom:.8rem">📦 '+esc(item.name)+'</div>'+
     '<div style="background:#FEF2F2;border-left:4px solid var(--danger);padding:1rem;border-radius:8px;margin-bottom:1rem;font-size:.95rem;line-height:1.6">'+
-      '<div><strong style="color:var(--danger)">Stok saat ini</strong>: '+item.qty+' '+esc(item.unit)+'</div>'+
-      '<div style="margin-top:.4rem"><strong style="color:var(--danger)">Stok minimum</strong>: '+item.critical_qty+' '+esc(item.unit)+'</div>'+
-      (need?'<div style="margin-top:.4rem"><strong style="color:#D97706">Perlu disiapkan</strong>: minimal '+need+' '+esc(item.unit)+'</div>':'')+
+      '<div><strong style="color:var(--danger)">Stok saat ini</strong>: '+item.qty+' '+esc(item.unit)+esc(boxFmt(item.qty,item.pcs_per_ctn))+'</div>'+
+      '<div style="margin-top:.4rem"><strong style="color:var(--danger)">Stok minimum</strong>: '+item.critical_qty+' '+esc(item.unit)+esc(boxFmt(item.critical_qty,item.pcs_per_ctn))+'</div>'+
+      (need?'<div style="margin-top:.4rem"><strong style="color:#D97706">Perlu disiapkan</strong>: minimal '+need+' '+esc(item.unit)+esc(boxFmt(need,item.pcs_per_ctn))+'</div>':'')+
     '</div>'+
     ((item.supplier_url||item.supplier_whatsapp)?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem">'+
       (item.supplier_url?'<div><strong style="color:#0369A1">Link beli</strong>:<br><a href="'+safeUrl(item.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'')+
