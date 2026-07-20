@@ -1429,15 +1429,15 @@ async function loadAll(afterCb,fromCache){
     if(afterCb)setTimeout(afterCb,0);
     setTimeout(checkLowStock,800);
     // 背景預熱本倉的生產資料，讓第一次點 Produksi / QC 不用等網路（ensure 內部有 *_LOADED 節流，重複呼叫安全）
-    setTimeout(function(){
+    idlePreload(function(){
       try{
         var canProd=(typeof canProduksi==='function'&&canProduksi())||IS_OFFICE;
         if(canProd&&CURRENT_WAREHOUSE==='DENIKIN'&&typeof dinEnsure==='function'&&!DIN_LOADED)dinEnsure(function(){},true);
         else if(canProd&&CURRENT_WAREHOUSE==='SJA'&&typeof sjaEnsure==='function'&&!SJA_LOADED)sjaEnsure(function(){},true);
       }catch(_){}
-    },1200);
+    },2000);
     // Preload gudang lain di background untuk switch cepat（函數內部自帶節流/新鮮度判斷）
-    setTimeout(function(){preloadAllWarehouses();},2500);
+    idlePreload(function(){preloadAllWarehouses();},4000);
   }catch(e){
     if(mySeq!==LOAD_SEQ)return; // 過期呼叫的失敗別蓋掉更新那次呼叫已經渲染好的畫面
     setDot('err');
@@ -5580,6 +5580,17 @@ function showWarehouseSelect(savedWh){
       '</button>';
     }).join('')+
     '</div>';
+}
+// 背景預載排程：等主執行緒 idle 才做（requestIdleCallback），並避開省流量/2G 網路。
+// 之前用固定 1.2/2.5 秒 timer，低階手機剛可操作時就被預載搶 CPU/流量；改成 idle + 網路感知，
+// timeoutMs 是「就算一直不 idle 也最遲多久要做」的上限。無 rIC 時退回 setTimeout。
+function idlePreload(fn,timeoutMs){
+  try{
+    var c=navigator.connection||navigator.webkitConnection||navigator.mozConnection;
+    if(c&&(c.saveData||/(^|-)2g$/.test(c.effectiveType||'')))return; // 省流量/2G：跳過背景預載
+  }catch(_){}
+  if(typeof requestIdleCallback==='function'){requestIdleCallback(function(){try{fn();}catch(_){}},{timeout:timeoutMs});}
+  else{setTimeout(function(){try{fn();}catch(_){}},timeoutMs);}
 }
 var PRELOAD_TS=0;
 function preloadAllWarehouses(){
