@@ -130,14 +130,24 @@ textarea{resize:vertical;min-height:75px}
 .sr:last-child{border:none}
 .sl{color:var(--ink2);font-size:.9rem}
 .sv{font-weight:600;font-size:.95rem}
-.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(16,24,40,.92);backdrop-filter:blur(8px);color:#fff;padding:.75rem 1.4rem;border-radius:18px;z-index:500;white-space:normal;max-width:88vw;width:max-content;text-align:center;line-height:1.45;font-size:.9rem;font-weight:500;box-shadow:var(--sh-lg);animation:toastIn .3s ease}
+.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(16,24,40,.92);backdrop-filter:blur(8px);color:#fff;padding:.75rem 1.4rem;border-radius:18px;z-index:500;white-space:normal;max-width:88vw;width:max-content;text-align:center;line-height:1.45;font-size:.9rem;font-weight:500;box-shadow:var(--sh-lg);animation:toastIn .3s cubic-bezier(.23,1,.32,1)}
 .toast-err{background:rgba(153,27,27,.95)}
 .toast-ok{background:rgba(6,95,70,.95)}
+.toast.out{animation:toastOut .18s cubic-bezier(.23,1,.32,1) forwards}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(-50%) translateY(0)}to{opacity:0;transform:translateX(-50%) translateY(16px)}}
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-end;justify-content:center}
 .modal-ov.open{display:flex}
-.modal{background:#fff;border-radius:22px 22px 0 0;padding:1.4rem;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;animation:mIn .25s ease;box-shadow:var(--sh-lg)}
+.modal-ov.closing{transition:background .18s cubic-bezier(.23,1,.32,1);background:rgba(0,0,0,0)}
+.modal-ov.closing .modal{transition:transform .18s cubic-bezier(.23,1,.32,1);transform:translateY(100%)}
+.modal{background:#fff;border-radius:22px 22px 0 0;padding:1.4rem;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;animation:mIn .25s cubic-bezier(.23,1,.32,1);box-shadow:var(--sh-lg)}
 @keyframes mIn{from{transform:translateY(100%)}to{transform:none}}
+@media (prefers-reduced-motion: reduce){
+  .toast,.modal{animation:none}
+  .toast.out{animation:none;transition:opacity .15s ease;opacity:0}
+  .modal-ov.closing,.modal-ov.closing .modal{transition:opacity .15s ease;transform:none}
+  .modal-ov.closing{opacity:0}
+}
 .modal-title{font-size:1.05rem;font-weight:700;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
 .mcl{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);min-width:44px;min-height:44px;display:grid;place-items:center;border-radius:8px}.mcl:active{background:var(--light)}
 .tab-nav{display:flex;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:10;overflow-x:auto}
@@ -1235,7 +1245,7 @@ function flattenItems(ivData){
     var itm=v.items||{};
     return{
       id:v.item_id,variant_id:v.id,
-      name:itm.name||'?',code:itm.code,spec:itm.spec,description:itm.description,
+      name:itm.name||'?',code:itm.code,spec:itm.spec,pcs_per_ctn:itm.pcs_per_ctn,description:itm.description,
       image_url:itm.image_url,supplier_name:itm.supplier_name,supplier_url:itm.supplier_url,supplier_whatsapp:itm.supplier_whatsapp,
       unit:itm.unit,storage_condition:itm.storage_condition,coa_url:itm.coa_url,tags:itm.tags,
       remark:itm.remark,production_date:itm.production_date,expiry_date:itm.expiry_date,
@@ -2386,6 +2396,7 @@ function maskRowHTML(i){
     '<div class="amb-info">'+th+'<div style="min-width:0">'+
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+jsq(i.storage_photo_url)+'\',\''+jsq(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--p);padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+' </div>'+
     stokLineHTML(i)+
+    (i.pcs_per_ctn?'<div style="font-size:.72rem;color:var(--ink2);margin-top:.15rem;display:flex;align-items:center;gap:.3rem">📦 <input type="number" inputmode="numeric" min="0" placeholder="box" onclick="event.stopPropagation()" onchange="mskBoxFill(\''+esc(i.variant_id)+'\',this)" style="width:44px;font-size:.85rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.15rem 0"> box × '+esc(String(i.pcs_per_ctn))+' = isi pcs otomatis</div>':'')+
     '</div></div>'+
     '<div class="qc" style="width:160px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',-1)">−</button>'+
@@ -2488,6 +2499,15 @@ function cSetM(variantId,inp){
   var cur=CART_M[variantId]?CART_M[variantId].qty:0;
   var nv=Math.max(0,parseFloat(inp.value)||0);
   applyCartM(variantId,nv,cur===0&&nv>0);
+}
+// Isi "box" → kalikan pcs_per_ctn, tulis ke input qty pcs lalu commit lewat cSetM (jalur yang sama
+// dengan ketik manual) — supaya cart/total/tombol semua ikut update tanpa duplikasi logic.
+function mskBoxFill(variantId,boxInput){
+  var item=DATA.items.find(function(i){return i.variant_id==variantId;});
+  var ppc=(item&&item.pcs_per_ctn)||0;if(ppc<=0)return;
+  var target=document.getElementById('mq-'+variantId);if(!target)return;
+  target.value=(parseFloat(boxInput.value)||0)*ppc;
+  cSetM(variantId,target);
 }
 function onMskPersonChange(){
   var sel=document.getElementById('msk-p');
@@ -3956,6 +3976,7 @@ function stkItemRow(i){
     '<div style="flex:1;min-width:0">'+
       '<div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
       (i.code?'<div style="font-size:.7rem;color:var(--s);font-weight:700">🏷️ '+esc(i.code)+'</div>':'')+
+      (i.pcs_per_ctn?'<div style="font-size:.7rem;color:var(--ink2);margin-top:.1rem;display:flex;align-items:center;gap:.25rem">📦 <input type="number" min="0" placeholder="box" onchange="stkBoxFill(\''+esc(i.variant_id)+'\',this)" style="width:38px;font-size:.75rem;text-align:center;border:1px solid var(--border);border-radius:5px;padding:.1rem 0"> ×'+esc(String(i.pcs_per_ctn))+'</div>':'')+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
       '<span style="font-size:.75rem;color:var(--muted)" id="stk-orig-'+esc(i.variant_id)+'">'+('Sebelum')+':'+i.qty+'</span>'+
@@ -4027,6 +4048,13 @@ function onStkChange(variantId,inp){
   var n=Object.keys(STOCKTAKE).length;
   var btn=document.getElementById('stk-save-btn');
   if(btn){btn.disabled=n===0;btn.textContent=n?'✓ '+('Simpan ('+n+' perubahan)'):('✓ Simpan (belum ada perubahan)');}
+}
+function stkBoxFill(variantId,boxInput){
+  var item=DATA.items.find(function(i){return i.variant_id==variantId;});
+  var ppc=(item&&item.pcs_per_ctn)||0;if(ppc<=0)return;
+  var target=document.getElementById('sq-'+variantId);if(!target)return;
+  target.value=(parseFloat(boxInput.value)||0)*ppc;
+  onStkChange(variantId,target);
 }
 async function saveStocktake(){
   if(!canOpname()){toast('⚠ Tidak ada akses Opname');return;}
@@ -4103,7 +4131,13 @@ function showModal(title,body){
   ov.addEventListener('click',function(e){if(e.target===ov)closeModal();});
   armHist();
 }
-function closeModal(){stopQrCamera();var o=document.getElementById('m-ov');if(o)o.remove();}
+function closeModal(){
+  stopQrCamera();
+  var o=document.getElementById('m-ov');if(!o)return;
+  o.removeAttribute('id'); // 讓下一個 modal 立刻能用 m-ov id，不用等這層淡出完
+  o.classList.add('closing');
+  setTimeout(function(){if(o.parentNode)o.parentNode.removeChild(o);},180);
+}
 // ── Android 返回鍵：有彈窗先關彈窗，不要直接退出 App ──
 // 開任何覆蓋層時押一層 history state（最多一層，不堆疊）；
 // 按返回 → popstate → 關最上層覆蓋層；底下還有覆蓋層就再押一層。
@@ -4193,6 +4227,7 @@ function itemFormHTML(item){
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
     '</div>'+
     '<div class="ig"><label>📐 Spesifikasi / Kemasan</label><input id="f-spec" type="text" value="'+(item&&item.spec?esc(item.spec):'')+'" placeholder="cth: 1 sak = 50 kg · 1 box = 100 pcs"></div>'+
+    '<div class="ig"><label>📦 Isi per Box/CTN <span style="font-weight:400;color:var(--muted)">(opsional — aktifkan kalkulator box saat Masuk/Opname)</span></label><input id="f-ctn" type="number" min="0" value="'+(item&&item.pcs_per_ctn?item.pcs_per_ctn:'')+'" placeholder="cth: 12"></div>'+
     '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0"></div>'+
     '<div class="ig"><label>'+('Foto Barang')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
@@ -4404,6 +4439,7 @@ function collectItemForm(name){
     name:name,
     code:(document.getElementById('fc')?document.getElementById('fc').value:'').trim(),
     spec:(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim(),
+    ctn:(document.getElementById('f-ctn')&&document.getElementById('f-ctn').value!==''?(Number(document.getElementById('f-ctn').value)||null):null),
     qty:Math.max(0,parseInt(document.getElementById('fq').value)||0),
     unit:(document.getElementById('fu').value||'pcs').trim(),
     min:Math.max(0,parseInt(document.getElementById('fm').value)||10),
@@ -4438,7 +4474,7 @@ async function savePendingVariant(){
 async function savePendingNew(){
   if(!PENDING_ITEM)return;var p=PENDING_ITEM;PENDING_ITEM=null;
   try{
-    var ins=await sbInsertSafe('items',{name:p.name,code:p.code||null,spec:p.spec||null,image_url:p.img,unit:p.unit,production_date:p.pd||null,expiry_date:p.ed||null,remark:p.rm||null,supplier_url:p.supUrl||null,supplier_name:p.supName||null,description:p.priceNote||null});
+    var ins=await sbInsertSafe('items',{name:p.name,code:p.code||null,spec:p.spec||null,pcs_per_ctn:p.ctn||null,image_url:p.img,unit:p.unit,production_date:p.pd||null,expiry_date:p.ed||null,remark:p.rm||null,supplier_url:p.supUrl||null,supplier_name:p.supName||null,description:p.priceNote||null});
     if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
     var vins=await sbInsertSafe('item_variants',{item_id:ins.data[0].id,warehouse_id:p.warehouse,qty:p.qty,critical_qty:p.min,storage_photo_url:p.sp});
     if(vins.error)throw vins.error;
@@ -4515,6 +4551,8 @@ async function saveItem(){
   }
   var code=(document.getElementById('fc')?document.getElementById('fc').value:'').trim();
   var spec=(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim();
+  var ctnEl=document.getElementById('f-ctn');
+  var pcsPerCtn=ctnEl&&ctnEl.value!==''?(Number(ctnEl.value)||null):null;
   var qty=Math.max(0,parseInt(document.getElementById('fq').value)||0);
   var unit=(document.getElementById('fu').value||'pcs').trim();
   var min=Math.max(0,parseInt(document.getElementById('fm').value)||10);
@@ -4535,7 +4573,7 @@ async function saveItem(){
   try{
     if(EDIT_ITEM){
       // 編輯：改 items 表（共享信息）+ item_variants 表（倉庫特定）
-      var u1=await sbUpdateSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
+      var u1=await sbUpdateSafe('items',{name:name,code:code||null,spec:spec||null,pcs_per_ctn:pcsPerCtn,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
       if(u1.error)throw u1.error;
       // qty cuma dikirim kalau memang diubah di form — kalau admin tidak sentuh field qty,
       // jangan timpa stok yang mungkin sudah berubah (ambil/masuk staf lain) sejak form dibuka.
@@ -4545,7 +4583,7 @@ async function saveItem(){
       if(u2.error)throw u2.error;
     }else{
       // 新增：targetWh 已在函式開頭解析（倉庫優先流程），這裡直接用
-      var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null,supplier_url:supUrl,supplier_name:supName,description:priceNote});
+      var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,pcs_per_ctn:pcsPerCtn,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null,supplier_url:supUrl,supplier_name:supName,description:priceNote});
       if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
       var itemId=ins.data[0].id;
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
@@ -5605,6 +5643,7 @@ function preloadAllWarehouses(){
             name:itm.name||'?',
             code:itm.code,
             spec:itm.spec,
+            pcs_per_ctn:itm.pcs_per_ctn,
             description:itm.description,
             image_url:itm.image_url,
             supplier_name:itm.supplier_name,
@@ -5769,15 +5808,24 @@ function toast(msg,dur){
   var t=document.createElement('div');
   t.className='toast'+(isErr?' toast-err':isOk?' toast-ok':'');
   t.textContent=msg;document.body.appendChild(t);
-  setTimeout(function(){t.remove();},dur||(isErr?6000:2800)); // 錯誤停久一點，來得及讀
+  setTimeout(function(){
+    t.classList.add('out');
+    setTimeout(function(){t.remove();},180);
+  },dur||(isErr?6000:2800)); // 錯誤停久一點，來得及讀
 }
 // Tappable toast with an action (dipakai pemberitahuan update Service Worker)
 function showToast(msg,actionLabel,cb){
   var el=document.createElement('div');el.className='toast';el.style.cursor='pointer';
   el.innerHTML=esc(msg)+(actionLabel?' <span style="text-decoration:underline;font-weight:700;margin-left:.4rem">'+esc(actionLabel)+'</span>':'');
-  el.onclick=function(){if(cb)cb();el.remove();};
+  var dismissed=false;
+  function dismiss(){
+    if(dismissed)return;dismissed=true;
+    el.classList.add('out');
+    setTimeout(function(){el.remove();},180);
+  }
+  el.onclick=function(){if(cb)cb();dismiss();};
   document.body.appendChild(el);
-  setTimeout(function(){if(el.parentNode)el.remove();},8000);
+  setTimeout(dismiss,8000);
 }
 // ═══════════════════════════════════════════════════════════
 // PRODUKSI & PENGIRIMAN — 每家公司有自己的生產模組
