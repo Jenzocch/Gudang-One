@@ -5117,9 +5117,9 @@ async function confirmApproveReqBuy(id){
   }catch(e){toast('⚠ '+friendlyErr(e));var _b2=document.getElementById('arq-confirm-btn');if(_b2){_b2.disabled=false;_b2.textContent='✓ Masuk ke Stok';}}
 }
 
-// HARDWARE（五金原料）倉的低庫存「主動警示」只給 Admin：叫貨是 Admin 的事，
+// 低庫存「主動警示」（彈窗/瀏覽器通知/提示音）一律只給 Admin：叫貨是 Admin 的事，
 // 一般員工看到彈窗也做不了什麼，只是被打斷。首頁 Perlu Beli 清單不受影響（被動顯示）。
-function lowAlertAllowed(){return CURRENT_WAREHOUSE!=='HARDWARE'||IS_ADMIN;}
+function lowAlertAllowed(){return IS_ADMIN;}
 // LOW STOCK — 依 ALERT_CFG 決定要不要彈窗（off=不彈 / daily=每天一次 / always=每次）
 function checkLowStock(){
   if(ALERT_CFG.mode==='off')return;
