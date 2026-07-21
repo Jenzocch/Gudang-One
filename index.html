@@ -6901,7 +6901,7 @@ function renderShipment(){
     '<div class="ig"><label>Tanggal</label><input type="date" id="dd-date" value="'+today()+'"></div>'+
     '<div class="ig"><label>Produk</label><select id="dd-code" onchange="dinFillDeliv()">'+dinProdOptions('',true)+'</select>'+
     '<div id="dd-stok" style="font-size:.78rem;margin-top:.3rem"></div></div>'+
-    '<div class="ig"><label>Lot No <span style="font-weight:400;color:var(--muted)">(boleh beberapa, pisah koma)</span></label><input id="dd-lot" placeholder="260530A-29,260531A-30"></div>'+
+    '<div class="ig"><label>Lot No <span style="font-weight:400;color:var(--muted)">(boleh beberapa, pisah koma)</span></label><input id="dd-lot" placeholder="260530A-29,260531A-30" oninput="dinLotQcHint()"><div id="dd-lot-qc" style="margin-top:.25rem"></div></div>'+
     '<div class="fr"><div class="ig"><label>Bags</label><input type="number" id="dd-bags" min="0" placeholder="0" oninput="dinDelivCalc()"></div>'+
     '<div class="ig"><label>CTN</label><input type="number" id="dd-ctn" min="0" placeholder="0"></div>'+
     '<div class="ig"><label>KG</label><input type="number" id="dd-kg" min="0" step="0.1" placeholder="0"></div></div>'+
@@ -6948,6 +6948,32 @@ function dinFillDeliv(){
   if(lots.length)document.getElementById('dd-lot').placeholder=lots.slice(0,2).join(',');
   dinDelivCalc();
 }
+// ── DIN 出貨 QC 閘門：批號 → 對應生產批的 qc_status（FQMS 回寫）──
+// 回傳 {status:'Pass'|'Hold'|'Fail'|'Pending'|null, insp} — null=查無該批（也視為未檢驗）
+function dinLotQc(lot){
+  lot=(lot||'').trim();if(!lot)return{status:null,insp:''};
+  var worst=null,insp='';
+  var RANK={Fail:4,Hold:3,Pending:2,Pass:1}; // 同批號多筆時取最嚴重的
+  (DIN.production||[]).forEach(function(r){
+    if(r.lot_no!==lot&&r.batch_no!==lot)return;
+    var st=r.qc_status||'Pending';
+    if(!worst||((RANK[st]||0)>(RANK[worst]||0))){worst=st;insp=r.qc_inspection_no||'';}
+  });
+  return{status:worst,insp:insp};
+}
+function dinLotQcBadge(lot){
+  var q=dinLotQc(lot);
+  if(q.status==='Pass')return'<span style="color:#059669;font-weight:700">🟢 '+esc(lot)+' QC lolos</span>';
+  if(q.status==='Hold'||q.status==='Fail')return'<span style="color:#DC2626;font-weight:700">🔴 '+esc(lot)+' QC '+esc(q.status)+' — tidak boleh dikirim'+(q.insp?' ('+esc(q.insp)+')':'')+'</span>';
+  return'<span style="color:#D97706;font-weight:700">🟡 '+esc(lot)+' belum diperiksa QC</span>';
+}
+function dinLotQcHint(){
+  var el=document.getElementById('dd-lot-qc');if(!el)return;
+  var raw=(document.getElementById('dd-lot').value||'').trim();
+  if(!raw){el.innerHTML='';return;}
+  el.innerHTML='<div style="font-size:.74rem;display:flex;flex-direction:column;gap:.1rem">'+
+    raw.split(',').map(function(l){return l.trim();}).filter(Boolean).map(dinLotQcBadge).join('')+'</div>';
+}
 function dinDelivCalc(){
   var p=dinProd(document.getElementById('dd-code').value);if(!p)return;
   var bags=Number(document.getElementById('dd-bags').value)||0;
@@ -6973,6 +6999,15 @@ async function dinSaveDelivery(){
   var stKg=s?(s.stock_kg||0):0,stBags=s?(s.stock_bags||0):0;
   var over=(kg>0&&kg>stKg)||(kg<=0&&bags>0&&bags>stBags);
   if(over&&!confirm('⚠ Stok hanya '+fmtN(stKg)+' kg / '+fmtN(stBags)+' bags, kirim '+(kg>0?fmtN(kg)+' kg':fmtN(bags)+' bags')+'?\nLanjut simpan?'))return;
+  // QC 閘門：批號對到 Hold/Fail 的生產批 → 硬擋（食安）；未檢驗＝軟警示（上面 hint 已顯示 🟡）
+  var lotsIn=(document.getElementById('dd-lot').value||'').split(',').map(function(l){return l.trim();}).filter(Boolean);
+  for(var li=0;li<lotsIn.length;li++){
+    var lq=dinLotQc(lotsIn[li]);
+    if(lq.status==='Hold'||lq.status==='Fail'){
+      toast('⛔ Batch '+lotsIn[li]+' QC '+lq.status+' — tidak boleh dikirim!'+(lq.insp?' Cek '+lq.insp:''));
+      return;
+    }
+  }
   var btn=document.getElementById('dd-save');btn.disabled=true;
   var r=await sb.from('din_delivery').insert({
     date:document.getElementById('dd-date').value||today(),
@@ -7076,13 +7111,15 @@ function sjaFifoCompute(prods,dels){
   (prods||[]).forEach(function(p){
     var q=Number(p.qty)||0;var consumed=Math.min(q,rem);rem-=consumed;
     var remaining=q-consumed;
-    if(remaining>0.0001)out.push({lot:p.batch_lot_no||('['+String(p.date||'').slice(5)+']'),date:p.date,remaining:remaining});
+    // qc/insp：FQMS 回寫的成品 QC 狀態（qc_status 欄位還沒 migrate 時是 undefined＝未檢驗）
+    if(remaining>0.0001)out.push({lot:p.batch_lot_no||('['+String(p.date||'').slice(5)+']'),date:p.date,remaining:remaining,qc:p.qc_status||null,insp:p.qc_inspection_no||''});
   });
   return out; // FIFO 順序，只列還有剩的批次
 }
 function sjaFifoAllocate(batches,need){
   var alloc=[],rem=need;
   for(var i=0;i<batches.length&&rem>0.0001;i++){
+    if(batches[i].qc==='Hold'||batches[i].qc==='Fail')continue; // QC 暫扣批跳過，不分配出貨
     var take=Math.min(batches[i].remaining,rem);
     alloc.push({lot:batches[i].lot,take:take});rem-=take;
   }
@@ -7094,12 +7131,20 @@ async function sjaLoadFifo(code){
   SJA_FIFO={code:code,batches:[]};
   if(box)box.innerHTML='<span style="color:var(--muted);font-size:.74rem">⏳ Cek batch…</span>';
   try{
-    var pr=await sb.from('sja_production').select('date,qty,batch_lot_no,created_at').eq('product_code',code).order('date').order('created_at');
+    var pr=await sb.from('sja_production').select('date,qty,batch_lot_no,created_at,qc_status,qc_inspection_no').eq('product_code',code).order('date').order('created_at');
+    if(pr.error){ // qc 欄位 migration 還沒跑 → 降級回舊欄位，FIFO 照常運作（全部視為未檢驗）
+      pr=await sb.from('sja_production').select('date,qty,batch_lot_no,created_at').eq('product_code',code).order('date').order('created_at');
+    }
     var dl=await sb.from('sja_delivery').select('qty').eq('product_code',code);
     if(SJA_FIFO.code!==code)return; // 使用者已切別的產品
     SJA_FIFO.batches=sjaFifoCompute(pr.data||[],dl.data||[]);
     renderSjaFifo();
   }catch(e){if(box)box.innerHTML='';}
+}
+function sjaQcBadge(b){
+  if(b.qc==='Pass')return' <span style="color:#059669">🟢</span>';
+  if(b.qc==='Hold'||b.qc==='Fail')return' <span style="color:#DC2626;font-weight:700">🔴 QC '+esc(b.qc)+(b.insp?' ('+esc(b.insp)+')':'')+'</span>';
+  return' <span style="color:#D97706">🟡</span>'; // Pending / 未檢驗
 }
 function renderSjaFifo(){
   var box=document.getElementById('sd-fifo');if(!box)return;
@@ -7110,14 +7155,15 @@ function renderSjaFifo(){
   var need=boxes*((p&&p.pcs_per_ctn)||0)+units;
   var al=sjaFifoAllocate(batches,need);
   var rows=batches.map(function(b){
-    var a=need>0?al.alloc.find(function(x){return x.lot===b.lot;}):null;
-    return '<div style="display:flex;justify-content:space-between;font-size:.74rem;padding:.1rem 0">'+
-      '<span>'+esc(b.lot)+'</span>'+
-      '<span style="color:var(--muted)">sisa '+fmtN(b.remaining)+' '+esc(u)+(a?' <b style="color:#DC2626">−'+fmtN(a.take)+'</b>':'')+'</span></div>';
+    var held=b.qc==='Hold'||b.qc==='Fail';
+    var a=(need>0&&!held)?al.alloc.find(function(x){return x.lot===b.lot;}):null;
+    return '<div style="display:flex;justify-content:space-between;font-size:.74rem;padding:.1rem 0'+(held?';opacity:.75':'')+'">'+
+      '<span'+(held?' style="text-decoration:line-through"':'')+'>'+esc(b.lot)+'</span>'+
+      '<span style="color:var(--muted)">sisa '+fmtN(b.remaining)+' '+esc(u)+sjaQcBadge(b)+(a?' <b style="color:#DC2626">−'+fmtN(a.take)+'</b>':'')+'</span></div>';
   }).join('');
   box.innerHTML='<div style="background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:.4rem .6rem">'+
-    '<div style="font-size:.72rem;font-weight:700;color:var(--ink2);margin-bottom:.15rem">📦 Batch FIFO (keluar dari lama dulu)</div>'+rows+
-    (need>0&&al.short>0?'<div style="font-size:.72rem;color:#DC2626;margin-top:.15rem">⚠ Kurang '+fmtN(al.short)+' '+esc(u)+' dari batch</div>':'')+'</div>';
+    '<div style="font-size:.72rem;font-weight:700;color:var(--ink2);margin-bottom:.15rem">📦 Batch FIFO (keluar dari lama dulu) · 🟢 lolos 🟡 belum QC 🔴 ditahan</div>'+rows+
+    (need>0&&al.short>0?'<div style="font-size:.72rem;color:#DC2626;margin-top:.15rem">⚠ Kurang '+fmtN(al.short)+' '+esc(u)+' dari batch yang boleh dikirim</div>':'')+'</div>';
 }
 async function sjaSaveDelivery(){
   var code=document.getElementById('sd-code').value;
@@ -7134,11 +7180,19 @@ async function sjaSaveDelivery(){
   var s=sjaStockOf(code);
   var stok=s?(s.stock_qty||0):0; // 沒有庫存記錄 = 0，一樣要警告
   if(totalQty>stok&&!confirm('⚠ Stok hanya '+fmtN(stok)+', kirim '+fmtN(totalQty)+'?\nLanjut simpan?'))return;
-  // 批號：手填優先；沒填就自動帶 FIFO 分配到的批次（最早批次先出）
+  // 批號：手填優先；沒填就自動帶 FIFO 分配到的批次（最早批次先出，QC Hold 批已被跳過）
   var manualBatch=document.getElementById('sd-batch').value.trim();
   var autoBatch='';
   if(!manualBatch&&SJA_FIFO.code===code&&SJA_FIFO.batches.length){
     autoBatch=sjaFifoAllocate(SJA_FIFO.batches,totalQty).alloc.map(function(x){return x.lot;}).join(', ');
+  }
+  // QC 閘門：手填批號對到 Hold/Fail 批 → 硬擋（自動分配已排除，這裡擋的是人工指定）
+  if(manualBatch&&SJA_FIFO.code===code){
+    var heldHit=null;
+    manualBatch.split(',').map(function(l){return l.trim();}).filter(Boolean).forEach(function(l){
+      SJA_FIFO.batches.forEach(function(b){if(b.lot===l&&(b.qc==='Hold'||b.qc==='Fail')&&!heldHit)heldHit=b;});
+    });
+    if(heldHit){toast('⛔ Batch '+heldHit.lot+' QC '+heldHit.qc+' — tidak boleh dikirim!'+(heldHit.insp?' Cek '+heldHit.insp:''));return;}
   }
   var btn=document.getElementById('sd-save');btn.disabled=true;
   var r=await sb.from('sja_delivery').insert({
